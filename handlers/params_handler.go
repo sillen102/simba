@@ -13,20 +13,21 @@ import (
 //
 //	Define a handler function that returns a ParamsHandler:
 //
-//	func MyHandler() handlers.ParamsHandler[RequestBody, Params] {
-//		return func(ctx context.Context, req *simba.Request[RequestBody], params Params) (*simba.Response, error) {
-//
+//	func MyParamsHandler() handlers.ParamsHandler[RequestBody, Params] {
+//		return handlers.ParamsHandler[RequestBody, Params](func(ctx context.Context, req *simba.Request[RequestBody], params Params) (*simba.Response, error) {
 //			return &simba.Response{
 //				Body:   map[string]string{"message": "success"},
 //				Status: http.StatusOK,
 //			}, nil
-//		}
+//		})
 //	}
 //
-//	Register the handler: router.GET("/test/{id}", simba.Handle[RequestBody, Params](MyHandler()))
+// Register the handler:
+//
+//	router.GET("/test/:id", MyHandler())
 type ParamsHandler[RequestBody any, Params any] func(ctx context.Context, req *simba.Request[RequestBody], params Params) (*simba.Response, error)
 
-func (h ParamsHandler[RequestBody, Params]) Handle(w http.ResponseWriter, r *http.Request) {
+func (h ParamsHandler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Decode request body and params
 	var reqBody RequestBody
 	var params Params
