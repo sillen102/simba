@@ -17,26 +17,24 @@ func TestParamsHandler_Handle(t *testing.T) {
 
 	t.Run("successful params handler", func(t *testing.T) {
 
-		handler := simba.Handle[RequestBody, Params](
-			handlers.ParamsHandler[RequestBody, Params](func(ctx context.Context, req *simba.Request[RequestBody], params Params) (*simba.Response, error) {
-				assert.Equal(t, "test", req.Body.Test)
-				assert.Equal(t, int64(1), params.Page)
-				assert.Equal(t, int64(10), params.Size)
-				assert.Equal(t, "world", params.Name)
+		handler := handlers.ParamsHandler[RequestBody, Params](func(ctx context.Context, req *simba.Request[RequestBody], params Params) (*simba.Response, error) {
+			assert.Equal(t, "test", req.Body.Test)
+			assert.Equal(t, int64(1), params.Page)
+			assert.Equal(t, int64(10), params.Size)
+			assert.Equal(t, "world", params.Name)
 
-				return &simba.Response{
-					Body:   map[string]string{"message": "success"},
-					Status: http.StatusOK,
-				}, nil
-			}),
-		)
+			return &simba.Response{
+				Body:   map[string]string{"message": "success"},
+				Status: http.StatusOK,
+			}, nil
+		})
 
 		body := strings.NewReader(`{"test": "test"}`)
 		req := httptest.NewRequest(http.MethodGet, "/test/hello?name=world", body)
 		w := httptest.NewRecorder()
 
 		router := simba.NewRouter()
-		router.GET("/test/{id}", handler)
+		router.GET("/test/:id", handler)
 
 		router.ServeHTTP(w, req)
 
