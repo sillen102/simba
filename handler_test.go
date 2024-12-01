@@ -22,7 +22,7 @@ func TestHandler(t *testing.T) {
 			assert.Equal(t, "John", req.Params.Name)
 			assert.Equal(t, 1, req.Params.ID)
 			assert.Equal(t, true, req.Params.Active)
-			assert.Equal(t, int64(1), req.Params.Page)
+			assert.Equal(t, int64(0), req.Params.Page)
 			assert.Equal(t, int64(10), req.Params.Size)
 
 			assert.Equal(t, "test", req.Body.Test)
@@ -36,7 +36,7 @@ func TestHandler(t *testing.T) {
 		}
 
 		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", body)
+		req := httptest.NewRequest(http.MethodPost, "/test/1?page=0&size=10&active=true", body)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
@@ -138,5 +138,27 @@ func TestHandler(t *testing.T) {
 
 		cookie := w.Result().Cookies()[0].Value
 		assert.Equal(t, "cookie-value", cookie)
+	})
+
+	t.Run("wrong method, expect 405", func(t *testing.T) {
+		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, simba.NoParams]) (*simba.Response, error) {
+			return &simba.Response{
+				Headers: map[string][]string{"My-Header": {"header-value"}},
+				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
+				Status:  http.StatusNoContent,
+			}, nil
+		}
+
+		body := strings.NewReader(`{"test": "test"}`)
+		req := httptest.NewRequest(http.MethodGet, "/test/1?page=1&size=10&active=true", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router := simba.NewRouter()
+		router.POST("/test/:id", simba.HandlerFunc(handler))
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
 }

@@ -10,6 +10,6 @@ type Params struct {
 	Name   string `header:"name" validate:"required"`
 	ID     int    `path:"id" validate:"required"`
 	Active bool   `query:"active" validate:"required"`
-	Page   int64  `query:"page" validate:"required"`
-	Size   int64  `query:"size" validate:"required"`
+	Page   int64  `query:"page" validate:"min=0"`
+	Size   int64  `query:"size" validate:"min=0"`
 }
