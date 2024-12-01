@@ -1,4 +1,4 @@
-package handlers_test
+package simba_test
 
 import (
 	"context"
@@ -8,8 +8,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/handlers"
-	"github.com/sillen102/simba/internal/test/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestParamsHandler_Handle(t *testing.T) {
@@ -17,8 +16,9 @@ func TestParamsHandler_Handle(t *testing.T) {
 
 	t.Run("successful params handler", func(t *testing.T) {
 
-		handler := handlers.ParamsHandler[RequestBody, Params](func(ctx context.Context, req *simba.Request[RequestBody], params Params) (*simba.Response, error) {
+		handler := simba.ParamsHandler[RequestBody, Params](func(ctx context.Context, req *simba.Request[RequestBody], params Params) (*simba.Response, error) {
 			assert.Equal(t, "test", req.Body.Test)
+			assert.Equal(t, "hello", params.ID)
 			assert.Equal(t, int64(1), params.Page)
 			assert.Equal(t, int64(10), params.Size)
 			assert.Equal(t, "world", params.Name)

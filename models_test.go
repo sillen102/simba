@@ -1,4 +1,4 @@
-package handlers_test
+package simba_test
 
 // RequestBody is a test struct for request body
 type RequestBody struct {

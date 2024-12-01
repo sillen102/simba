@@ -1,4 +1,4 @@
-package handlers_test
+package simba_test
 
 import (
 	"context"
@@ -8,8 +8,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/handlers"
-	"github.com/sillen102/simba/internal/test/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestBaseHandler_Handle(t *testing.T) {
@@ -17,7 +16,7 @@ func TestBaseHandler_Handle(t *testing.T) {
 
 	t.Run("successful basic handler", func(t *testing.T) {
 
-		handler := handlers.BaseHandler[RequestBody](func(ctx context.Context, req *simba.Request[RequestBody]) (*simba.Response, error) {
+		handler := simba.BaseHandler[RequestBody](func(ctx context.Context, req *simba.Request[RequestBody]) (*simba.Response, error) {
 			assert.Equal(t, "test", req.Body.Test)
 
 			return &simba.Response{
