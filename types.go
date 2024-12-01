@@ -2,11 +2,13 @@ package simba
 
 import (
 	"net/http"
+
+	"github.com/uptrace/bunrouter"
 )
 
-// Handler represents a HTTP handler all handler types must implement this interface
-type Handler[RequestBody any, Params any] interface {
-	Handle(w http.ResponseWriter, r *http.Request)
+// Handler is an interface that all handlers must implement
+type Handler interface {
+	ServeHTTP(w http.ResponseWriter, r bunrouter.Request) error
 }
 
 // Request represents a HTTP request

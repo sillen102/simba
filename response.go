@@ -1,16 +1,16 @@
-package handlers
+package simba
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/sillen102/simba"
+	"github.com/uptrace/bunrouter"
 )
 
 // writeResponse writes the response to the client
-func writeResponse(w http.ResponseWriter, r *http.Request, resp *simba.Response, err error) {
+func writeResponse(w http.ResponseWriter, r bunrouter.Request, resp *Response, err error) {
 	if err != nil {
-		simba.HandleError(w, r, err)
+		HandleError(w, r, err)
 		return
 	}
 
@@ -33,7 +33,7 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp *simba.Response,
 		return
 	}
 
-	if _, ok := resp.Body.(simba.NoBody); ok {
+	if _, ok := resp.Body.(NoBody); ok {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
