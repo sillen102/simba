@@ -7,8 +7,9 @@ type RequestBody struct {
 
 // Params is a test struct for request params
 type Params struct {
-	Name string `header:"name" validate:"required"`
-	ID   int    `path:"id" validate:"required"`
-	Page int64  `query:"page" validate:"required"`
-	Size int64  `query:"size" validate:"required"`
+	Name   string `header:"name" validate:"required"`
+	ID     int    `path:"id" validate:"required"`
+	Active bool   `query:"active" validate:"required"`
+	Page   int64  `query:"page" validate:"required"`
+	Size   int64  `query:"size" validate:"required"`
 }

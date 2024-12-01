@@ -16,6 +16,9 @@ func parseAndValidateParams[Params any](r *http.Request) (*Params, error) {
 	t := reflect.TypeOf(&instance).Elem()
 	v := reflect.ValueOf(&instance).Elem()
 
+	// Get path parameters from request
+	params := httprouter.ParamsFromContext(r.Context())
+
 	// Extract parameters from struct tags and set values
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -27,7 +30,7 @@ func parseAndValidateParams[Params any](r *http.Request) (*Params, error) {
 		case field.Tag.Get("header") != "":
 			value = r.Header.Get(field.Tag.Get("header"))
 		case field.Tag.Get("path") != "":
-			if params := httprouter.ParamsFromContext(r.Context()); params != nil {
+			if params != nil {
 				value = params.ByName(field.Tag.Get("path"))
 			}
 		case field.Tag.Get("query") != "":
@@ -45,9 +48,23 @@ func parseAndValidateParams[Params any](r *http.Request) (*Params, error) {
 		case reflect.Int, reflect.Int64:
 			intVal, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, NewHttpError(http.StatusBadRequest, "invalid integer parameter", err)
+				validationError := ValidationError{
+					Field:   field.Name,
+					Message: "invalid integer parameter value: " + value,
+				}
+				return nil, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
 			}
 			fieldValue.SetInt(intVal)
+		case reflect.Bool:
+			boolVal, err := strconv.ParseBool(value)
+			if err != nil {
+				validationError := ValidationError{
+					Field:   field.Name,
+					Message: "invalid boolean parameter value: " + value,
+				}
+				return nil, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+			}
+			fieldValue.SetBool(boolVal)
 		}
 	}
 

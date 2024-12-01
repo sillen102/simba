@@ -24,10 +24,11 @@ func HandlerFunc[RequestBody any, Params any](h SimpleHandler[RequestBody, Param
 // Define a request params struct:
 //
 //	type Params struct {
-//		Name string `header:"name" validate:"required"`
-//		ID   int    `path:"id" validate:"required"`
-//		Page int64  `query:"page" validate:"required"`
-//		Size int64  `query:"size" validate:"required"`
+//		Name   string `header:"name" validate:"required"`
+//		ID     int    `path:"id" validate:"required"`
+//		Active bool   `query:"active" validate:"required"`
+//		Page   int64  `query:"page" validate:"required"`
+//		Size   int64  `query:"size" validate:"required"`
 //	}
 //
 // Define a handler function:
