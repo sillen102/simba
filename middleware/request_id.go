@@ -39,11 +39,10 @@ func (c *RequestIdConfig) AddRequestID(next httprouter.Handle) httprouter.Handle
 		}
 
 		// Create a logger with the request ID
-		logger := logging.Get().With(RequestIDKey, requestID)
+		logger := logging.Get().With().Str(RequestIDKey, requestID).Logger()
 
 		// Add both request ID and logger to context
-		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
-		ctx = context.WithValue(ctx, logging.LoggerKey, logger)
+		ctx := logger.WithContext(context.WithValue(r.Context(), RequestIDKey, requestID))
 
 		w.Header().Set(RequestIDHeader, requestID)
 

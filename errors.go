@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 )
 
@@ -123,14 +124,74 @@ func (ve ValidationErrors) Error() string {
 	return fmt.Sprintf("request validation failed: %d errors", len(ve))
 }
 
-// WriteJSONError writes a JSON error response to the response writer
-func WriteJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
+// handleError is a helper function for handling errors in HTTP handlers
+func handleError(w http.ResponseWriter, r *http.Request, err error) {
+	logger := logging.FromCtx(r.Context()).With().
+		Str("path", r.URL.Path).
+		Str("method", r.Method).
+		Err(err).
+		Logger()
+
+	var httpErr *HTTPError
+	if !errors.As(err, &httpErr) {
+		// Log unexpected errors as they are always serious
+		logger.Error().Stack().Msg("unexpected error encountered")
+		writeJSONError(w, NewErrorResponse(r, http.StatusInternalServerError, "Internal server error"))
+		return
+	}
+
+	errorMessage := httpErr.Message
+	if errorMessage == "" {
+		errorMessage = "an error occurred"
+	}
+
+	switch httpErr.HttpStatusCode {
+	case http.StatusBadRequest,
+		http.StatusNotFound,
+		http.StatusMethodNotAllowed,
+		http.StatusConflict,
+		http.StatusUnprocessableEntity:
+		// Log debug for 400, 404, 405, 409 and 422 errors as they are not serious
+		// and, are returned before reaching the handler and can usually be fixed
+		// by the user.
+		logger.Debug().Msg(errorMessage)
+
+	case http.StatusUnauthorized:
+		// Log warnings for 401 errors
+		logger.Warn().Msg(errorMessage)
+		// Set error message to "unauthorized" for the response
+		// to hide details of the error to a potential attacker
+		// and reduce the amount of information that can be
+		// leaked. The error is logged above.
+		errorMessage = "unauthorized"
+
+	case http.StatusForbidden:
+		// Log warnings for 403 errors
+		logger.Warn().Msg(errorMessage)
+		// Set error message to "forbidden" for the response
+		// to hide details of the error to a potential attacker
+		// and reduce the amount of information that can be
+		// leaked. The error is logged above.
+		errorMessage = "forbidden"
+
+	default:
+		// Log errors for other HTTP status codes
+		logger.Error().Stack().Msg(errorMessage)
+	}
+
+	var errorResponse *ErrorResponse
+	if httpErr.HasValidationErrors() {
+		errorResponse = NewErrorResponse(r, httpErr.HttpStatusCode, errorMessage, httpErr.ValidationErrors...)
+	} else {
+		errorResponse = NewErrorResponse(r, httpErr.HttpStatusCode, errorMessage)
+	}
+
+	writeJSONError(w, errorResponse)
+}
+
+// writeJSONError writes a JSON error response to the response writer
+func writeJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(errorResponse.Status)
 	return json.NewEncoder(w).Encode(errorResponse)
-}
-
-// HandleError is a helper function for handling errors in HTTP handlers
-func HandleError(w http.ResponseWriter, r *http.Request, err error) {
-	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
