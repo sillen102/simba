@@ -1,0 +1,27 @@
+meta {
+  name: Params
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:9999/params/123?page=0&size=10&active=true
+  body: json
+  auth: none
+}
+
+params:query {
+  page: 0
+  size: 10
+  active: true
+}
+
+headers {
+  name: John Johnson
+}
+
+body:json {
+  {
+    "age": 25
+  }
+}
