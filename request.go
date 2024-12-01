@@ -2,7 +2,6 @@ package simba
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 )
@@ -14,7 +13,7 @@ func decodeBodyIfNeeded[T any](r *http.Request, req *T) error {
 	}
 
 	if r.Header.Get("Content-Type") != "application/json" {
-		return errors.New("invalid content type")
+		return NewHttpError(http.StatusBadRequest, "invalid content type", nil)
 	}
 
 	return readJson(r.Body, req)
@@ -28,7 +27,7 @@ func readJson(body io.ReadCloser, model any) error {
 	}
 	err := decoder.Decode(&model)
 	if err != nil {
-		return errors.New("invalid request body")
+		return NewHttpError(http.StatusBadRequest, "invalid request body", err)
 	}
 	return nil
 }
