@@ -1,4 +1,4 @@
-package simba_test
+package test
 
 // RequestBody is a test struct for request body
 type RequestBody struct {
@@ -7,8 +7,8 @@ type RequestBody struct {
 
 // Params is a test struct for request params
 type Params struct {
+	Name string `header:"name" validate:"required"`
+	ID   int    `path:"id" validate:"required"`
 	Page int64  `query:"page" validate:"required"`
 	Size int64  `query:"size" validate:"required"`
-	ID   string `path:"id" validate:"required"`
-	Name string `query:"name" validate:"required"`
 }
