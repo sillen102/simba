@@ -10,10 +10,17 @@ import (
 
 // parseAndValidateParams creates a new instance of the parameter struct,
 // populates it using the MapParams interface method, and validates it.
-func parseAndValidateParams[Params any](r *http.Request) (*Params, error) {
-	// Create an instance of the parameter struct
+func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	var instance Params
+	// If instance is NoParams, return early
+	if _, ok := any(instance).(NoParams); ok {
+		return instance, nil
+	}
 	t := reflect.TypeOf(&instance).Elem()
+	// If instance is an empty struct, return early
+	if t.NumField() == 0 {
+		return instance, nil
+	}
 	v := reflect.ValueOf(&instance).Elem()
 
 	// Get path parameters from request
@@ -52,7 +59,7 @@ func parseAndValidateParams[Params any](r *http.Request) (*Params, error) {
 					Field:   field.Name,
 					Message: "invalid integer parameter value: " + value,
 				}
-				return nil, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
 			}
 			fieldValue.SetInt(intVal)
 		case reflect.Bool:
@@ -62,7 +69,7 @@ func parseAndValidateParams[Params any](r *http.Request) (*Params, error) {
 					Field:   field.Name,
 					Message: "invalid boolean parameter value: " + value,
 				}
-				return nil, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
 			}
 			fieldValue.SetBool(boolVal)
 		}
@@ -70,8 +77,8 @@ func parseAndValidateParams[Params any](r *http.Request) (*Params, error) {
 
 	// Validate required fields
 	if err := ValidateStruct(instance); len(err) > 0 {
-		return nil, NewHttpError(http.StatusBadRequest, "missing required parameters", nil, err...)
+		return instance, NewHttpError(http.StatusBadRequest, "missing required parameters", nil, err...)
 	}
 
-	return &instance, nil
+	return instance, nil
 }

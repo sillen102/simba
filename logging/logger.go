@@ -3,15 +3,10 @@ package logging
 import (
 	"context"
 	"log"
-	"log/slog"
 	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
-)
-
-const (
-	// RequestIDKey is the key used to store the request ID in the context
-	LoggerKey = "logger"
+	"github.com/rs/zerolog"
 )
 
 // LoggerConfig is the configuration for the logger
@@ -27,52 +22,38 @@ func init() {
 	if err != nil {
 		log.Fatalf("failed to load environment variables: %v", err)
 	}
-	slog.SetDefault(slog.New(getHandler(cfg)))
-}
-
-// Get returns the default logger.
-func Get() *slog.Logger {
-	return slog.Default()
-}
-
-// FromCtx returns a logger from the context.
-func FromCtx(ctx context.Context) *slog.Logger {
-	if l, ok := ctx.Value(LoggerKey).(*slog.Logger); ok {
-		return l
+	level, err := zerolog.ParseLevel(cfg.Level)
+	if err != nil {
+		log.Fatalf("failed to parse logging level: %v", err)
 	}
-	return slog.Default()
+	zerolog.SetGlobalLevel(level)
+	zerolog.TimeFieldFormat = "2006-01-02T15:04:05.999999"
+	zerolog.DefaultContextLogger = getLogger(cfg)
 }
 
-// getHandler returns a slog.Handler based on the configuration.
-func getHandler(cfg LoggerConfig) slog.Handler {
-	opts := &slog.HandlerOptions{
-		Level: getLevel(),
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == slog.TimeKey {
-				return slog.Time(a.Key, a.Value.Time().UTC())
-			}
-			return a
-		},
-	}
-
-	if cfg.Format == "json" {
-		return slog.NewJSONHandler(os.Stdout, opts)
-	}
-	return slog.NewTextHandler(os.Stdout, opts)
+// Get returns the default logger
+func Get() *zerolog.Logger {
+	return zerolog.DefaultContextLogger
 }
 
-// getLevel returns the slog.Level based on the configuration.
-func getLevel() slog.Level {
-	switch cfg.Level {
-	case "debug":
-		return slog.LevelDebug
-	case "info":
-		return slog.LevelInfo
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
+// WithLogger returns a context with the given logger
+func WithLogger(ctx context.Context, logger *zerolog.Logger) context.Context {
+	return logger.WithContext(ctx)
+}
+
+// FromCtx returns a logger from the context
+func FromCtx(ctx context.Context) *zerolog.Logger {
+	return zerolog.Ctx(ctx)
+}
+
+// getLogger returns a [zerolog.Logger] based on the configuration
+func getLogger(cfg LoggerConfig) *zerolog.Logger {
+	var logger zerolog.Logger
+	switch cfg.Format {
+	case "json":
+		logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 	default:
-		return slog.LevelInfo
+		logger = zerolog.New(os.Stdout).Output(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 	}
+	return &logger
 }
