@@ -20,6 +20,7 @@ func TestHandler(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params]) (*simba.Response, error) {
 			assert.Equal(t, "John", req.Params.Name)
 			assert.Equal(t, 1, req.Params.ID)
+			assert.Equal(t, true, req.Params.Active)
 			assert.Equal(t, int64(1), req.Params.Page)
 			assert.Equal(t, int64(10), req.Params.Size)
 
@@ -34,7 +35,7 @@ func TestHandler(t *testing.T) {
 		}
 
 		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10", body)
+		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", body)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
