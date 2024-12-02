@@ -7,16 +7,30 @@ import (
 	"net/http"
 )
 
-type contextKey string
+type optionsContextKey string
+type authContextKey string
 
 const (
-	routerOptionsKey contextKey = "routerOptionsKey"
+	routerOptionsKey optionsContextKey = "routerOptions"
+	authFuncKey      authContextKey    = "authFunc"
 )
 
-// injectConfiguration injects the RouterOptions into the request context
-func injectConfiguration(next http.Handler, options *RouterOptions) http.Handler {
+// injectOptions injects the RouterOptions into the request context
+func injectOptions(next http.Handler, options *RouterOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), routerOptionsKey, options)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// injectAuthFunc injects the AuthFunc into the request context
+func injectAuthFunc[User any](next http.Handler, authFunc AuthFunc[User]) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if authFunc == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		ctx := context.WithValue(r.Context(), authFuncKey, authFunc)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

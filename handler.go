@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// HandlerFunc returns a http.Handler that can be used for non-authenticated routes
+// HandlerFunc returns an [http.Handler] that can be used for non-authenticated routes
 func HandlerFunc[RequestBody any, Params any](h Handler[RequestBody, Params]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
@@ -88,7 +88,7 @@ func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 	writeResponse(w, r, resp, nil)
 }
 
-// AuthenticatedHandlerFunc returns an http.Handler that can be used for authenticated routes
+// AuthenticatedHandlerFunc returns an [http.Handler] that can be used for authenticated routes
 func AuthenticatedHandlerFunc[RequestBody any, Params any, User any](h AuthenticatedHandler[RequestBody, Params, User]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
@@ -156,8 +156,20 @@ type AuthenticatedHandler[RequestBody any, Params any, User any] func(ctx contex
 func (h AuthenticatedHandler[RequestBody, Params, User]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	authFunc := r.Context().Value(authFuncKey).(AuthFunc[User])
+	if authFunc == nil {
+		handleError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
+		return
+	}
+
+	user, err := authFunc(r)
+	if err != nil {
+		handleError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
+		return
+	}
+
 	var reqBody RequestBody
-	err := decodeBodyIfNeeded(r, &reqBody)
+	err = decodeBodyIfNeeded(r, &reqBody)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -175,9 +187,7 @@ func (h AuthenticatedHandler[RequestBody, Params, User]) ServeHTTP(w http.Respon
 		Params:  params,
 	}
 
-	var user User
-
-	resp, err := h(ctx, req, &user)
+	resp, err := h(ctx, req, user)
 	if err != nil {
 		handleError(w, r, err)
 		return

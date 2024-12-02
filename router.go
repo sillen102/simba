@@ -1,30 +1,46 @@
 package simba
 
 import (
-	"context"
 	"net/http"
 	"reflect"
 
 	"github.com/julienschmidt/httprouter"
 )
 
-// Router is a HTTP router
-type Router struct {
-	router  *httprouter.Router
-	options *RouterOptions
+// Router holds the router and options
+type Router[User any] struct {
+	router   *httprouter.Router
+	options  *RouterOptions
+	authFunc AuthFunc[User]
 }
 
 // NewRouter returns a new Router
-func NewRouter(opts ...RouterOptions) *Router {
+func NewRouter(opts ...RouterOptions) *Router[struct{}] {
 	options := defaultRouterOptions()
 
 	if len(opts) > 0 {
 		options = mergeOptionsWithReflection(options, opts[0])
 	}
 
-	return &Router{
+	return &Router[struct{}]{
 		router:  httprouter.New(),
 		options: &options,
+	}
+}
+
+// NewRouterWithAuth returns a new Router with ability to have authenticated routes using the provided authFunc to
+// authenticate and retrieve the user
+func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...RouterOptions) *Router[User] {
+	options := defaultRouterOptions()
+
+	if len(opts) > 0 {
+		options = mergeOptionsWithReflection(options, opts[0])
+	}
+
+	return &Router[User]{
+		router:   httprouter.New(),
+		options:  &options,
+		authFunc: authFunc,
 	}
 }
 
@@ -44,56 +60,57 @@ func defaultRouterOptions() RouterOptions {
 	}
 }
 
-type AuthValidator[User any] func(ctx context.Context, accessToken string) (*User, error)
+// AuthFunc is a function type for authenticating and retrieving a user from a request
+type AuthFunc[User any] func(r *http.Request) (*User, error)
 
 // ServeHTTP implements the http.Handler interface
-func (s *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Router[User]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
 // POST registers a handler for POST requests to the given pattern
-func (s *Router) POST(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPost, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) POST(path string, handler http.Handler) {
+	s.router.Handler(http.MethodPost, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // GET registers a handler for GET requests to the given pattern
-func (s *Router) GET(path string, handler http.Handler) {
-	s.router.Handler(http.MethodGet, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) GET(path string, handler http.Handler) {
+	s.router.Handler(http.MethodGet, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // PUT registers a handler for PUT requests to the given pattern
-func (s *Router) PUT(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPut, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) PUT(path string, handler http.Handler) {
+	s.router.Handler(http.MethodPut, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // DELETE registers a handler for DELETE requests to the given pattern
-func (s *Router) DELETE(path string, handler http.Handler) {
-	s.router.Handler(http.MethodDelete, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) DELETE(path string, handler http.Handler) {
+	s.router.Handler(http.MethodDelete, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // PATCH registers a handler for PATCH requests to the given pattern
-func (s *Router) PATCH(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPatch, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) PATCH(path string, handler http.Handler) {
+	s.router.Handler(http.MethodPatch, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // OPTIONS registers a handler for OPTIONS requests to the given pattern
-func (s *Router) OPTIONS(path string, handler http.Handler) {
-	s.router.Handler(http.MethodOptions, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) OPTIONS(path string, handler http.Handler) {
+	s.router.Handler(http.MethodOptions, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // HEAD registers a handler for HEAD requests to the given pattern
-func (s *Router) HEAD(path string, handler http.Handler) {
-	s.router.Handler(http.MethodHead, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) HEAD(path string, handler http.Handler) {
+	s.router.Handler(http.MethodHead, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // CONNECT registers a handler for CONNECT requests to the given pattern
-func (s *Router) CONNECT(path string, handler http.Handler) {
-	s.router.Handler(http.MethodConnect, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) CONNECT(path string, handler http.Handler) {
+	s.router.Handler(http.MethodConnect, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // TRACE registers a handler for TRACE requests to the given pattern
-func (s *Router) TRACE(path string, handler http.Handler) {
-	s.router.Handler(http.MethodTrace, path, injectConfiguration(handler, s.options))
+func (s *Router[User]) TRACE(path string, handler http.Handler) {
+	s.router.Handler(http.MethodTrace, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
 }
 
 // mergeOptionsWithReflection uses reflection to merge non-zero fields from provided into default options
