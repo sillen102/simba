@@ -83,13 +83,13 @@ router.GET("/users/:userId", simba.AuthenticatedHandlerFunc(getUser))
 
 ## URL Parameters
 
-Handle URL parameters with type safety:
+Handle URL parameters with type safety and validation support using go-playground validator:
 
 ```go
 type Params struct {
     UserID string `path:"userId"`
-    Name   string `query:"name"`
-    Age    int    `header:"age"`
+    Name   string `query:"name" validate:"required"`
+    Age    int    `header:"age" validate:"required"`
 }
 
 func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response, error) {
@@ -120,3 +120,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+All dependencies are under their respective licenses, which can be found in their repositories via the go.mod file.
