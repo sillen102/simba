@@ -1,0 +1,17 @@
+meta {
+  name: Authenticated
+  type: http
+  seq: 5
+}
+
+get {
+  url: http://localhost:9999/user
+  body: none
+  auth: none
+}
+
+body:json {
+  {
+    "age": 25
+  }
+}
