@@ -162,3 +162,7 @@ func TestHandler(t *testing.T) {
 		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
 }
+
+func TestAuthenticatedHandler(t *testing.T) {
+	t.Parallel()
+}

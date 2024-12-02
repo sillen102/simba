@@ -11,10 +11,11 @@ import (
 	"github.com/sillen102/simba/logging"
 )
 
+type contextKey string
+
 const (
-	// RequestIDKey is the key used to store the request ID in the context
-	RequestIDKey    = "requestId"
-	RequestIDHeader = "X-Request-Id"
+	RequestIDKey    contextKey = "requestId"
+	RequestIDHeader string     = "X-Request-Id"
 )
 
 // RequestIdConfig is the configuration for the request ID middleware
@@ -39,11 +40,12 @@ func (c *RequestIdConfig) AddRequestID(next httprouter.Handle) httprouter.Handle
 		}
 
 		// Create a logger with the request ID
-		logger := logging.Get().With().Str(RequestIDKey, requestID).Logger()
+		logger := logging.Get().With().Str(string(RequestIDKey), requestID).Logger()
 
 		// Add both request ID and logger to context
 		ctx := logger.WithContext(context.WithValue(r.Context(), RequestIDKey, requestID))
 
+		// Set the request ID header
 		w.Header().Set(RequestIDHeader, requestID)
 
 		next(w, r.WithContext(ctx), ps)
