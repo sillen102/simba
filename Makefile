@@ -2,4 +2,7 @@
 test:
 	@go test -v ./...
 
-.PHONY: test
+update-deps:
+	@go get -u ./...
+
+.PHONY: test, update-deps

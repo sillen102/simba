@@ -13,3 +13,10 @@ type Params struct {
 	Page   int64  `query:"page" validate:"min=0"`
 	Size   int64  `query:"size" validate:"min=0"`
 }
+
+// User is a test struct for user entity for authenticated routes
+type User struct {
+	ID   int
+	Name string
+	Role string
+}
