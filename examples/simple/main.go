@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
 )
 
 type RequestBody struct {
@@ -34,5 +35,6 @@ func main() {
 	router := simba.Default()
 	router.POST("/users", simba.HandlerFunc(handler))
 	router.GET("/no-body", simba.HandlerFunc(noBodyHandler))
+	logging.Get().Info().Msg("Listening on http://localhost:9999")
 	http.ListenAndServe(":9999", router)
 }
