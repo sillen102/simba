@@ -23,7 +23,7 @@ func TestHandler(t *testing.T) {
 			assert.Equal(t, "John", req.Params.Name)
 			assert.Equal(t, 1, req.Params.ID)
 			assert.Equal(t, true, req.Params.Active)
-			assert.Equal(t, int64(0), req.Params.Page)
+			assert.Equal(t, 0, req.Params.Page)
 			assert.Equal(t, int64(10), req.Params.Size)
 
 			assert.Equal(t, "test", req.Body.Test)
@@ -214,7 +214,7 @@ func TestHandler(t *testing.T) {
 
 	t.Run("default values on params", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
-			assert.Equal(t, int64(0), req.Params.Page)  // default value
+			assert.Equal(t, 1, req.Params.Page)         // default value
 			assert.Equal(t, int64(10), req.Params.Size) // default value
 			assert.Equal(t, 10.0, req.Params.Score)
 			return &simba.Response{}, nil
@@ -235,7 +235,7 @@ func TestHandler(t *testing.T) {
 
 	t.Run("override default values with query params", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
-			assert.Equal(t, int64(5), req.Params.Page)  // overridden value
+			assert.Equal(t, 5, req.Params.Page)         // overridden value
 			assert.Equal(t, int64(20), req.Params.Size) // overridden value
 			assert.Equal(t, 15.5, req.Params.Score)     // overridden value
 			return &simba.Response{}, nil
@@ -431,7 +431,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 			assert.Equal(t, "John", req.Params.Name)
 			assert.Equal(t, 1, req.Params.ID)
 			assert.Equal(t, true, req.Params.Active)
-			assert.Equal(t, int64(0), req.Params.Page)
+			assert.Equal(t, 0, req.Params.Page)
 			assert.Equal(t, int64(10), req.Params.Size)
 
 			assert.Equal(t, "test", req.Body.Test)

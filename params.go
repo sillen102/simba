@@ -35,9 +35,13 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		// Get value from request
 		value := getParamValue(r, field)
 
-		// Check for default value if no value was provided
-		if value == "" && field.Tag.Get("default") != "" {
-			value = field.Tag.Get("default")
+		// If no value was provided, try to set default value
+		if value == "" {
+			if err := setDefaultValue(fieldValue, field); err != nil {
+				return instance, NewHttpError(http.StatusBadRequest, "invalid default value", err,
+					ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid default value"})
+			}
+			continue
 		}
 
 		// Handle special case for UUID
@@ -120,6 +124,15 @@ func setFieldValue(fieldValue reflect.Value, value string) error {
 		}
 	}
 	return err
+}
+
+// setDefaultValue sets the default value from struct tag if available
+func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) error {
+	defaultVal := field.Tag.Get("default")
+	if defaultVal == "" {
+		return nil
+	}
+	return setFieldValue(fieldValue, defaultVal)
 }
 
 // handleUUIDField handles the special case of UUID field types

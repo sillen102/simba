@@ -2,14 +2,16 @@ module params
 
 go 1.23
 
-require github.com/sillen102/simba v0.0.0-00010101000000-000000000000
+require (
+	github.com/google/uuid v1.6.0
+	github.com/sillen102/simba v0.0.0-00010101000000-000000000000
+)
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.7 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.23.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/justinas/alice v1.2.0 // indirect
