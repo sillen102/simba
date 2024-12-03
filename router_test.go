@@ -16,7 +16,7 @@ func TestSettingOptions(t *testing.T) {
 	})
 
 	t.Run("set disallow unknown fields", func(t *testing.T) {
-		options := simba.RouterOptions{
+		options := simba.Options{
 			RequestDisallowUnknownFields: false,
 		}
 		router := simba.NewRouter(options)
@@ -25,7 +25,7 @@ func TestSettingOptions(t *testing.T) {
 	})
 
 	t.Run("set request id accept header", func(t *testing.T) {
-		options := simba.RouterOptions{
+		options := simba.Options{
 			RequestIdAcceptHeader: true,
 		}
 		router := simba.NewRouter(options)
@@ -33,7 +33,7 @@ func TestSettingOptions(t *testing.T) {
 	})
 
 	t.Run("set log request body", func(t *testing.T) {
-		options := simba.RouterOptions{
+		options := simba.Options{
 			LogRequestBody: true,
 		}
 		router := simba.NewRouter(options)

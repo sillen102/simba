@@ -114,10 +114,6 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
 }
 ```
 
-The logger configuration (format and level) can be controlled through environment variables:
-- `LOGGING_FORMAT`: "json" or "text" (default: "text")
-- `LOGGING_LEVEL`: "debug", "info", "warn", "error" (default: "debug")
-
 ## Configuration
 
 Customize router behavior with options:
