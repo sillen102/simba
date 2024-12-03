@@ -49,7 +49,7 @@ func (rl *RequestLoggerConfig) LogRequests(next http.Handler) http.Handler {
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Int("status", wrapped.Status()).
-			Dur("duration", duration).
+			Dur("duration (ms)", duration).
 			Msg("request processed")
 	})
 }
