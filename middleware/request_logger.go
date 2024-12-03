@@ -44,7 +44,6 @@ func (rl *RequestLoggerConfig) LogRequests(next http.Handler) http.Handler {
 		// Log request details after processing
 		duration := time.Since(start)
 		logger.Info().
-			Timestamp().
 			Str("remoteIp", r.RemoteAddr).
 			Str("userAgent", r.UserAgent()).
 			Str("method", r.Method).
