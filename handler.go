@@ -60,23 +60,10 @@ type Handler[RequestBody any, Params any] func(ctx context.Context, req *Request
 func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var reqBody RequestBody
-	err := decodeBodyIfNeeded(r, &reqBody)
+	req, err := handleRequest[RequestBody, Params](r)
 	if err != nil {
 		handleError(w, r, err)
 		return
-	}
-
-	params, err := parseAndValidateParams[Params](r)
-	if err != nil {
-		handleError(w, r, err)
-		return
-	}
-
-	req := &Request[RequestBody, Params]{
-		Cookies: r.Cookies(),
-		Body:    reqBody,
-		Params:  params,
 	}
 
 	resp, err := h(ctx, req)
@@ -89,7 +76,7 @@ func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 }
 
 // AuthenticatedHandlerFunc returns an [http.Handler] that can be used for authenticated routes
-func AuthenticatedHandlerFunc[RequestBody any, Params any, User any](h AuthenticatedHandler[RequestBody, Params, User]) http.Handler {
+func AuthenticatedHandlerFunc[RequestBody any, Params any, AuthModel any](h AuthenticatedHandler[RequestBody, Params, AuthModel]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
@@ -150,13 +137,13 @@ func AuthenticatedHandlerFunc[RequestBody any, Params any, User any](h Authentic
 // Register the handler:
 //
 //	router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
-type AuthenticatedHandler[RequestBody any, Params any, User any] func(ctx context.Context, req *Request[RequestBody, Params], user *User) (*Response, error)
+type AuthenticatedHandler[RequestBody any, Params any, AuthModel any] func(ctx context.Context, req *Request[RequestBody, Params], user *AuthModel) (*Response, error)
 
 // ServeHTTP implements the http.Handler interface for AuthenticatedHandler
-func (h AuthenticatedHandler[RequestBody, Params, User]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h AuthenticatedHandler[RequestBody, Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authFunc := r.Context().Value(authFuncKey).(AuthFunc[User])
+	authFunc := r.Context().Value(authFuncKey).(AuthFunc[AuthModel])
 	if authFunc == nil {
 		handleError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
 		return
@@ -168,23 +155,10 @@ func (h AuthenticatedHandler[RequestBody, Params, User]) ServeHTTP(w http.Respon
 		return
 	}
 
-	var reqBody RequestBody
-	err = decodeBodyIfNeeded(r, &reqBody)
+	req, err := handleRequest[RequestBody, Params](r)
 	if err != nil {
 		handleError(w, r, err)
 		return
-	}
-
-	params, err := parseAndValidateParams[Params](r)
-	if err != nil {
-		handleError(w, r, err)
-		return
-	}
-
-	req := &Request[RequestBody, Params]{
-		Cookies: r.Cookies(),
-		Body:    reqBody,
-		Params:  params,
 	}
 
 	resp, err := h(ctx, req, user)
@@ -194,4 +168,24 @@ func (h AuthenticatedHandler[RequestBody, Params, User]) ServeHTTP(w http.Respon
 	}
 
 	writeResponse(w, r, resp, nil)
+}
+
+// handleRequest handles extracting body and params from the request
+func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[RequestBody, Params], error) {
+	var reqBody RequestBody
+	err := decodeBodyIfNeeded(r, &reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	params, err := parseAndValidateParams[Params](r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Request[RequestBody, Params]{
+		Cookies: r.Cookies(),
+		Body:    reqBody,
+		Params:  params,
+	}, nil
 }
