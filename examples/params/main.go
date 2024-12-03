@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/logging"
 )
@@ -14,21 +15,21 @@ type RequestBody struct {
 }
 
 type Params struct {
-	Name   string  `header:"name" validate:"required"`
-	ID     int     `path:"id" validate:"required"`
-	Active bool    `query:"active" validate:"required"`
-	Page   int64   `query:"page" validate:"omitempty,min=0" default:"0"`
-	Size   int64   `query:"size" validate:"omitempty,min=0" default:"10"`
-	Score  float64 `query:"score" default:"10.0"`
+	Name   string    `header:"name" validate:"required"`
+	ID     uuid.UUID `path:"id" validate:"required"`
+	Active bool      `query:"active" validate:"required"`
+	Page   int       `query:"page" validate:"omitempty,min=0" default:"1"`
+	Size   int64     `query:"size" validate:"omitempty,min=0" default:"10"`
+	Score  float64   `query:"score" default:"10.0"`
 }
 
 type ResponseBody struct {
-	Message string `json:"message"`
-	ID      int    `json:"id"`
-	Name    string `json:"name"`
-	Active  bool   `json:"active"`
-	Page    int64  `json:"page"`
-	Size    int64  `json:"size"`
+	Message string    `json:"message"`
+	ID      uuid.UUID `json:"id"`
+	Name    string    `json:"name"`
+	Active  bool      `json:"active"`
+	Page    int       `json:"page"`
+	Size    int64     `json:"size"`
 }
 
 func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response, error) {
