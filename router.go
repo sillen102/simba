@@ -1,7 +1,9 @@
 package simba
 
 import (
+	"io"
 	"net/http"
+	"os"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
@@ -37,6 +39,10 @@ type Options struct {
 
 	// LogFormat is the log format for the logger that will be used
 	LogFormat logging.LogFormat
+
+	// LogOutput is the output for the logger that will be used
+	// If not set, the output will be [os.Stdout]
+	LogOutput io.Writer
 }
 
 // AuthFunc is a function type for authenticating and retrieving a user from a request
@@ -68,10 +74,10 @@ func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...Options) *Rout
 		options = opts[0]
 	}
 
-	zerolog.SetGlobalLevel(options.LogLevel)
 	zerolog.DefaultContextLogger = logging.New(logging.LoggerConfig{
 		Format: options.LogFormat,
 		Level:  options.LogLevel,
+		Output: options.LogOutput,
 	})
 
 	return &Router[User]{
@@ -147,6 +153,7 @@ func (s *Router[User]) wrapHandler(handler http.Handler) http.Handler {
 					logger := logging.New(logging.LoggerConfig{
 						Format: s.options.LogFormat,
 						Level:  s.options.LogLevel,
+						Output: s.options.LogOutput,
 					})
 					r = r.WithContext(logger.WithContext(r.Context()))
 				}
@@ -171,6 +178,7 @@ func defaultRouterOptions() Options {
 		LogRequestBody:               false,
 		LogLevel:                     zerolog.InfoLevel,
 		LogFormat:                    logging.TextFormat,
+		LogOutput:                    os.Stdout,
 	}
 }
 

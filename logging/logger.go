@@ -2,7 +2,8 @@ package logging
 
 import (
 	"context"
-	"os"
+	"io"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -17,16 +18,25 @@ const (
 type LoggerConfig struct {
 	Format LogFormat
 	Level  zerolog.Level
+	Output io.Writer
 }
 
 // New returns a new logger
 func New(config LoggerConfig) *zerolog.Logger {
 	var logger zerolog.Logger
+	zerolog.TimestampFunc = func() time.Time {
+		return time.Now().UTC()
+	}
+	zerolog.TimeFieldFormat = "2006-01-02T15:04:05.000000"
 	switch config.Format {
 	case JsonFormat:
-		logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+		logger = zerolog.New(config.Output).Level(config.Level).With().Timestamp().Logger()
+	case TextFormat:
+		logger = zerolog.New(config.Output).Level(config.Level).Output(zerolog.ConsoleWriter{
+			Out: config.Output,
+		}).With().Timestamp().Logger()
 	default:
-		logger = zerolog.New(os.Stdout).Output(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
+		logger = zerolog.New(config.Output).With().Timestamp().Logger()
 	}
 	return &logger
 }

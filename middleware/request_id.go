@@ -22,7 +22,7 @@ type RequestIdConfig struct {
 	AcceptFromHeader bool
 }
 
-// AddRequestID middleware that adds a request ID to the context of the request
+// RequestID middleware that adds a request ID to the context of the request
 func (c *RequestIdConfig) RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var requestID string
@@ -42,7 +42,8 @@ func (c *RequestIdConfig) RequestID(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
 
 		// Add request ID to logger in context
-		logging.FromCtx(ctx).With().Str(string(RequestIDKey), requestID).Logger()
+		logger := logging.FromCtx(r.Context()).With().Str(string(RequestIDKey), requestID).Logger()
+		ctx = logger.WithContext(ctx)
 
 		// Set the request ID header
 		w.Header().Set(RequestIDHeader, requestID)
