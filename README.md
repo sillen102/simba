@@ -89,6 +89,8 @@ type Params struct {
     UserID string `path:"userId"`
     Name   string `query:"name" validate:"required"`
     Age    int    `header:"age" validate:"required"`
+    Page   int64  `query:"page" validate:"omitempty,min=0" default:"0"`
+    Size   int64  `query:"size" validate:"omitempty,min=0" default:"10"`
 }
 
 func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response, error) {

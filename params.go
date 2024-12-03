@@ -49,12 +49,20 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 			value = r.URL.Query().Get(field.Tag.Get("query"))
 		}
 
+		// Check for default value if no value was provided
 		if value == "" {
-			continue
+			if defaultVal := field.Tag.Get("default"); defaultVal != "" {
+				value = defaultVal
+			} else {
+				continue
+			}
 		}
 
 		// Special handling for UUID type
 		if field.Type.String() == "uuid.UUID" {
+			if value == "" {
+				continue
+			}
 			uuidVal, err := uuid.Parse(value)
 			if err != nil {
 				validationError := ValidationError{
@@ -68,39 +76,36 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		}
 
 		// Set value based on field type
+		var err error
 		switch fieldValue.Kind() {
 		case reflect.String:
 			fieldValue.SetString(value)
 		case reflect.Int, reflect.Int64:
-			intVal, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				validationError := ValidationError{
-					Field:   field.Name,
-					Message: "invalid integer parameter value: " + value,
-				}
-				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+			var intVal int64
+			intVal, err = strconv.ParseInt(value, 10, 64)
+			if err == nil {
+				fieldValue.SetInt(intVal)
 			}
-			fieldValue.SetInt(intVal)
 		case reflect.Bool:
-			boolVal, err := strconv.ParseBool(value)
-			if err != nil {
-				validationError := ValidationError{
-					Field:   field.Name,
-					Message: "invalid boolean parameter value: " + value,
-				}
-				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+			var boolVal bool
+			boolVal, err = strconv.ParseBool(value)
+			if err == nil {
+				fieldValue.SetBool(boolVal)
 			}
-			fieldValue.SetBool(boolVal)
 		case reflect.Float64:
-			floatVal, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				validationError := ValidationError{
-					Field:   field.Name,
-					Message: "invalid float parameter value: " + value,
-				}
-				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+			var floatVal float64
+			floatVal, err = strconv.ParseFloat(value, 64)
+			if err == nil {
+				fieldValue.SetFloat(floatVal)
 			}
-			fieldValue.SetFloat(floatVal)
+		}
+
+		if err != nil {
+			validationError := ValidationError{
+				Field:   field.Name,
+				Message: "invalid parameter value: " + value,
+			}
+			return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
 		}
 	}
 
