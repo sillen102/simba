@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
 )
 
 type RequestBody struct {
@@ -49,5 +50,6 @@ func main() {
 	// for each request that uses the AuthenticatedHandlerFunc and pass it to the handler
 	router := simba.DefaultWithAuth[User](authFunc)
 	router.GET("/user", simba.AuthenticatedHandlerFunc(authenticatedHandler))
+	logging.Get().Info().Msg("Listening on http://localhost:9999")
 	http.ListenAndServe(":9999", router)
 }

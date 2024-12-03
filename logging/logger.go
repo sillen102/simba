@@ -13,6 +13,7 @@ type LogFormat string
 const (
 	JsonFormat LogFormat = "json"
 	TextFormat LogFormat = "text"
+	TimeFormat string    = "2006-01-02T15:04:05.000000"
 )
 
 type LoggerConfig struct {
@@ -27,18 +28,29 @@ func New(config LoggerConfig) *zerolog.Logger {
 	zerolog.TimestampFunc = func() time.Time {
 		return time.Now().UTC()
 	}
-	zerolog.TimeFieldFormat = "2006-01-02T15:04:05.000000"
+	zerolog.TimeFieldFormat = TimeFormat
+	zerolog.SetGlobalLevel(config.Level)
+
 	switch config.Format {
 	case JsonFormat:
 		logger = zerolog.New(config.Output).Level(config.Level).With().Timestamp().Logger()
 	case TextFormat:
 		logger = zerolog.New(config.Output).Level(config.Level).Output(zerolog.ConsoleWriter{
-			Out: config.Output,
+			Out:          config.Output,
+			TimeLocation: time.UTC,
+			TimeFormat:   TimeFormat,
 		}).With().Timestamp().Logger()
 	default:
 		logger = zerolog.New(config.Output).With().Timestamp().Logger()
 	}
+	zerolog.DefaultContextLogger = &logger
+
 	return &logger
+}
+
+// Get returns the global logger
+func Get() *zerolog.Logger {
+	return zerolog.Ctx(context.Background())
 }
 
 // FromCtx returns a logger from the context
