@@ -80,9 +80,9 @@ router := simba.DefaultWithAuth[User](authFunc)
 router.GET("/users/:userId", simba.AuthenticatedHandlerFunc(getUser))
 ```
 
-## URL Parameters
+## Parameters
 
-Handle URL parameters with type safety and validation support using go-playground validator:
+Handle parameters with type safety and validation support using go-playground validator:
 
 ```go
 type Params struct {
