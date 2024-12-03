@@ -48,6 +48,6 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 func main() {
 	router := simba.Default()
 	router.POST("/params/:id", simba.HandlerFunc(handler))
-	logging.Get().Info().Msg("Listening on http://localhost:9999")
+	logging.GetDefault().Info().Msg("Listening on http://localhost:9999")
 	http.ListenAndServe(":9999", router)
 }

@@ -74,7 +74,7 @@ func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...Options) *Rout
 		options = opts[0]
 	}
 
-	zerolog.DefaultContextLogger = logging.New(logging.LoggerConfig{
+	logging.Init(logging.LoggerConfig{
 		Format: options.LogFormat,
 		Level:  options.LogLevel,
 		Output: options.LogOutput,
@@ -149,13 +149,13 @@ func (s *Router[AuthModel]) wrapHandler(handler http.Handler) http.Handler {
 		Append(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Only inject if there's no logger already in context
-				if zerolog.Ctx(r.Context()) == nil {
-					logger := logging.New(logging.LoggerConfig{
+				if logger := logging.FromCtx(r.Context()); logger == nil {
+					newLogger := logging.New(logging.LoggerConfig{
 						Format: s.options.LogFormat,
 						Level:  s.options.LogLevel,
 						Output: s.options.LogOutput,
 					})
-					r = r.WithContext(logger.WithContext(r.Context()))
+					r = r.WithContext(newLogger.WithContext(r.Context()))
 				}
 				next.ServeHTTP(w, r)
 			})
