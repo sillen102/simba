@@ -3,12 +3,24 @@ package logging
 import (
 	"context"
 	"io"
+	"os"
 	"time"
 
 	"github.com/rs/zerolog"
 )
 
 type LogFormat string
+
+// defaultLogger is a global logger that is used only if no logger is provided in the context
+var defaultLogger zerolog.Logger
+
+func init() {
+	defaultLogger = zerolog.New(os.Stderr).Output(zerolog.ConsoleWriter{
+		Out:          os.Stderr,
+		TimeLocation: time.UTC,
+		TimeFormat:   TimeFormat,
+	}).With().Timestamp().Logger()
+}
 
 const (
 	JsonFormat LogFormat = "json"
@@ -41,7 +53,7 @@ func New(config LoggerConfig) *zerolog.Logger {
 		}).With().Timestamp().Logger()
 	}
 	zerolog.DefaultContextLogger = &logger
-
+	defaultLogger = logger
 	return &logger
 }
 
@@ -52,5 +64,10 @@ func Get() *zerolog.Logger {
 
 // FromCtx returns a logger from the context
 func FromCtx(ctx context.Context) *zerolog.Logger {
-	return zerolog.Ctx(ctx)
+	logger := zerolog.Ctx(ctx)
+	if logger == nil || logger.GetLevel() == zerolog.Disabled {
+		// Return the default logger instead of a no-op logger
+		return &defaultLogger
+	}
+	return logger
 }
