@@ -104,11 +104,22 @@ func NewErrorResponse(r *http.Request, status int, message string, validationErr
 	}
 }
 
+type ParameterType string
+
+const (
+	ParameterTypeHeader ParameterType = "header"
+	ParameterTypePath   ParameterType = "path"
+	ParameterTypeQuery  ParameterType = "query"
+	ParameterTypeBody   ParameterType = "body"
+)
+
 // ValidationError defines the interface for a validation error
 // @Description Detailed information about a validation error
 type ValidationError struct {
-	// Field that failed validation or request if the whole request body is invalid
-	Field string `json:"field"`
+	// Parameter that failed validation
+	Parameter string `json:"parameter"`
+	// Type indicates where the parameter was located (header, path, query, body)
+	Type ParameterType `json:"type"`
 	// Error message describing the validation error
 	Message string `json:"message"`
 } // @Name ValidationError

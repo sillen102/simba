@@ -274,8 +274,9 @@ func TestHandler(t *testing.T) {
 				wantMessage: "invalid parameter value",
 				wantValidation: []simba.ValidationError{
 					{
-						Field:   "Page",
-						Message: "invalid parameter value: invalid",
+						Parameter: "Page",
+						Type:      simba.ParameterTypeQuery,
+						Message:   "invalid parameter value: invalid",
 					},
 				},
 			},
@@ -286,8 +287,9 @@ func TestHandler(t *testing.T) {
 				wantMessage: "invalid parameter value",
 				wantValidation: []simba.ValidationError{
 					{
-						Field:   "Size",
-						Message: "invalid parameter value: invalid",
+						Parameter: "Size",
+						Type:      simba.ParameterTypeQuery,
+						Message:   "invalid parameter value: invalid",
 					},
 				},
 			},
@@ -298,8 +300,9 @@ func TestHandler(t *testing.T) {
 				wantMessage: "invalid parameter value",
 				wantValidation: []simba.ValidationError{
 					{
-						Field:   "Score",
-						Message: "invalid parameter value: invalid",
+						Parameter: "Score",
+						Type:      simba.ParameterTypeQuery,
+						Message:   "invalid parameter value: invalid",
 					},
 				},
 			},
@@ -310,8 +313,9 @@ func TestHandler(t *testing.T) {
 				wantMessage: "invalid parameter value",
 				wantValidation: []simba.ValidationError{
 					{
-						Field:   "Active",
-						Message: "invalid parameter value: notbool",
+						Parameter: "Active",
+						Type:      simba.ParameterTypeQuery,
+						Message:   "invalid parameter value: notbool",
 					},
 				},
 			},
@@ -322,8 +326,9 @@ func TestHandler(t *testing.T) {
 				wantMessage: "invalid parameter value",
 				wantValidation: []simba.ValidationError{
 					{
-						Field:   "ID",
-						Message: "invalid parameter value: notint",
+						Parameter: "ID",
+						Type:      simba.ParameterTypePath,
+						Message:   "invalid parameter value: notint",
 					},
 				},
 			},
