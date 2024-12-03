@@ -39,12 +39,12 @@ func (e *HTTPError) Unwrap() error {
 	return e.err
 }
 
-// HasErrors checks if there are validation errors
+// HasValidationErrors checks if there are validation errors
 func (e *HTTPError) HasValidationErrors() bool {
 	return len(e.ValidationErrors) > 0
 }
 
-// NewApiError creates a new ApiError
+// NewHttpError creates a new ApiError
 func NewHttpError(httpStatusCode int, publicMessage string, err error, validationErrors ...ValidationError) *HTTPError {
 	return &HTTPError{
 		HttpStatusCode:   httpStatusCode,
@@ -52,13 +52,6 @@ func NewHttpError(httpStatusCode int, publicMessage string, err error, validatio
 		ValidationErrors: validationErrors,
 		err:              err,
 	}
-}
-
-// IsHTTPError checks if the error is an [HTTPError].
-func IsHTTPError(err error) bool {
-	var httpError *HTTPError
-	ok := errors.As(err, &httpError)
-	return ok
 }
 
 // ErrorResponse defines the structure of an error message
@@ -205,7 +198,7 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	err = writeJSONError(w, errorResponse)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to write error response")
-		w.WriteHeader(http.StatusInternalServerError)
+		handleUnexpectedError(w)
 		return
 	}
 }
@@ -215,4 +208,10 @@ func writeJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(errorResponse.Status)
 	return json.NewEncoder(w).Encode(errorResponse)
+}
+
+// handleUnexpectedError is a helper function for handling unexpected errors
+func handleUnexpectedError(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Header().Set("Content-Type", "application/json")
 }
