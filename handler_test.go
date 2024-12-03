@@ -42,7 +42,7 @@ func TestHandler(t *testing.T) {
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
 
-		router := simba.NewRouter()
+		router := simba.Default()
 		router.POST("/test/:id", simba.HandlerFunc(handler))
 
 		router.ServeHTTP(w, req)
@@ -247,7 +247,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
 
-		router := simba.NewRouterWithAuth[test.User](authFunc)
+		router := simba.DefaultWithAuth[test.User](authFunc)
 		router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
 
 		router.ServeHTTP(w, req)

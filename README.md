@@ -102,6 +102,22 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
 router.GET("/users/:userId", simba.HandlerFunc(getUser))
 ```
 
+## Logging
+
+Simba automatically injects a [zerolog](https://github.com/rs/zerolog) logger into every request's context. You can access this logger from any handler or middleware using the `logging` package:
+
+```go
+func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
+    logger := logging.FromCtx(ctx)
+    logger.Info().Msg("handling request")
+    // ... handle the request
+}
+```
+
+The logger configuration (format and level) can be controlled through environment variables:
+- `LOGGING_FORMAT`: "json" or "text" (default: "text")
+- `LOGGING_LEVEL`: "debug", "info", "warn", "error" (default: "debug")
+
 ## Configuration
 
 Customize router behavior with options:

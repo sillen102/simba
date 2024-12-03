@@ -31,7 +31,7 @@ func (rl *RequestLoggerConfig) LogRequests(next http.Handler) http.Handler {
 				var bodyJson map[string]interface{}
 				if err := json.Unmarshal(bodyBytes, &bodyJson); err == nil {
 					bodyLogger := logger.With().
-						Interface("request_body", bodyJson).
+						Interface("requestBody", bodyJson).
 						Logger()
 					logger = &bodyLogger
 				}
@@ -44,6 +44,8 @@ func (rl *RequestLoggerConfig) LogRequests(next http.Handler) http.Handler {
 		// Log request details after processing
 		duration := time.Since(start)
 		logger.Info().
+			Str("remoteIp", r.RemoteAddr).
+			Str("userAgent", r.UserAgent()).
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Int("status", wrapped.Status()).
@@ -57,6 +59,7 @@ func (rl *RequestLoggerConfig) LogRequests(next http.Handler) http.Handler {
 type responseWriter struct {
 	http.ResponseWriter
 	status      int
+	written     int64
 	wroteHeader bool
 }
 
@@ -66,6 +69,12 @@ func wrapResponseWriter(w http.ResponseWriter) *responseWriter {
 
 func (rw *responseWriter) Status() int {
 	return rw.status
+}
+
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	n, err := rw.ResponseWriter.Write(b)
+	rw.written += int64(n)
+	return n, err
 }
 
 func (rw *responseWriter) WriteHeader(code int) {
