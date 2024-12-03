@@ -211,6 +211,27 @@ func TestHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
+
+	t.Run("default values on params", func(t *testing.T) {
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
+			assert.Equal(t, int64(0), req.Params.Page)  // default value
+			assert.Equal(t, int64(10), req.Params.Size) // default value
+			assert.Equal(t, 10.0, req.Params.Score)
+			return &simba.Response{}, nil
+		}
+
+		body := strings.NewReader(`{"test": "test"}`)
+		req := httptest.NewRequest(http.MethodPost, "/test/1?active=true", body)
+		req.Header.Set("name", "John")
+		w := httptest.NewRecorder()
+
+		router := simba.NewRouter()
+		router.POST("/test/:id", simba.HandlerFunc(handler))
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
 }
 
 func TestAuthenticatedHandler(t *testing.T) {
