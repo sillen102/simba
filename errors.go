@@ -147,7 +147,12 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	if !errors.As(err, &httpErr) {
 		// Log unexpected errors as they are always serious
 		logger.Error().Stack().Msg("unexpected error encountered")
-		writeJSONError(w, NewErrorResponse(r, http.StatusInternalServerError, "Internal server error"))
+		err = writeJSONError(w, NewErrorResponse(r, http.StatusInternalServerError, "Internal server error"))
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to write error response")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 
@@ -197,7 +202,12 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 		errorResponse = NewErrorResponse(r, httpErr.HttpStatusCode, errorMessage)
 	}
 
-	writeJSONError(w, errorResponse)
+	err = writeJSONError(w, errorResponse)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to write error response")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // writeJSONError writes a JSON error response to the response writer

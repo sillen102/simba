@@ -2,6 +2,9 @@
 test:
 	@go test -v ./...
 
+lint:
+	@staticcheck ./...
+
 update-deps:
 	@go get -u ./...
 
