@@ -14,11 +14,12 @@ type RequestBody struct {
 }
 
 type Params struct {
-	Name   string `header:"name" validate:"required"`
-	ID     int    `path:"id" validate:"required"`
-	Active bool   `query:"active" validate:"required"`
-	Page   int64  `query:"page" validate:"min=0"`
-	Size   int64  `query:"size" validate:"min=0"`
+	Name   string  `header:"name" validate:"required"`
+	ID     int     `path:"id" validate:"required"`
+	Active bool    `query:"active" validate:"required"`
+	Page   int64   `query:"page" validate:"omitempty,min=0" default:"0"`
+	Size   int64   `query:"size" validate:"omitempty,min=0" default:"10"`
+	Score  float64 `query:"score" default:"10.0"`
 }
 
 type ResponseBody struct {
