@@ -6,6 +6,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
+	"github.com/rs/zerolog"
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 )
 
@@ -137,8 +139,19 @@ func (s *Router[User]) TRACE(path string, handler http.Handler) {
 	s.router.Handler(http.MethodTrace, path, s.wrapHandler(handler))
 }
 
+// wrapHandler wraps the handler with the middleware chain and injects the authFunc and options
 func (s *Router[User]) wrapHandler(handler http.Handler) http.Handler {
-	return alice.New().
+	return s.middleware.
+		Append(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Only inject if there's no logger already in context
+				if zerolog.Ctx(r.Context()) == zerolog.DefaultContextLogger {
+					logger := logging.Get()
+					r = r.WithContext(logger.WithContext(r.Context()))
+				}
+				next.ServeHTTP(w, r)
+			})
+		}).
 		Append(autoCloseRequestBody).
 		Append(func(next http.Handler) http.Handler {
 			return injectAuthFunc(next, s.authFunc)
