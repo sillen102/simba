@@ -23,6 +23,13 @@ type RouterOptions struct {
 	// resulting in a 400 Bad Request response if a field is present that cannot be
 	// mapped to the model struct.
 	RequestDisallowUnknownFields bool
+
+	// RequestIdHeader will determine if the request ID should be read from the
+	// request header. If not set, the request ID will be generated.
+	RequestIdAcceptHeader bool
+
+	// LogRequestBody will determine if the request body will be logged
+	LogRequestBody bool
 }
 
 // AuthFunc is a function type for authenticating and retrieving a user from a request
@@ -31,7 +38,7 @@ type AuthFunc[User any] func(r *http.Request) (*User, error)
 // Default returns a new Router with default settings
 func Default() *Router[struct{}] {
 	router := NewRouter()
-	router.middleware = defaultMiddleware()
+	router.middleware = defaultMiddleware(router.options)
 	return router
 }
 
@@ -39,7 +46,7 @@ func Default() *Router[struct{}] {
 // authenticate and retrieve the user
 func DefaultWithAuth[User any](authFunc AuthFunc[User]) *Router[User] {
 	router := NewRouterWithAuth(authFunc)
-	router.middleware = defaultMiddleware()
+	router.middleware = defaultMiddleware(router.options)
 	return router
 }
 
@@ -72,13 +79,6 @@ func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...RouterOptions)
 		options:    options,
 		middleware: alice.New(),
 		authFunc:   authFunc,
-	}
-}
-
-// defaultRouterOptions creates a RouterOptions with default values
-func defaultRouterOptions() RouterOptions {
-	return RouterOptions{
-		RequestDisallowUnknownFields: true,
 	}
 }
 
@@ -163,7 +163,28 @@ func mergeOptionsWithReflection(defaultOpts, providedOpts RouterOptions) RouterO
 	return defaultOpts
 }
 
+// defaultRouterOptions creates a RouterOptions with default values
+func defaultRouterOptions() RouterOptions {
+	return RouterOptions{
+		RequestDisallowUnknownFields: true,
+		RequestIdAcceptHeader:        false,
+		LogRequestBody:               false,
+	}
+}
+
 // Default returns the middleware chain used in the default router
-func defaultMiddleware() alice.Chain {
-	return alice.New(middleware.PanicRecover)
+func defaultMiddleware(opts RouterOptions) alice.Chain {
+	requestIdConfig := middleware.RequestIdConfig{
+		AcceptFromHeader: opts.RequestIdAcceptHeader,
+	}
+
+	requestLoggerConfig := middleware.RequestLoggerConfig{
+		LogRequestBody: opts.LogRequestBody,
+	}
+
+	return alice.New(
+		middleware.PanicRecover,
+		requestIdConfig.RequestID,
+		requestLoggerConfig.LogRequests,
+	)
 }

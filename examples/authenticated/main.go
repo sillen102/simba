@@ -47,7 +47,7 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 func main() {
 	// the router will use the authFunc to authenticate and retrieve the user
 	// for each request that uses the AuthenticatedHandlerFunc and pass it to the handler
-	router := simba.NewRouterWithAuth[User](authFunc)
+	router := simba.DefaultWithAuth[User](authFunc)
 	router.GET("/user", simba.AuthenticatedHandlerFunc(authenticatedHandler))
 	http.ListenAndServe(":9999", router)
 }

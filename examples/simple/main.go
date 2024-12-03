@@ -31,7 +31,7 @@ func noBodyHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.N
 }
 
 func main() {
-	router := simba.NewRouter()
+	router := simba.Default()
 	router.POST("/users", simba.HandlerFunc(handler))
 	router.GET("/no-body", simba.HandlerFunc(noBodyHandler))
 	http.ListenAndServe(":9999", router)

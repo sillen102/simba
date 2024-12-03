@@ -23,4 +23,20 @@ func TestSettingOptions(t *testing.T) {
 
 		assert.Equal(t, router.GetOptions().RequestDisallowUnknownFields, options.RequestDisallowUnknownFields)
 	})
+
+	t.Run("set request id accept header", func(t *testing.T) {
+		options := simba.RouterOptions{
+			RequestIdAcceptHeader: true,
+		}
+		router := simba.NewRouter(options)
+		assert.Equal(t, router.GetOptions().RequestIdAcceptHeader, options.RequestIdAcceptHeader)
+	})
+
+	t.Run("set log request body", func(t *testing.T) {
+		options := simba.RouterOptions{
+			LogRequestBody: true,
+		}
+		router := simba.NewRouter(options)
+		assert.Equal(t, router.GetOptions().LogRequestBody, options.LogRequestBody)
+	})
 }
