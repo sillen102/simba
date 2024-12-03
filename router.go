@@ -2,7 +2,6 @@ package simba
 
 import (
 	"net/http"
-	"reflect"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
@@ -14,13 +13,13 @@ import (
 // Router holds the router and options
 type Router[User any] struct {
 	router     *httprouter.Router
-	options    RouterOptions
+	options    Options
 	middleware alice.Chain
 	authFunc   AuthFunc[User]
 }
 
-// RouterOptions are options for the router
-type RouterOptions struct {
+// Options are the settings for the router
+type Options struct {
 	// RequestDisallowUnknownFields will disallow unknown fields in the request body,
 	// resulting in a 400 Bad Request response if a field is present that cannot be
 	// mapped to the model struct.
@@ -32,6 +31,12 @@ type RouterOptions struct {
 
 	// LogRequestBody will determine if the request body will be logged
 	LogRequestBody bool
+
+	// LogLevel is the log level for the logger that will be used
+	LogLevel zerolog.Level
+
+	// LogFormat is the log format for the logger that will be used
+	LogFormat logging.LogFormat
 }
 
 // AuthFunc is a function type for authenticating and retrieving a user from a request
@@ -39,42 +44,35 @@ type AuthFunc[User any] func(r *http.Request) (*User, error)
 
 // Default returns a new Router with default settings
 func Default() *Router[struct{}] {
-	router := NewRouter()
-	router.middleware = defaultMiddleware(router.options)
-	return router
+	return DefaultWithAuth[struct{}](nil)
 }
 
 // DefaultWithAuth returns a new Router with default settings and ability to have authenticated routes using the provided authFunc to
 // authenticate and retrieve the user
 func DefaultWithAuth[User any](authFunc AuthFunc[User]) *Router[User] {
-	router := NewRouterWithAuth(authFunc)
+	router := NewRouterWithAuth[User](authFunc)
 	router.middleware = defaultMiddleware(router.options)
 	return router
 }
 
 // NewRouter returns a new Router
-func NewRouter(opts ...RouterOptions) *Router[struct{}] {
-	options := defaultRouterOptions()
-
-	if len(opts) > 0 {
-		options = mergeOptionsWithReflection(options, opts[0])
-	}
-
-	return &Router[struct{}]{
-		router:     httprouter.New(),
-		options:    options,
-		middleware: alice.New(),
-	}
+func NewRouter(opts ...Options) *Router[struct{}] {
+	return NewRouterWithAuth[struct{}](nil, opts...)
 }
 
 // NewRouterWithAuth returns a new Router with ability to have authenticated routes using the provided authFunc to
 // authenticate and retrieve the user
-func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...RouterOptions) *Router[User] {
+func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...Options) *Router[User] {
 	options := defaultRouterOptions()
-
 	if len(opts) > 0 {
-		options = mergeOptionsWithReflection(options, opts[0])
+		options = opts[0]
 	}
+
+	zerolog.SetGlobalLevel(options.LogLevel)
+	zerolog.DefaultContextLogger = logging.New(logging.LoggerConfig{
+		Format: options.LogFormat,
+		Level:  options.LogLevel,
+	})
 
 	return &Router[User]{
 		router:     httprouter.New(),
@@ -85,7 +83,7 @@ func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...RouterOptions)
 }
 
 // GetOptions returns the options for the router
-func (s *Router[User]) GetOptions() RouterOptions {
+func (s *Router[User]) GetOptions() Options {
 	return s.options
 }
 
@@ -145,8 +143,11 @@ func (s *Router[User]) wrapHandler(handler http.Handler) http.Handler {
 		Append(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Only inject if there's no logger already in context
-				if zerolog.Ctx(r.Context()) == zerolog.DefaultContextLogger {
-					logger := logging.Get()
+				if zerolog.Ctx(r.Context()) == nil {
+					logger := logging.New(logging.LoggerConfig{
+						Format: s.options.LogFormat,
+						Level:  s.options.LogLevel,
+					})
 					r = r.WithContext(logger.WithContext(r.Context()))
 				}
 				next.ServeHTTP(w, r)
@@ -162,31 +163,19 @@ func (s *Router[User]) wrapHandler(handler http.Handler) http.Handler {
 		Then(handler)
 }
 
-// mergeOptionsWithReflection uses reflection to merge non-zero fields from provided into default options
-func mergeOptionsWithReflection(defaultOpts, providedOpts RouterOptions) RouterOptions {
-	defaultVal := reflect.ValueOf(&defaultOpts).Elem()
-	providedVal := reflect.ValueOf(providedOpts)
-
-	for i := 0; i < providedVal.NumField(); i++ {
-		providedField := providedVal.Field(i)
-		defaultField := defaultVal.Field(i)
-
-		defaultField.Set(providedField)
-	}
-	return defaultOpts
-}
-
 // defaultRouterOptions creates a RouterOptions with default values
-func defaultRouterOptions() RouterOptions {
-	return RouterOptions{
+func defaultRouterOptions() Options {
+	return Options{
 		RequestDisallowUnknownFields: true,
 		RequestIdAcceptHeader:        false,
 		LogRequestBody:               false,
+		LogLevel:                     zerolog.InfoLevel,
+		LogFormat:                    logging.TextFormat,
 	}
 }
 
 // Default returns the middleware chain used in the default router
-func defaultMiddleware(opts RouterOptions) alice.Chain {
+func defaultMiddleware(opts Options) alice.Chain {
 	requestIdConfig := middleware.RequestIdConfig{
 		AcceptFromHeader: opts.RequestIdAcceptHeader,
 	}
