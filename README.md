@@ -131,6 +131,29 @@ router := simba.NewRouter(simba.RouterOptions{
 })
 ```
 
+## Error Handling
+
+Simba provides automatic error handling with standardized JSON responses. All errors are automatically wrapped and returned in a consistent format:
+
+```json
+{
+  "timestamp": "2023-01-01T12:00:00Z",
+  "status": 400,
+  "error": "Bad Request",
+  "path": "/api/resource",
+  "method": "POST",
+  "requestId": "01JE61MX24YEGF08E8G0RA0Y14",
+  "message": "invalid request body",
+  "validationErrors": [
+    {
+      "parameter": "email",
+      "type": "body",
+      "message": "'email' is not a valid email address"
+    }
+  ]
+}
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
