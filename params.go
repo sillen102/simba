@@ -44,7 +44,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		if field.Type.String() == "uuid.UUID" {
 			if err := handleUUIDField(fieldValue, value); err != nil {
 				return instance, NewHttpError(http.StatusBadRequest, "invalid UUID parameter value", err,
-					ValidationError{Field: field.Name, Message: "invalid UUID parameter value: " + value})
+					ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid UUID parameter value: " + value})
 			}
 			continue
 		}
@@ -52,7 +52,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		// Set field value
 		if err := setFieldValue(fieldValue, value); err != nil {
 			return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err,
-				ValidationError{Field: field.Name, Message: "invalid parameter value: " + value})
+				ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid parameter value: " + value})
 		}
 	}
 
@@ -64,7 +64,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	return instance, nil
 }
 
-// getParamValue retrieves a parameter value from the request based on the field tag
+// getParamValue returns the parameter value based on the struct tag
 func getParamValue(r *http.Request, field reflect.StructField) string {
 	switch {
 	case field.Tag.Get("header") != "":
@@ -77,6 +77,20 @@ func getParamValue(r *http.Request, field reflect.StructField) string {
 		return r.URL.Query().Get(field.Tag.Get("query"))
 	}
 	return ""
+}
+
+// getParamType returns the parameter type based on the struct tag
+func getParamType(field reflect.StructField) ParameterType {
+	switch {
+	case field.Tag.Get("header") != "":
+		return ParameterTypeHeader
+	case field.Tag.Get("path") != "":
+		return ParameterTypePath
+	case field.Tag.Get("query") != "":
+		return ParameterTypeQuery
+	default:
+		return ParameterTypeBody
+	}
 }
 
 // setFieldValue converts and sets a string value to the appropriate field type

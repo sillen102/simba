@@ -23,8 +23,9 @@ func ValidateStruct(request any) ValidationErrors {
 		log.Printf("Validation failed with unexpected error: %v", err)
 		return ValidationErrors{
 			{
-				Field:   "unknown",
-				Message: "An unknown validation error occurred.",
+				Parameter: "unknown",
+				Type:      "unknown",
+				Message:   "An unknown validation error occurred.",
 			},
 		}
 	}
@@ -41,8 +42,9 @@ func ValidateStruct(request any) ValidationErrors {
 
 			message := getValidationMessage(e, valueStr)
 			validationErrorsData[i] = ValidationError{
-				Field:   strcase.ToLowerCamel(e.Field()),
-				Message: message,
+				Parameter: strcase.ToLowerCamel(e.Field()),
+				Type:      ParameterTypeBody,
+				Message:   message,
 			}
 		}
 		return validationErrorsData
