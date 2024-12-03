@@ -30,9 +30,24 @@ type ResponseBody struct {
 	Active  bool      `json:"active"`
 	Page    int       `json:"page"`
 	Size    int64     `json:"size"`
+	Score   float64   `json:"score"`
 }
 
 func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response, error) {
+
+	// Access the request body and params fields
+	// req.Body.Age
+	// req.Params.Name
+	// req.Params.ID
+	// req.Params.Page
+	// req.Params.Size
+
+	// Access the request cookies
+	// req.Cookies
+
+	// Access the request headers
+	// req.Headers
+
 	return &simba.Response{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are %d years old", req.Params.Name, req.Body.Age),
@@ -41,6 +56,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 			Page:    req.Params.Page,
 			Size:    req.Params.Size,
 			Name:    req.Params.Name,
+			Score:   req.Params.Score,
 		},
 	}, nil
 }

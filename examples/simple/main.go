@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/rs/zerolog"
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 )
 
 type RequestBody struct {
@@ -19,6 +19,17 @@ type ResponseBody struct {
 }
 
 func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response, error) {
+
+	// Access the request body fields
+	// req.Body.Age
+	// req.Body.Name
+
+	// Access the request cookies
+	// req.Cookies
+
+	// Access the request headers
+	// req.Headers
+
 	return &simba.Response{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are %d years old", req.Body.Name, req.Body.Age),
@@ -35,6 +46,6 @@ func main() {
 	router := simba.Default()
 	router.POST("/users", simba.HandlerFunc(handler))
 	router.GET("/no-body", simba.HandlerFunc(noBodyHandler))
-	logging.GetDefault().Info().Msg("Listening on http://localhost:9999")
+	zerolog.Ctx(context.Background()).Info().Msg("Listening on http://localhost:9999")
 	http.ListenAndServe(":9999", router)
 }
