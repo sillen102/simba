@@ -37,11 +37,19 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err e
 	}
 
 	if resp.Status != 0 {
-		writeJSON(w, resp.Status, resp.Body)
+		err = writeJSON(w, resp.Status, resp.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 
-	writeJSON(w, http.StatusOK, resp.Body)
+	err = writeJSON(w, http.StatusOK, resp.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // writeJSON is a helper function for writing JSON responses
