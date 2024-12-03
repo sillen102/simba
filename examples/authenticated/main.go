@@ -5,14 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/rs/zerolog"
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 )
-
-type RequestBody struct {
-	Name string `json:"name"`
-	Age  int    `json:"age"`
-}
 
 type ResponseBody struct {
 	Message string `json:"message"`
@@ -37,6 +32,13 @@ func authFunc(r *http.Request) (*User, error) {
 }
 
 func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
+
+	// Access the request cookies
+	// req.Cookies
+
+	// Access the request headers
+	// req.Headers
+
 	return &simba.Response{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
@@ -50,6 +52,6 @@ func main() {
 	// for each request that uses the AuthenticatedHandlerFunc and pass it to the handler
 	router := simba.DefaultWithAuth[User](authFunc)
 	router.GET("/user", simba.AuthenticatedHandlerFunc(authenticatedHandler))
-	logging.GetDefault().Info().Msg("Listening on http://localhost:9999")
+	zerolog.Ctx(context.Background()).Info().Msg("Listening on http://localhost:9999")
 	http.ListenAndServe(":9999", router)
 }
