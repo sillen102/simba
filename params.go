@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -31,6 +32,10 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		field := t.Field(i)
 		fieldValue := v.Field(i)
 
+		if !fieldValue.CanSet() {
+			continue
+		}
+
 		var value string
 		// Get value based on tag type
 		switch {
@@ -45,6 +50,20 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		}
 
 		if value == "" {
+			continue
+		}
+
+		// Special handling for UUID type
+		if field.Type.String() == "uuid.UUID" {
+			uuidVal, err := uuid.Parse(value)
+			if err != nil {
+				validationError := ValidationError{
+					Field:   field.Name,
+					Message: "invalid UUID parameter value: " + value,
+				}
+				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+			}
+			fieldValue.Set(reflect.ValueOf(uuidVal))
 			continue
 		}
 
@@ -72,6 +91,16 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
 			}
 			fieldValue.SetBool(boolVal)
+		case reflect.Float64:
+			floatVal, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				validationError := ValidationError{
+					Field:   field.Name,
+					Message: "invalid float parameter value: " + value,
+				}
+				return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err, validationError)
+			}
+			fieldValue.SetFloat(floatVal)
 		}
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/test"
 	"gotest.tools/v3/assert"
@@ -160,6 +161,55 @@ func TestHandler(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	})
+
+	t.Run("uuid params", func(t *testing.T) {
+		type UuidParams struct {
+			ID       uuid.UUID `path:"id"`
+			HeaderID uuid.UUID `header:"Header-ID"`
+			QueryID  uuid.UUID `query:"queryId"`
+		}
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, UuidParams]) (*simba.Response, error) {
+			assert.Equal(t, "123e4567-e89b-12d3-a456-426655440000", req.Params.ID.String())
+			assert.Equal(t, "248ccd0e-4bdf-4c41-a125-92ef3a416251", req.Params.HeaderID.String())
+			assert.Equal(t, "ccf586b9-6fc9-4c1b-a3a6-8b89ac25ab84", req.Params.QueryID.String())
+			return &simba.Response{}, nil
+		}
+
+		body := strings.NewReader(`{"test": "test"}`)
+		req := httptest.NewRequest(http.MethodPost, "/test/123e4567-e89b-12d3-a456-426655440000?queryId=ccf586b9-6fc9-4c1b-a3a6-8b89ac25ab84", body)
+		req.Header.Set("Header-ID", "248ccd0e-4bdf-4c41-a125-92ef3a416251")
+		w := httptest.NewRecorder()
+
+		router := simba.NewRouter()
+		router.POST("/test/:id", simba.HandlerFunc(handler))
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("float params", func(t *testing.T) {
+		type FloatParams struct {
+			Page float64 `query:"page"`
+			Size float64 `query:"size"`
+		}
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, FloatParams]) (*simba.Response, error) {
+			assert.Equal(t, 1.1, req.Params.Page)
+			assert.Equal(t, 2.2, req.Params.Size)
+			return &simba.Response{}, nil
+		}
+
+		body := strings.NewReader(`{"test": "test"}`)
+		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1.1&size=2.2&active=true", body)
+		w := httptest.NewRecorder()
+
+		router := simba.NewRouter()
+		router.POST("/test/:id", simba.HandlerFunc(handler))
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
 }
 

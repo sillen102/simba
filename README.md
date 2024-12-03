@@ -50,7 +50,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams
 }
 
 func main() {
-    router := simba.NewRouter()
+    router := simba.Default()
     router.POST("/users", simba.HandlerFunc(handler))
     http.ListenAndServe(":9999", router)
 }
@@ -76,7 +76,7 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
     // ... handle the request
 }
 
-router := simba.NewRouterWithAuth[User](authFunc)
+router := simba.DefaultWithAuth[User](authFunc)
 router.GET("/users/:userId", simba.AuthenticatedHandlerFunc(getUser))
 ```
 
@@ -109,6 +109,8 @@ Customize router behavior with options:
 ```go
 router := simba.NewRouter(simba.RouterOptions{
     RequestDisallowUnknownFields: true,
+    RequestIdAcceptHeader:        true,
+    LogRequestBody:               true,
 })
 ```
 

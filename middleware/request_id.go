@@ -23,7 +23,7 @@ type RequestIdConfig struct {
 }
 
 // AddRequestID middleware that adds a request ID to the context of the request
-func (c *RequestIdConfig) AddRequestID(next http.Handler) http.Handler {
+func (c *RequestIdConfig) RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var requestID string
 

@@ -43,7 +43,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 }
 
 func main() {
-	router := simba.NewRouter()
+	router := simba.Default()
 	router.POST("/params/:id", simba.HandlerFunc(handler))
 	http.ListenAndServe(":9999", router)
 }
