@@ -5,13 +5,42 @@ import (
 	"reflect"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/justinas/alice"
+	"github.com/sillen102/simba/middleware"
 )
 
 // Router holds the router and options
 type Router[User any] struct {
-	router   *httprouter.Router
-	options  *RouterOptions
-	authFunc AuthFunc[User]
+	router     *httprouter.Router
+	options    RouterOptions
+	middleware alice.Chain
+	authFunc   AuthFunc[User]
+}
+
+// RouterOptions are options for the router
+type RouterOptions struct {
+	// RequestDisallowUnknownFields will disallow unknown fields in the request body,
+	// resulting in a 400 Bad Request response if a field is present that cannot be
+	// mapped to the model struct.
+	RequestDisallowUnknownFields bool
+}
+
+// AuthFunc is a function type for authenticating and retrieving a user from a request
+type AuthFunc[User any] func(r *http.Request) (*User, error)
+
+// Default returns a new Router with default settings
+func Default() *Router[struct{}] {
+	router := NewRouter()
+	router.middleware = defaultMiddleware()
+	return router
+}
+
+// DefaultWithAuth returns a new Router with default settings and ability to have authenticated routes using the provided authFunc to
+// authenticate and retrieve the user
+func DefaultWithAuth[User any](authFunc AuthFunc[User]) *Router[User] {
+	router := NewRouterWithAuth(authFunc)
+	router.middleware = defaultMiddleware()
+	return router
 }
 
 // NewRouter returns a new Router
@@ -23,8 +52,9 @@ func NewRouter(opts ...RouterOptions) *Router[struct{}] {
 	}
 
 	return &Router[struct{}]{
-		router:  httprouter.New(),
-		options: &options,
+		router:     httprouter.New(),
+		options:    options,
+		middleware: alice.New(),
 	}
 }
 
@@ -38,30 +68,24 @@ func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...RouterOptions)
 	}
 
 	return &Router[User]{
-		router:   httprouter.New(),
-		options:  &options,
-		authFunc: authFunc,
+		router:     httprouter.New(),
+		options:    options,
+		middleware: alice.New(),
+		authFunc:   authFunc,
 	}
-}
-
-// RouterOptions are options for the router
-type RouterOptions struct {
-	// RequestDisallowUnknownFields will disallow unknown fields in the request body,
-	// resulting in a 400 Bad Request response if a field is present that cannot be
-	// mapped to the model struct.
-	RequestDisallowUnknownFields *bool
 }
 
 // defaultRouterOptions creates a RouterOptions with default values
 func defaultRouterOptions() RouterOptions {
-	defaultTrue := true
 	return RouterOptions{
-		RequestDisallowUnknownFields: &defaultTrue,
+		RequestDisallowUnknownFields: true,
 	}
 }
 
-// AuthFunc is a function type for authenticating and retrieving a user from a request
-type AuthFunc[User any] func(r *http.Request) (*User, error)
+// GetOptions returns the options for the router
+func (s *Router[User]) GetOptions() RouterOptions {
+	return s.options
+}
 
 // ServeHTTP implements the http.Handler interface
 func (s *Router[User]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -70,47 +94,59 @@ func (s *Router[User]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // POST registers a handler for POST requests to the given pattern
 func (s *Router[User]) POST(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPost, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodPost, path, s.wrapHandler(handler))
 }
 
 // GET registers a handler for GET requests to the given pattern
 func (s *Router[User]) GET(path string, handler http.Handler) {
-	s.router.Handler(http.MethodGet, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodGet, path, s.wrapHandler(handler))
 }
 
 // PUT registers a handler for PUT requests to the given pattern
 func (s *Router[User]) PUT(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPut, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodPut, path, s.wrapHandler(handler))
 }
 
 // DELETE registers a handler for DELETE requests to the given pattern
 func (s *Router[User]) DELETE(path string, handler http.Handler) {
-	s.router.Handler(http.MethodDelete, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodDelete, path, s.wrapHandler(handler))
 }
 
 // PATCH registers a handler for PATCH requests to the given pattern
 func (s *Router[User]) PATCH(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPatch, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodPatch, path, s.wrapHandler(handler))
 }
 
 // OPTIONS registers a handler for OPTIONS requests to the given pattern
 func (s *Router[User]) OPTIONS(path string, handler http.Handler) {
-	s.router.Handler(http.MethodOptions, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodOptions, path, s.wrapHandler(handler))
 }
 
 // HEAD registers a handler for HEAD requests to the given pattern
 func (s *Router[User]) HEAD(path string, handler http.Handler) {
-	s.router.Handler(http.MethodHead, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodHead, path, s.wrapHandler(handler))
 }
 
 // CONNECT registers a handler for CONNECT requests to the given pattern
 func (s *Router[User]) CONNECT(path string, handler http.Handler) {
-	s.router.Handler(http.MethodConnect, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodConnect, path, s.wrapHandler(handler))
 }
 
 // TRACE registers a handler for TRACE requests to the given pattern
 func (s *Router[User]) TRACE(path string, handler http.Handler) {
-	s.router.Handler(http.MethodTrace, path, injectAuthFunc(injectOptions(handler, s.options), s.authFunc))
+	s.router.Handler(http.MethodTrace, path, s.wrapHandler(handler))
+}
+
+func (s *Router[User]) wrapHandler(handler http.Handler) http.Handler {
+	return alice.New().
+		Append(autoCloseRequestBody).
+		Append(func(next http.Handler) http.Handler {
+			return injectAuthFunc(next, s.authFunc)
+		}).
+		Append(func(next http.Handler) http.Handler {
+			return injectOptions(next, s.options)
+		}).
+		Then(handler)
 }
 
 // mergeOptionsWithReflection uses reflection to merge non-zero fields from provided into default options
@@ -125,4 +161,9 @@ func mergeOptionsWithReflection(defaultOpts, providedOpts RouterOptions) RouterO
 		defaultField.Set(providedField)
 	}
 	return defaultOpts
+}
+
+// Default returns the middleware chain used in the default router
+func defaultMiddleware() alice.Chain {
+	return alice.New(middleware.PanicRecover)
 }

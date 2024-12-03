@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/sillen102/simba/logging"
 )
 
 type optionsContextKey string
@@ -15,8 +17,21 @@ const (
 	authFuncKey      authContextKey    = "authFunc"
 )
 
+// autoCloseRequestBody automatically closes the request body
+func autoCloseRequestBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				logging.FromCtx(r.Context()).Error().Err(err).Msg("error closing request body")
+			}
+		}(r.Body)
+		next.ServeHTTP(w, r)
+	})
+}
+
 // injectOptions injects the RouterOptions into the request context
-func injectOptions(next http.Handler, options *RouterOptions) http.Handler {
+func injectOptions(next http.Handler, options RouterOptions) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), routerOptionsKey, options)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -62,7 +77,7 @@ func decodeBodyIfNeeded[RequestBody any](r *http.Request, req *RequestBody) erro
 // readJson reads the JSON body and unmarshalls it into the model
 func readJson(body io.ReadCloser, options *RouterOptions, model any) error {
 	decoder := json.NewDecoder(body)
-	if options.RequestDisallowUnknownFields != nil && *options.RequestDisallowUnknownFields {
+	if options.RequestDisallowUnknownFields {
 		decoder.DisallowUnknownFields()
 	}
 	err := decoder.Decode(&model)

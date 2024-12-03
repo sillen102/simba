@@ -7,6 +7,7 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/justinas/alice v1.2.0
 	github.com/oklog/ulid v1.3.1
 	github.com/rs/zerolog v1.33.0
 	gotest.tools/v3 v3.5.1
