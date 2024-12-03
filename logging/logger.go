@@ -3,24 +3,13 @@ package logging
 import (
 	"context"
 	"io"
-	"os"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 )
 
 type LogFormat string
-
-// defaultLogger is a global logger that is used only if no logger is provided in the context
-var defaultLogger zerolog.Logger
-
-func init() {
-	defaultLogger = zerolog.New(os.Stderr).Output(zerolog.ConsoleWriter{
-		Out:          os.Stderr,
-		TimeLocation: time.UTC,
-		TimeFormat:   TimeFormat,
-	}).With().Timestamp().Logger()
-}
 
 const (
 	JsonFormat LogFormat = "json"
@@ -34,14 +23,20 @@ type LoggerConfig struct {
 	Output io.Writer
 }
 
-// New returns a new logger
-func New(config LoggerConfig) *zerolog.Logger {
-	var logger zerolog.Logger
+var (
+	defaultLogger zerolog.Logger
+	once          sync.Once
+)
+
+func init() {
 	zerolog.TimestampFunc = func() time.Time {
 		return time.Now().UTC()
 	}
 	zerolog.TimeFieldFormat = TimeFormat
-	zerolog.SetGlobalLevel(config.Level)
+}
+
+func New(config LoggerConfig) zerolog.Logger {
+	var logger zerolog.Logger
 
 	if config.Format == JsonFormat {
 		logger = zerolog.New(config.Output).Level(config.Level).With().Timestamp().Logger()
@@ -52,21 +47,16 @@ func New(config LoggerConfig) *zerolog.Logger {
 			TimeFormat:   TimeFormat,
 		}).With().Timestamp().Logger()
 	}
-	zerolog.DefaultContextLogger = &logger
-	defaultLogger = logger
-	return &logger
+	once.Do(func() {
+		defaultLogger = logger
+		zerolog.DefaultContextLogger = &logger
+	})
+	return logger
 }
 
-// Get returns the global logger
-func Get() *zerolog.Logger {
-	return zerolog.Ctx(context.Background())
-}
-
-// FromCtx returns a logger from the context
 func FromCtx(ctx context.Context) *zerolog.Logger {
 	logger := zerolog.Ctx(ctx)
 	if logger == nil || logger.GetLevel() == zerolog.Disabled {
-		// Return the default logger instead of a no-op logger
 		return &defaultLogger
 	}
 	return logger

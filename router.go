@@ -18,6 +18,7 @@ type Router[AuthModel any] struct {
 	options    Options
 	middleware alice.Chain
 	authFunc   AuthFunc[AuthModel]
+	logger     zerolog.Logger
 }
 
 // Options are the settings for the router
@@ -50,7 +51,8 @@ type AuthFunc[User any] func(r *http.Request) (*User, error)
 
 // Default returns a new Router with default settings
 func Default() *Router[struct{}] {
-	return DefaultWithAuth[struct{}](nil)
+	router := DefaultWithAuth[struct{}](nil)
+	return router
 }
 
 // DefaultWithAuth returns a new Router with default settings and ability to have authenticated routes using the provided authFunc to
@@ -74,17 +76,16 @@ func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...Options) *Rout
 		options = opts[0]
 	}
 
-	zerolog.DefaultContextLogger = logging.New(logging.LoggerConfig{
-		Format: options.LogFormat,
-		Level:  options.LogLevel,
-		Output: options.LogOutput,
-	})
-
 	return &Router[User]{
 		router:     httprouter.New(),
 		options:    options,
 		middleware: alice.New(),
 		authFunc:   authFunc,
+		logger: logging.New(logging.LoggerConfig{
+			Format: options.LogFormat,
+			Level:  options.LogLevel,
+			Output: options.LogOutput,
+		}),
 	}
 }
 
@@ -149,13 +150,8 @@ func (s *Router[AuthModel]) wrapHandler(handler http.Handler) http.Handler {
 		Append(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Only inject if there's no logger already in context
-				if zerolog.Ctx(r.Context()) == nil {
-					logger := logging.New(logging.LoggerConfig{
-						Format: s.options.LogFormat,
-						Level:  s.options.LogLevel,
-						Output: s.options.LogOutput,
-					})
-					r = r.WithContext(logger.WithContext(r.Context()))
+				if logger := logging.FromCtx(r.Context()); logger == nil {
+					r = r.WithContext(s.logger.WithContext(r.Context()))
 				}
 				next.ServeHTTP(w, r)
 			})
