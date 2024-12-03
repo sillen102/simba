@@ -232,6 +232,125 @@ func TestHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
+
+	t.Run("override default values with query params", func(t *testing.T) {
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
+			assert.Equal(t, int64(5), req.Params.Page)  // overridden value
+			assert.Equal(t, int64(20), req.Params.Size) // overridden value
+			assert.Equal(t, 15.5, req.Params.Score)     // overridden value
+			return &simba.Response{}, nil
+		}
+
+		body := strings.NewReader(`{"test": "test"}`)
+		req := httptest.NewRequest(http.MethodPost, "/test/1?active=true&page=5&size=20&score=15.5", body)
+		req.Header.Set("name", "John")
+		w := httptest.NewRecorder()
+
+		router := simba.NewRouter()
+		router.POST("/test/:id", simba.HandlerFunc(handler))
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("invalid parameter types", func(t *testing.T) {
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
+			t.Error("handler should not be called")
+			return &simba.Response{}, nil
+		}
+
+		testCases := []struct {
+			name           string
+			url            string
+			wantStatus     int
+			wantMessage    string
+			wantValidation []simba.ValidationError
+		}{
+			{
+				name:        "invalid page parameter",
+				url:         "/test/1?active=true&page=invalid",
+				wantStatus:  http.StatusBadRequest,
+				wantMessage: "invalid parameter value",
+				wantValidation: []simba.ValidationError{
+					{
+						Field:   "Page",
+						Message: "invalid parameter value: invalid",
+					},
+				},
+			},
+			{
+				name:        "invalid size parameter",
+				url:         "/test/1?active=true&size=invalid",
+				wantStatus:  http.StatusBadRequest,
+				wantMessage: "invalid parameter value",
+				wantValidation: []simba.ValidationError{
+					{
+						Field:   "Size",
+						Message: "invalid parameter value: invalid",
+					},
+				},
+			},
+			{
+				name:        "invalid score parameter",
+				url:         "/test/1?active=true&score=invalid",
+				wantStatus:  http.StatusBadRequest,
+				wantMessage: "invalid parameter value",
+				wantValidation: []simba.ValidationError{
+					{
+						Field:   "Score",
+						Message: "invalid parameter value: invalid",
+					},
+				},
+			},
+			{
+				name:        "invalid active parameter",
+				url:         "/test/1?active=notbool",
+				wantStatus:  http.StatusBadRequest,
+				wantMessage: "invalid parameter value",
+				wantValidation: []simba.ValidationError{
+					{
+						Field:   "Active",
+						Message: "invalid parameter value: notbool",
+					},
+				},
+			},
+			{
+				name:        "invalid id parameter",
+				url:         "/test/notint?active=true",
+				wantStatus:  http.StatusBadRequest,
+				wantMessage: "invalid parameter value",
+				wantValidation: []simba.ValidationError{
+					{
+						Field:   "ID",
+						Message: "invalid parameter value: notint",
+					},
+				},
+			},
+		}
+
+		router := simba.NewRouter()
+		router.POST("/test/:id", simba.HandlerFunc(handler))
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				body := strings.NewReader(`{"test": "test"}`)
+				req := httptest.NewRequest(http.MethodPost, tc.url, body)
+				req.Header.Set("name", "John")
+				w := httptest.NewRecorder()
+
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, tc.wantStatus, w.Code)
+
+				var errResp simba.ErrorResponse
+				err := json.NewDecoder(w.Body).Decode(&errResp)
+				assert.NilError(t, err)
+				assert.Equal(t, tc.wantMessage, errResp.Message)
+				assert.DeepEqual(t, tc.wantValidation, errResp.ValidationErrors)
+			})
+		}
+	})
 }
 
 func TestAuthenticatedHandler(t *testing.T) {
