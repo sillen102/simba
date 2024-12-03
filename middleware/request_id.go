@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/oklog/ulid"
 	"github.com/sillen102/simba/logging"
 )
@@ -24,8 +23,8 @@ type RequestIdConfig struct {
 }
 
 // AddRequestID middleware that adds a request ID to the context of the request
-func (c *RequestIdConfig) AddRequestID(next httprouter.Handle) httprouter.Handle {
-	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (c *RequestIdConfig) AddRequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var requestID string
 
 		if c.AcceptFromHeader {
@@ -39,15 +38,15 @@ func (c *RequestIdConfig) AddRequestID(next httprouter.Handle) httprouter.Handle
 			requestID = id.String()
 		}
 
-		// Create a logger with the request ID
-		logger := logging.Get().With().Str(string(RequestIDKey), requestID).Logger()
+		// Add request ID to context
+		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
 
-		// Add both request ID and logger to context
-		ctx := logger.WithContext(context.WithValue(r.Context(), RequestIDKey, requestID))
+		// Add request ID to logger in context
+		logging.FromCtx(ctx).With().Str(string(RequestIDKey), requestID).Logger()
 
 		// Set the request ID header
 		w.Header().Set(RequestIDHeader, requestID)
 
-		next(w, r.WithContext(ctx), ps)
-	}
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
