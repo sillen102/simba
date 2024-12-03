@@ -125,10 +125,11 @@ router := simba.NewRouter(simba.RouterOptions{
     RequestDisallowUnknownFields: true,
     RequestIdAcceptHeader:        true,
     LogRequestBody:               true,
-	LogLevel:                     zerolog.DebugLevel,
+    LogLevel:                     zerolog.DebugLevel,
     LogFormat:                    logging.JSONFormat,
     LogOutput:                    os.Stdout,
 })
+
 ```
 
 ## Error Handling
