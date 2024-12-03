@@ -1,6 +1,7 @@
 package simba
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -122,6 +123,8 @@ func setFieldValue(fieldValue reflect.Value, value string) error {
 		if floatVal, err = strconv.ParseFloat(value, 64); err == nil {
 			fieldValue.SetFloat(floatVal)
 		}
+	default:
+		return fmt.Errorf("unsupported field type: %v", fieldValue.Kind())
 	}
 	return err
 }

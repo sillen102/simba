@@ -42,7 +42,7 @@ func (rl *RequestLoggerConfig) LogRequests(next http.Handler) http.Handler {
 		next.ServeHTTP(wrapped, r)
 
 		// Log request details after processing
-		duration := time.Since(start)
+		duration := time.Since(start).Round(time.Microsecond)
 		logger.Info().
 			Str("remoteIp", r.RemoteAddr).
 			Str("userAgent", r.UserAgent()).
