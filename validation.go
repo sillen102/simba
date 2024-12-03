@@ -3,7 +3,6 @@ package simba
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/iancoleman/strcase"
@@ -20,7 +19,6 @@ func ValidateStruct(request any) ValidationErrors {
 
 	var validationErrors validator.ValidationErrors
 	if !errors.As(err, &validationErrors) {
-		log.Printf("Validation failed with unexpected error: %v", err)
 		return ValidationErrors{
 			{
 				Parameter: "unknown",
