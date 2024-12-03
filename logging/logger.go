@@ -31,17 +31,14 @@ func New(config LoggerConfig) *zerolog.Logger {
 	zerolog.TimeFieldFormat = TimeFormat
 	zerolog.SetGlobalLevel(config.Level)
 
-	switch config.Format {
-	case JsonFormat:
+	if config.Format == JsonFormat {
 		logger = zerolog.New(config.Output).Level(config.Level).With().Timestamp().Logger()
-	case TextFormat:
+	} else {
 		logger = zerolog.New(config.Output).Level(config.Level).Output(zerolog.ConsoleWriter{
 			Out:          config.Output,
 			TimeLocation: time.UTC,
 			TimeFormat:   TimeFormat,
 		}).With().Timestamp().Logger()
-	default:
-		logger = zerolog.New(config.Output).With().Timestamp().Logger()
 	}
 	zerolog.DefaultContextLogger = &logger
 

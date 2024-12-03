@@ -45,18 +45,6 @@ type Options struct {
 	LogOutput io.Writer
 }
 
-// defaultRouterOptions creates a RouterOptions with default values
-func defaultRouterOptions() Options {
-	return Options{
-		RequestDisallowUnknownFields: true,
-		RequestIdAcceptHeader:        false,
-		LogRequestBody:               false,
-		LogLevel:                     zerolog.InfoLevel,
-		LogFormat:                    logging.JsonFormat,
-		LogOutput:                    os.Stdout,
-	}
-}
-
 // AuthFunc is a function type for authenticating and retrieving a user from a request
 type AuthFunc[User any] func(r *http.Request) (*User, error)
 
@@ -182,7 +170,19 @@ func (s *Router[AuthModel]) wrapHandler(handler http.Handler) http.Handler {
 		Then(handler)
 }
 
-// Default returns the middleware chain used in the default router
+// defaultRouterOptions creates a RouterOptions with default values
+func defaultRouterOptions() Options {
+	return Options{
+		RequestDisallowUnknownFields: true,
+		RequestIdAcceptHeader:        false,
+		LogRequestBody:               false,
+		LogLevel:                     zerolog.InfoLevel,
+		LogFormat:                    logging.TextFormat,
+		LogOutput:                    os.Stdout,
+	}
+}
+
+// defaultMiddleware returns the middleware chain used in the default router
 func defaultMiddleware(opts Options) alice.Chain {
 	requestIdConfig := middleware.RequestIdConfig{
 		AcceptFromHeader: opts.RequestIdAcceptHeader,
