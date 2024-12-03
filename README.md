@@ -9,7 +9,6 @@ Simba is a lightweight, type-safe HTTP router framework for Go that makes buildi
 - **Middleware support**
 - **Strong request/response typing**
 - **High performance** through [httprouter](https://github.com/julienschmidt/httprouter)
-- **Modular design** for easy extensibility
 
 ## Installation
 
@@ -126,7 +125,7 @@ router := simba.NewRouter(simba.RouterOptions{
     RequestIdAcceptHeader:        true,
     LogRequestBody:               true,
     LogLevel:                     zerolog.DebugLevel,
-    LogFormat:                    logging.JSONFormat,
+    LogFormat:                    logging.JsonFormat,
     LogOutput:                    os.Stdout,
 })
 
