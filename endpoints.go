@@ -7,7 +7,7 @@ import (
 )
 
 // addDefaultEndpoints adds the default endpoints to the router
-func (s *Simba[AuthModel]) addDefaultEndpoints() {
+func (s *Application[AuthModel]) addDefaultEndpoints() {
 	s.router.GET("/health", healthCheck)
 }
 
