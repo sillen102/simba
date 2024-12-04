@@ -58,7 +58,7 @@ func Default() *Router[struct{}] {
 // authenticate and retrieve the user
 func DefaultWithAuth[User any](authFunc AuthFunc[User]) *Router[User] {
 	router := NewRouterWithAuth[User](authFunc)
-	router.middleware = defaultMiddleware(router.options)
+	router.middleware = router.middleware.Extend(defaultMiddleware(router.options))
 	return router
 }
 
@@ -75,16 +75,28 @@ func NewRouterWithAuth[User any](authFunc AuthFunc[User], opts ...Options) *Rout
 		options = opts[0]
 	}
 
+	logger := logging.New(logging.LoggerConfig{
+		Format: options.LogFormat,
+		Level:  options.LogLevel,
+		Output: options.LogOutput,
+	})
+
 	return &Router[User]{
-		router:     httprouter.New(),
-		options:    options,
-		middleware: alice.New(),
-		authFunc:   authFunc,
-		logger: logging.New(logging.LoggerConfig{
-			Format: options.LogFormat,
-			Level:  options.LogLevel,
-			Output: options.LogOutput,
-		}),
+		router:  httprouter.New(),
+		options: options,
+		middleware: alice.New().
+			Append(func(handler http.Handler) http.Handler {
+				return injectLogger(handler, logger)
+			}).
+			Append(autoCloseRequestBody).
+			Append(func(next http.Handler) http.Handler {
+				return injectAuthFunc(next, authFunc)
+			}).
+			Append(func(next http.Handler) http.Handler {
+				return injectOptions(next, options)
+			}),
+		authFunc: authFunc,
+		logger:   logger,
 	}
 }
 
@@ -105,63 +117,47 @@ func (s *Router[AuthModel]) Use(middleware func(next http.Handler) http.Handler)
 
 // POST registers a handler for POST requests to the given pattern
 func (s *Router[AuthModel]) POST(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPost, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodPost, path, s.middleware.Then(handler))
 }
 
 // GET registers a handler for GET requests to the given pattern
 func (s *Router[AuthModel]) GET(path string, handler http.Handler) {
-	s.router.Handler(http.MethodGet, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodGet, path, s.middleware.Then(handler))
 }
 
 // PUT registers a handler for PUT requests to the given pattern
 func (s *Router[AuthModel]) PUT(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPut, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodPut, path, s.middleware.Then(handler))
 }
 
 // DELETE registers a handler for DELETE requests to the given pattern
 func (s *Router[AuthModel]) DELETE(path string, handler http.Handler) {
-	s.router.Handler(http.MethodDelete, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodDelete, path, s.middleware.Then(handler))
 }
 
 // PATCH registers a handler for PATCH requests to the given pattern
 func (s *Router[AuthModel]) PATCH(path string, handler http.Handler) {
-	s.router.Handler(http.MethodPatch, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodPatch, path, s.middleware.Then(handler))
 }
 
 // OPTIONS registers a handler for OPTIONS requests to the given pattern
 func (s *Router[AuthModel]) OPTIONS(path string, handler http.Handler) {
-	s.router.Handler(http.MethodOptions, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodOptions, path, s.middleware.Then(handler))
 }
 
 // HEAD registers a handler for HEAD requests to the given pattern
 func (s *Router[AuthModel]) HEAD(path string, handler http.Handler) {
-	s.router.Handler(http.MethodHead, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodHead, path, s.middleware.Then(handler))
 }
 
 // CONNECT registers a handler for CONNECT requests to the given pattern
 func (s *Router[AuthModel]) CONNECT(path string, handler http.Handler) {
-	s.router.Handler(http.MethodConnect, path, s.wrapHandler(handler))
+	s.router.Handler(http.MethodConnect, path, s.middleware.Then(handler))
 }
 
 // TRACE registers a handler for TRACE requests to the given pattern
 func (s *Router[AuthModel]) TRACE(path string, handler http.Handler) {
-	s.router.Handler(http.MethodTrace, path, s.wrapHandler(handler))
-}
-
-// wrapHandler wraps the handler with the middleware chain and injects the authFunc and options
-func (s *Router[AuthModel]) wrapHandler(handler http.Handler) http.Handler {
-	return s.middleware.
-		Append(func(handler http.Handler) http.Handler {
-			return injectLogger(handler, s.logger)
-		}).
-		Append(autoCloseRequestBody).
-		Append(func(next http.Handler) http.Handler {
-			return injectAuthFunc(next, s.authFunc)
-		}).
-		Append(func(next http.Handler) http.Handler {
-			return injectOptions(next, s.options)
-		}).
-		Then(handler)
+	s.router.Handler(http.MethodTrace, path, s.middleware.Then(handler))
 }
 
 // defaultRouterOptions creates a RouterOptions with default values
