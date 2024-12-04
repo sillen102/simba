@@ -178,7 +178,7 @@ func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[Reque
 		return nil, err
 	}
 
-	if validationErrors := ValidateStruct(reqBody); len(validationErrors) > 0 {
+	if validationErrors := validateStruct(reqBody); len(validationErrors) > 0 {
 		return nil, NewHttpError(http.StatusBadRequest, "invalid request body", nil, validationErrors...)
 	}
 

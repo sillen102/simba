@@ -51,8 +51,7 @@ type AuthFunc[User any] func(r *http.Request) (*User, error)
 
 // Default returns a new Router with default settings
 func Default() *Router[struct{}] {
-	router := DefaultWithAuth[struct{}](nil)
-	return router
+	return DefaultWithAuth[struct{}](nil)
 }
 
 // DefaultWithAuth returns a new Router with default settings and ability to have authenticated routes using the provided authFunc to
@@ -97,6 +96,11 @@ func (s *Router[AuthModel]) GetOptions() Options {
 // ServeHTTP implements the http.Handler interface
 func (s *Router[AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
+}
+
+// Use registers a middleware handler
+func (s *Router[AuthModel]) Use(middleware func(next http.Handler) http.Handler) {
+	s.middleware = s.middleware.Append(middleware)
 }
 
 // POST registers a handler for POST requests to the given pattern
