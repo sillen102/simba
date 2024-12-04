@@ -151,14 +151,8 @@ func (s *Router[AuthModel]) TRACE(path string, handler http.Handler) {
 // wrapHandler wraps the handler with the middleware chain and injects the authFunc and options
 func (s *Router[AuthModel]) wrapHandler(handler http.Handler) http.Handler {
 	return s.middleware.
-		Append(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// Only inject if there's no logger already in context
-				if logger := logging.FromCtx(r.Context()); logger == nil {
-					r = r.WithContext(s.logger.WithContext(r.Context()))
-				}
-				next.ServeHTTP(w, r)
-			})
+		Append(func(handler http.Handler) http.Handler {
+			return injectLogger(handler, s.logger)
 		}).
 		Append(autoCloseRequestBody).
 		Append(func(next http.Handler) http.Handler {
