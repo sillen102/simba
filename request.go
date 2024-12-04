@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/rs/zerolog"
 	"github.com/sillen102/simba/logging"
 )
 
@@ -16,6 +17,14 @@ const (
 	routerOptionsKey optionsContextKey = "routerOptions"
 	authFuncKey      authContextKey    = "authFunc"
 )
+
+// injectLogger injects the logger into the request context
+func injectLogger(next http.Handler, logger zerolog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := logger.WithContext(r.Context())
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 // autoCloseRequestBody automatically closes the request body
 func autoCloseRequestBody(next http.Handler) http.Handler {
