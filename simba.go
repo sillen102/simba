@@ -74,7 +74,7 @@ func NewWithAuth[User any](authFunc AuthFunc[User], opts ...Options) *Applicatio
 		options = opts[0]
 	}
 
-	logger := logging.New(logging.LoggerConfig{
+	logger := logging.New(logging.Config{
 		Format: options.LogFormat,
 		Level:  options.LogLevel,
 		Output: options.LogOutput,

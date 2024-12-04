@@ -128,12 +128,11 @@ func (ve ValidationErrors) Error() string {
 	return fmt.Sprintf("request validation failed: %d errors", len(ve))
 }
 
-// handleError is a helper function for handling errors in HTTP handlers
-func handleError(w http.ResponseWriter, r *http.Request, err error) {
+// HandleError is a helper function for handling errors in HTTP handlers
+func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	logger := logging.FromCtx(r.Context()).With().
 		Str("path", r.URL.Path).
 		Str("method", r.Method).
-		Err(err).
 		Logger()
 
 	var httpErr *HTTPError
@@ -148,6 +147,8 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 		}
 		return
 	}
+
+	logger = logger.With().Err(httpErr.Unwrap()).Logger()
 
 	errorMessage := httpErr.Message
 	if errorMessage == "" {
