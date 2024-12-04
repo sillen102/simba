@@ -17,7 +17,7 @@ const (
 	TimeFormat string    = "2006-01-02T15:04:05.000000"
 )
 
-type LoggerConfig struct {
+type Config struct {
 	Format LogFormat
 	Level  zerolog.Level
 	Output io.Writer
@@ -35,7 +35,8 @@ func init() {
 	zerolog.TimeFieldFormat = TimeFormat
 }
 
-func New(config LoggerConfig) zerolog.Logger {
+// New creates a new logger with the provided configuration
+func New(config Config) zerolog.Logger {
 	var logger zerolog.Logger
 
 	if config.Format == JsonFormat {
@@ -54,6 +55,12 @@ func New(config LoggerConfig) zerolog.Logger {
 	return logger
 }
 
+// WithLogger returns a new context with the provided logger
+func WithLogger(ctx context.Context, logger zerolog.Logger) context.Context {
+	return logger.WithContext(ctx)
+}
+
+// FromCtx returns the logger from the context
 func FromCtx(ctx context.Context) *zerolog.Logger {
 	logger := zerolog.Ctx(ctx)
 	if logger == nil || logger.GetLevel() == zerolog.Disabled {

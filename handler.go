@@ -62,13 +62,13 @@ func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 
 	req, err := handleRequest[RequestBody, Params](r)
 	if err != nil {
-		handleError(w, r, err)
+		HandleError(w, r, err)
 		return
 	}
 
 	resp, err := h(ctx, req)
 	if err != nil {
-		handleError(w, r, err)
+		HandleError(w, r, err)
 		return
 	}
 
@@ -145,25 +145,25 @@ func (h AuthenticatedHandler[RequestBody, Params, AuthModel]) ServeHTTP(w http.R
 
 	authFunc := r.Context().Value(authFuncKey).(AuthFunc[AuthModel])
 	if authFunc == nil {
-		handleError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
+		HandleError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
 		return
 	}
 
 	user, err := authFunc(r)
 	if err != nil {
-		handleError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
+		HandleError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
 	}
 
 	req, err := handleRequest[RequestBody, Params](r)
 	if err != nil {
-		handleError(w, r, err)
+		HandleError(w, r, err)
 		return
 	}
 
 	resp, err := h(ctx, req, user)
 	if err != nil {
-		handleError(w, r, err)
+		HandleError(w, r, err)
 		return
 	}
 

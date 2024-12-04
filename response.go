@@ -10,7 +10,7 @@ import (
 // writeResponse writes the response to the client
 func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err error) {
 	if err != nil {
-		handleError(w, r, err)
+		HandleError(w, r, err)
 		return
 	}
 
