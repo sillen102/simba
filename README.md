@@ -40,18 +40,35 @@ type ResponseBody struct {
 }
 
 func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response, error) {
+
+	// Access the request body fields
+	// req.Body.Age
+	// req.Body.Name
+
+	// Access the request cookies
+	// req.Cookies
+
+	// Access the request headers
+	// req.Headers
+	
     return &simba.Response{
+		Headers: map[string][]string{"My-Header": {"header-value"}},
+		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
         Body: ResponseBody{
             Message: fmt.Sprintf("Hello %s, you are %d years old", req.Body.Name, req.Body.Age),
         },
-        Status: http.StatusOK,
+        Status: http.StatusOK, // Can be omitted, defaults to 200 if there's a body, 204 if there's no body
     }, nil
 }
 
 func main() {
-    router := simba.Default()
-    router.POST("/users", simba.HandlerFunc(handler))
-    http.ListenAndServe(":9999", router)
+	// Using simba.Default() will use the default options for logging and request validation,
+	// add default middleware like panic recovery and request id and add some endpoints like /health
+	//
+	// If you wish to build up your own router without any default middleware etc., use simba.New()
+    app := simba.Default()
+    app.POST("/users", simba.HandlerFunc(handler))
+    http.ListenAndServe(":9999", app.GetRouter())
 }
 ```
 

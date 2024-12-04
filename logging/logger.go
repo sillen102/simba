@@ -61,3 +61,8 @@ func FromCtx(ctx context.Context) *zerolog.Logger {
 	}
 	return logger
 }
+
+// GetDefault returns the default logger
+func GetDefault() *zerolog.Logger {
+	return &defaultLogger
+}

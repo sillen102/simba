@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/rs/zerolog"
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
 )
 
 type ResponseBody struct {
@@ -48,10 +48,10 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 }
 
 func main() {
-	// the router will use the authFunc to authenticate and retrieve the user
+	// the app will use the authFunc to authenticate and retrieve the user
 	// for each request that uses the AuthenticatedHandlerFunc and pass it to the handler
-	router := simba.DefaultWithAuth[User](authFunc)
-	router.GET("/user", simba.AuthenticatedHandlerFunc(authenticatedHandler))
-	zerolog.Ctx(context.Background()).Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", router)
+	app := simba.DefaultWithAuth[User](authFunc)
+	app.GET("/user", simba.AuthenticatedHandlerFunc(authenticatedHandler))
+	logging.GetDefault().Info().Msg("Listening on http://localhost:9999")
+	http.ListenAndServe(":9999", app.GetRouter())
 }

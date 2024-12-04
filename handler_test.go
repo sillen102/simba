@@ -45,13 +45,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -77,13 +77,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 		assert.Equal(t, "header-value", w.Header().Get("My-Header"))
@@ -106,13 +106,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -144,13 +144,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 		assert.Equal(t, "header-value", w.Header().Get("My-Header"))
@@ -174,13 +174,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
@@ -204,13 +204,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
@@ -231,13 +231,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
@@ -256,13 +256,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
@@ -281,13 +281,13 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
@@ -373,11 +373,11 @@ func TestHandler(t *testing.T) {
 		}
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouter(simba.Options{
+		app := simba.New(simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -386,7 +386,7 @@ func TestHandler(t *testing.T) {
 				req.Header.Set("name", "John")
 				w := httptest.NewRecorder()
 
-				router.ServeHTTP(w, req)
+				app.GetRouter().ServeHTTP(w, req)
 
 				assert.Equal(t, tc.wantStatus, w.Code)
 
@@ -435,13 +435,13 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouterWithAuth[test.User](authFunc, simba.Options{
+		app := simba.NewWithAuth[test.User](authFunc, simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
+		app.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 		assert.Equal(t, "header-value", w.Header().Get("My-Header"))
@@ -460,13 +460,13 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouterWithAuth[test.User](errorAuthFunc, simba.Options{
+		app := simba.NewWithAuth[test.User](errorAuthFunc, simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
+		app.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
@@ -501,13 +501,13 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		router := simba.NewRouterWithAuth[test.User](authFunc, simba.Options{
+		app := simba.NewWithAuth[test.User](authFunc, simba.Options{
 			LogOutput: logBuffer,
 			LogFormat: logging.TextFormat,
 		})
-		router.POST("/test/:id", simba.HandlerFunc(handler))
+		app.POST("/test/:id", simba.HandlerFunc(handler))
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))

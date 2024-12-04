@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog"
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
 )
 
 type RequestBody struct {
@@ -62,8 +62,8 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 }
 
 func main() {
-	router := simba.Default()
-	router.POST("/params/:id", simba.HandlerFunc(handler))
-	zerolog.Ctx(context.Background()).Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", router)
+	app := simba.Default()
+	app.POST("/params/:id", simba.HandlerFunc(handler))
+	logging.GetDefault().Info().Msg("Listening on http://localhost:9999")
+	http.ListenAndServe(":9999", app.GetRouter())
 }
