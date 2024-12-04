@@ -1,6 +1,9 @@
 package simba_test
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -65,5 +68,35 @@ func TestSettingOptions(t *testing.T) {
 		}
 		router := simba.NewRouter(options)
 		assert.Equal(t, router.GetOptions().LogOutput, options.LogOutput)
+	})
+
+	t.Run("use middleware", func(t *testing.T) {
+		// Define a middleware that sets a header
+		middleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				r.Header.Set("X-Custom-Header", "middleware-applied")
+				next.ServeHTTP(w, r)
+			})
+		}
+
+		type TestParams struct {
+			CustomHeader string `header:"X-Custom-Header"`
+		}
+
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestParams]) (*simba.Response, error) {
+			// Assert that the header was set by the middleware in the handler
+			assert.Equal(t, req.Params.CustomHeader, "middleware-applied")
+			return &simba.Response{}, nil
+		}
+
+		router := simba.NewRouter()
+		router.Use(middleware)
+		router.GET("/test", simba.HandlerFunc(handler))
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
 }

@@ -10,8 +10,8 @@ import (
 
 var validate = validator.New(validator.WithRequiredStructEnabled())
 
-// ValidateStruct is a helper function for validating requests
-func ValidateStruct(request any) ValidationErrors {
+// validateStruct is a helper function for validating requests
+func validateStruct(request any) ValidationErrors {
 	err := validate.Struct(request)
 	if err == nil {
 		return nil

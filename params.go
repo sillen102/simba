@@ -62,7 +62,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	}
 
 	// Validate required fields
-	if err := ValidateStruct(instance); len(err) > 0 {
+	if err := validateStruct(instance); len(err) > 0 {
 		return instance, NewHttpError(http.StatusBadRequest, "missing required parameters", nil, err...)
 	}
 
