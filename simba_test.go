@@ -17,7 +17,7 @@ func TestSettingOptions(t *testing.T) {
 	t.Parallel()
 
 	t.Run("default options", func(t *testing.T) {
-		router := simba.NewRouter()
+		router := simba.New()
 		assert.Equal(t, router.GetOptions().RequestDisallowUnknownFields, true)
 	})
 
@@ -25,7 +25,7 @@ func TestSettingOptions(t *testing.T) {
 		options := simba.Options{
 			RequestDisallowUnknownFields: false,
 		}
-		router := simba.NewRouter(options)
+		router := simba.New(options)
 
 		assert.Equal(t, router.GetOptions().RequestDisallowUnknownFields, options.RequestDisallowUnknownFields)
 	})
@@ -34,7 +34,7 @@ func TestSettingOptions(t *testing.T) {
 		options := simba.Options{
 			RequestIdAcceptHeader: true,
 		}
-		router := simba.NewRouter(options)
+		router := simba.New(options)
 		assert.Equal(t, router.GetOptions().RequestIdAcceptHeader, options.RequestIdAcceptHeader)
 	})
 
@@ -42,7 +42,7 @@ func TestSettingOptions(t *testing.T) {
 		options := simba.Options{
 			LogRequestBody: true,
 		}
-		router := simba.NewRouter(options)
+		router := simba.New(options)
 		assert.Equal(t, router.GetOptions().LogRequestBody, options.LogRequestBody)
 	})
 
@@ -50,7 +50,7 @@ func TestSettingOptions(t *testing.T) {
 		options := simba.Options{
 			LogLevel: zerolog.DebugLevel,
 		}
-		router := simba.NewRouter(options)
+		router := simba.New(options)
 		assert.Equal(t, router.GetOptions().LogLevel, options.LogLevel)
 	})
 
@@ -58,7 +58,7 @@ func TestSettingOptions(t *testing.T) {
 		options := simba.Options{
 			LogFormat: logging.TextFormat,
 		}
-		router := simba.NewRouter(options)
+		router := simba.New(options)
 		assert.Equal(t, router.GetOptions().LogFormat, options.LogFormat)
 	})
 
@@ -66,7 +66,7 @@ func TestSettingOptions(t *testing.T) {
 		options := simba.Options{
 			LogOutput: os.Stderr,
 		}
-		router := simba.NewRouter(options)
+		router := simba.New(options)
 		assert.Equal(t, router.GetOptions().LogOutput, options.LogOutput)
 	})
 
@@ -89,14 +89,14 @@ func TestSettingOptions(t *testing.T) {
 			return &simba.Response{}, nil
 		}
 
-		router := simba.NewRouter()
-		router.Use(middleware)
-		router.GET("/test", simba.HandlerFunc(handler))
+		app := simba.New()
+		app.Use(middleware)
+		app.GET("/test", simba.HandlerFunc(handler))
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		w := httptest.NewRecorder()
 
-		router.ServeHTTP(w, req)
+		app.GetRouter().ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
 }

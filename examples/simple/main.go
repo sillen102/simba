@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/rs/zerolog"
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
 )
 
 type RequestBody struct {
@@ -31,10 +31,12 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams
 	// req.Headers
 
 	return &simba.Response{
+		Headers: map[string][]string{"My-Header": {"header-value"}},
+		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are %d years old", req.Body.Name, req.Body.Age),
 		},
-		Status: http.StatusOK, // We can omit this and it will default to 200 OK if the body is not nil and there is no error
+		Status: http.StatusOK, // Can be omitted, defaults to 200 if there's a body, 204 if there's no body
 	}, nil
 }
 
@@ -43,9 +45,9 @@ func noBodyHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.N
 }
 
 func main() {
-	router := simba.Default()
-	router.POST("/users", simba.HandlerFunc(handler))
-	router.GET("/no-body", simba.HandlerFunc(noBodyHandler))
-	zerolog.Ctx(context.Background()).Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", router)
+	app := simba.Default()
+	app.POST("/users", simba.HandlerFunc(handler))
+	app.GET("/no-body", simba.HandlerFunc(noBodyHandler))
+	logging.GetDefault().Info().Msg("Listening on http://localhost:9999")
+	http.ListenAndServe(":9999", app.GetRouter())
 }

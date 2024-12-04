@@ -104,7 +104,7 @@ func AuthenticatedHandlerFunc[RequestBody any, Params any, AuthModel any](h Auth
 //
 // Define a user struct:
 //
-//	type User struct {
+//	type AuthModel struct {
 //		ID   int
 //		Name string
 //		Role string
@@ -112,7 +112,7 @@ func AuthenticatedHandlerFunc[RequestBody any, Params any, AuthModel any](h Auth
 //
 // Define a handler function:
 //
-//	func(ctx context.Context, req *simba.Request[RequestBody, Params], user *User) (*simba.Response, error) {
+//	func(ctx context.Context, req *simba.Request[RequestBody, Params], user *AuthModel) (*simba.Response, error) {
 //		// Access the request body and params fields
 //		req.Body.Test
 //		req.Params.Name
