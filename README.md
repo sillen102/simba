@@ -153,10 +153,10 @@ Simba supports middleware. Simply create a function that takes a handler and ret
 
 ```go
 func myMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Set("X-Middleware", "123") // Here we simply add a header to every request
-		next.ServeHTTP(w, r) // And the proceed to the next handler
-	})
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        r.Header.Set("X-Middleware", "123") // Here we simply add a header to every request
+        next.ServeHTTP(w, r) // And the proceed to the next handler
+    })
 }
 
 app.Router.Use(myMiddleware)
