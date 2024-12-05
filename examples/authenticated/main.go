@@ -43,7 +43,6 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
 		},
-		Status: http.StatusOK, // We can omit this and it will default to 200 OK if the body is not nil and there is no error
 	}, nil
 }
 
@@ -51,7 +50,7 @@ func main() {
 	// the app will use the authFunc to authenticate and retrieve the user
 	// for each request that uses the AuthenticatedHandlerFunc and pass it to the handler
 	app := simba.DefaultWithAuth[User](authFunc)
-	app.GET("/user", simba.AuthenticatedHandlerFunc(authenticatedHandler))
+	app.Router.GET("/user", simba.AuthenticatedHandlerFunc(authenticatedHandler))
 	logging.GetDefault().Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", app.GetRouter())
+	http.ListenAndServe(":9999", app)
 }

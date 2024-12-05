@@ -8,7 +8,7 @@ import (
 
 // addDefaultEndpoints adds the default endpoints to the router
 func (s *Application[AuthModel]) addDefaultEndpoints() {
-	s.router.GET("/health", healthCheck)
+	s.Router.router.GET("/health", healthCheck)
 }
 
 // healthCheck is a simple health check endpoint

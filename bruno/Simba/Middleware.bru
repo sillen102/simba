@@ -1,0 +1,17 @@
+meta {
+  name: Middleware
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:9999/users
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "age": 25
+  }
+}
