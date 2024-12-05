@@ -39,8 +39,8 @@ func autoCloseRequestBody(next http.Handler) http.Handler {
 	})
 }
 
-// injectOptions injects the RouterOptions into the request context
-func injectOptions(next http.Handler, options Options) http.Handler {
+// injectOptions injects the application settings into the request context
+func injectOptions(next http.Handler, options Settings) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), routerOptionsKey, options)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -61,11 +61,11 @@ func injectAuthFunc[User any](next http.Handler, authFunc AuthFunc[User]) http.H
 
 // getConfigurationFromContext retrieves RouterOptions from the given context.
 // Returns the options stored in the context or zero value for RouterOptions if not found in the context.
-func getConfigurationFromContext(ctx context.Context) *Options {
-	options, ok := ctx.Value(routerOptionsKey).(*Options)
+func getConfigurationFromContext(ctx context.Context) *Settings {
+	options, ok := ctx.Value(routerOptionsKey).(*Settings)
 	if !ok {
 		// Return a default or zero value, or handle the absence of RouterOptions appropriately
-		return &Options{}
+		return &Settings{}
 	}
 	return options
 }
@@ -84,7 +84,7 @@ func decodeBodyIfNeeded[RequestBody any](r *http.Request, req *RequestBody) erro
 }
 
 // readJson reads the JSON body and unmarshalls it into the model
-func readJson(body io.ReadCloser, options *Options, model any) error {
+func readJson(body io.ReadCloser, options *Settings, model any) error {
 	decoder := json.NewDecoder(body)
 	if options.RequestDisallowUnknownFields {
 		decoder.DisallowUnknownFields()

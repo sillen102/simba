@@ -44,13 +44,13 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams
     // Access the request body fields
     // req.Body.Age
     // req.Body.Name
-    
+
     // Access the request cookies
     // req.Cookies
-    
+
     // Access the request headers
     // req.Headers
-	
+
     return &simba.Response{
         Headers: map[string][]string{"My-Header": {"header-value"}},
         Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
@@ -67,33 +67,9 @@ func main() {
     //
     // If you wish to build up your own router without any default middleware etc., use simba.New()
     app := simba.Default()
-    app.POST("/users", simba.HandlerFunc(handler))
-    http.ListenAndServe(":9999", app.GetRouter())
+	app.Router.POST("/users", simba.HandlerFunc(handler))
+    http.ListenAndServe(":9999", app)
 }
-```
-
-## Authentication
-
-Simba provides built-in support for authentication:
-
-```go
-type User struct {
-    ID   string
-    Name string
-}
-
-func authFunc(r *http.Request) (*User, error) {
-    // Your authentication logic here, either be it a database lookup or any other authentication method
-    return &User{ID: "123", Name: "John"}, nil
-}
-
-// This handler will only be called if the user is authenticated and the user is available as one of the function parameters
-func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
-    // ... handle the request
-}
-
-app := simba.DefaultWithAuth[User](authFunc)
-app.GET("/users/:userId", simba.AuthenticatedHandlerFunc(getUser))
 ```
 
 ## Parameters
@@ -154,7 +130,7 @@ Simba provides automatic error handling with standardized JSON responses. All er
 
 ```json
 {
-  "timestamp": "2023-01-01T12:00:00Z",
+  "timestamp": "2024-12-04T20:28:33.852965Z",
   "status": 400,
   "error": "Bad Request",
   "path": "/api/resource",
@@ -170,6 +146,46 @@ Simba provides automatic error handling with standardized JSON responses. All er
   ]
 }
 ```
+
+## Middleware
+
+Simba supports middleware. Simply create a function that takes a handler and returns a handler and register it with the `Use` method on the router:
+
+```go
+func myMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Set("X-Middleware", "123") // Here we simply add a header to every request
+		next.ServeHTTP(w, r) // And the proceed to the next handler
+	})
+}
+
+app.Router.Use(myMiddleware)
+```
+
+## Authentication
+
+Simba provides built-in support for authentication:
+
+```go
+type User struct {
+    ID   string
+    Name string
+}
+
+func authFunc(r *http.Request) (*User, error) {
+    // Your authentication logic here, either be it a database lookup or any other authentication method
+    return &User{ID: "123", Name: "John"}, nil
+}
+
+// This handler will only be called if the user is authenticated and the user is available as one of the function parameters
+func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
+    // ... handle the request
+}
+
+app := simba.DefaultWithAuth[User](authFunc)
+app.GET("/users/:userId", simba.AuthenticatedHandlerFunc(getUser))
+```
+
 
 ## Contributing
 
