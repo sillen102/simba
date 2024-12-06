@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/test"
 	"gotest.tools/v3/assert"
 )
@@ -46,8 +45,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -77,8 +77,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 
@@ -106,8 +107,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -143,8 +145,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -172,8 +175,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -201,8 +205,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -227,8 +232,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -251,8 +257,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -275,8 +282,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -366,8 +374,9 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 
@@ -427,8 +436,9 @@ func TestAuthenticatedHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.NewWithAuth[test.User](authFunc, simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -450,9 +460,10 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewWithAuth[test.User](errorAuthFunc, simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+		app := simba.NewWithAuth(errorAuthFunc, simba.Settings{
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
 		app.ServeHTTP(w, req)
@@ -490,9 +501,10 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewWithAuth[test.User](authFunc, simba.Settings{
-			LogOutput: logBuffer,
-			LogFormat: logging.TextFormat,
+		app := simba.NewWithAuth(authFunc, simba.Settings{
+			Logging: simba.LoggingSettings{
+				Output: logBuffer,
+			},
 		})
 		app.Router.POST("/test/:id", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)

@@ -7,7 +7,7 @@ import (
 	"github.com/sillen102/simba/logging"
 )
 
-func PanicRecover(next http.Handler) http.Handler {
+func PanicRecovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {

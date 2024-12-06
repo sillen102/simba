@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
 	"github.com/rs/zerolog"
+	"github.com/sillen102/simba/middleware"
 )
 
 // Router is a simple router that wraps [httprouter.Router] and allows for middleware chaining
@@ -14,17 +15,19 @@ type Router struct {
 	middleware alice.Chain
 }
 
-// newRouter creates a new [Router] instance with the given logger (that is injected in each request context) and [Settings]
-func newRouter(logger zerolog.Logger, settings Settings) *Router {
+// newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Settings]
+func newRouter(logger zerolog.Logger, requestSettings RequestSettings) *Router {
+
 	return &Router{
 		router: httprouter.New(),
 		middleware: alice.New().
-			Append(func(handler http.Handler) http.Handler {
-				return injectLogger(handler, logger)
-			}).
+			Append(middleware.PanicRecovery).
 			Append(autoCloseRequestBody).
 			Append(func(next http.Handler) http.Handler {
-				return injectOptions(next, settings)
+				return injectRequestSettings(next, requestSettings)
+			}).
+			Append(func(handler http.Handler) http.Handler {
+				return injectLogger(handler, logger)
 			}),
 	}
 }

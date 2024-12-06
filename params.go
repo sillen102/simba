@@ -33,7 +33,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 			continue
 		}
 
-		// Get value from request
+		// Get value from Request
 		value := getParamValue(r, field)
 
 		// If no value was provided, try to set default value

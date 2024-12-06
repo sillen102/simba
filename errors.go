@@ -63,9 +63,9 @@ type ErrorResponse struct {
 	Status int `json:"status"`
 	// HTTP error type
 	Error string `json:"error"`
-	// Path of the request
+	// Path of the Request
 	Path string `json:"path"`
-	// Method of the request
+	// Method of the Request
 	Method string `json:"method"`
 	// Request ID
 	RequestID string `json:"requestId,omitempty"`
@@ -125,7 +125,7 @@ func (ve ValidationErrors) Error() string {
 	if len(ve) == 0 {
 		return "no validation errors"
 	}
-	return fmt.Sprintf("request validation failed: %d errors", len(ve))
+	return fmt.Sprintf("Request validation failed: %d errors", len(ve))
 }
 
 // HandleError is a helper function for handling errors in HTTP handlers

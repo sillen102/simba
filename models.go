@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-// Request represents a HTTP request
+// Request represents a HTTP Request
 type Request[RequestBody any, RequestParams any] struct {
 	Cookies []*http.Cookie
 	Body    RequestBody
