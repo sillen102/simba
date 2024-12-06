@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
@@ -105,6 +106,15 @@ func setFieldValue(fieldValue reflect.Value, value string) error {
 	}
 
 	var err error
+	switch fieldValue.Type().String() {
+	case "time.Time":
+		var timeVal time.Time
+		if timeVal, err = time.Parse(time.RFC3339, value); err == nil {
+			fieldValue.Set(reflect.ValueOf(timeVal))
+		}
+		return err
+	}
+
 	switch fieldValue.Kind() {
 	case reflect.String:
 		fieldValue.SetString(value)

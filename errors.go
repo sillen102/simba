@@ -106,6 +106,10 @@ const (
 	ParameterTypeBody   ParameterType = "body"
 )
 
+func (p ParameterType) String() string {
+	return string(p)
+}
+
 // ValidationError defines the interface for a validation error
 // @Description Detailed information about a validation error
 type ValidationError struct {
