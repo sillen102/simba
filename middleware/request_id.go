@@ -10,6 +10,38 @@ import (
 	"github.com/sillen102/simba/logging"
 )
 
+type RequestIdMode int
+
+const (
+	AcceptFromHeader RequestIdMode = iota
+	AlwaysGenerate
+)
+
+func (r RequestIdMode) String() string {
+	switch r {
+	case AcceptFromHeader:
+		return "accept_from_header"
+	case AlwaysGenerate:
+		return "always_generate"
+	default:
+		return "accept_from_header"
+	}
+}
+
+func (f *RequestIdMode) SetValue(s string) error {
+	*f = ParseRequestId(s)
+	return nil
+}
+
+func ParseRequestId(s string) RequestIdMode {
+	switch string(s) {
+	case "alwaysGenerate":
+		return AlwaysGenerate
+	default:
+		return AcceptFromHeader
+	}
+}
+
 type contextKey string
 
 const (

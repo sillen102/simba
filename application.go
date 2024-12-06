@@ -51,8 +51,8 @@ func DefaultWithAuth[AuthModel any](authFunc AuthFunc[AuthModel]) *Application[A
 
 // NewWithAuth returns a new [Application] application with ability to have authenticated routes
 // using the provided [AuthFunc] to authenticate and retrieve the authenticated model
-func NewWithAuth[User any](authFunc AuthFunc[User], st ...Settings) *Application[User] {
-	settings, err := loadConfig(st...)
+func NewWithAuth[User any](authFunc AuthFunc[User], provided ...Settings) *Application[User] {
+	settings, err := loadConfig(provided...)
 	if err != nil {
 		panic(err)
 	}
@@ -80,7 +80,7 @@ func (s *Application[AuthModel]) ServeHTTP(w http.ResponseWriter, req *http.Requ
 // defaultMiddleware returns the middleware chain used in the default [Application] application
 func (s *Application[AuthModel]) defaultMiddleware() alice.Chain {
 	requestIdConfig := middleware.RequestIdConfig{
-		AcceptFromHeader: s.settings.Request.RequestId == AcceptFromHeader,
+		AcceptFromHeader: s.settings.Request.RequestIdMode == middleware.AcceptFromHeader,
 	}
 
 	return alice.New(

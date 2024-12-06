@@ -109,7 +109,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 // readJson reads the JSON body and unmarshalls it into the model
 func readJson(body io.ReadCloser, requestSettings *RequestSettings, model any) error {
 	decoder := json.NewDecoder(body)
-	if requestSettings.UnknownFields == Disallow {
+	if requestSettings.AllowUnknownFields == Disallow {
 		decoder.DisallowUnknownFields()
 	}
 	err := decoder.Decode(&model)

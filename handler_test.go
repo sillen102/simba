@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/test"
 	"gotest.tools/v3/assert"
 )
@@ -45,7 +46,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -77,7 +78,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -107,7 +108,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -145,7 +146,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -175,7 +176,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -205,7 +206,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -232,7 +233,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -257,7 +258,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -282,7 +283,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -374,7 +375,7 @@ func TestHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.New(simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -436,7 +437,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.NewWithAuth[test.User](authFunc, simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -461,7 +462,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.NewWithAuth(errorAuthFunc, simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
@@ -502,7 +503,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		app := simba.NewWithAuth(authFunc, simba.Settings{
-			Logging: simba.LoggingSettings{
+			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
