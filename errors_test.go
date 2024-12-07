@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/rs/zerolog"
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/logging"
 	"gotest.tools/v3/assert"
@@ -24,12 +22,11 @@ func TestHandleError(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		logger := zerolog.New(logBuffer)
-		logging.Init(logging.Config{
+		logger := logging.New(&logging.Config{
 			Output: logBuffer,
 			Format: logging.TextFormat,
 		})
-		ctx := logging.With(req.Context(), logger)
+		ctx := logging.CtxWith(req.Context(), logger)
 		req = req.WithContext(ctx)
 
 		simba.HandleError(w, req, simba.WrapErrorHTTP(http.StatusInternalServerError, errors.New("wrapped error"), "Internal server error"))
@@ -52,12 +49,11 @@ func TestHandleError(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		logger := zerolog.New(logBuffer)
-		logging.Init(logging.Config{
+		logger := logging.New(&logging.Config{
 			Output: logBuffer,
 			Format: logging.TextFormat,
 		})
-		ctx := logging.With(req.Context(), logger)
+		ctx := logging.CtxWith(req.Context(), logger)
 		req = req.WithContext(ctx)
 
 		simba.HandleError(w, req, simba.WrapErrorHTTP(http.StatusUnauthorized, errors.New("wrapped error"), "Internal server error"))
@@ -72,7 +68,6 @@ func TestHandleError(t *testing.T) {
 		assert.Equal(t, "unauthorized", errorResponse.Message) // hide details of the error
 
 		expectedLog := "wrapped error"
-		fmt.Println(logBuffer.String())
 		assert.Assert(t, strings.Contains(logBuffer.String(), expectedLog))
 	})
 
@@ -81,12 +76,11 @@ func TestHandleError(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		logger := zerolog.New(logBuffer)
-		logging.Init(logging.Config{
+		logger := logging.New(&logging.Config{
 			Output: logBuffer,
 			Format: logging.TextFormat,
 		})
-		ctx := logging.With(req.Context(), logger)
+		ctx := logging.CtxWith(req.Context(), logger)
 		req = req.WithContext(ctx)
 
 		simba.HandleError(w, req, simba.WrapErrorHTTP(http.StatusForbidden, errors.New("wrapped error"), "Internal server error"))

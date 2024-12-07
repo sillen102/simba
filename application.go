@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/justinas/alice"
+	"github.com/rs/zerolog"
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 )
@@ -20,6 +21,8 @@ type Application[AuthModel any] struct {
 	// authFunc is the function used to authenticate and retrieve the authenticated model
 	// from the Request
 	authFunc AuthFunc[AuthModel]
+
+	logger zerolog.Logger
 }
 
 // AuthFunc is a function type for authenticating and retrieving an authenticated model struct from a Request
@@ -52,9 +55,9 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...Settings) *Appli
 		panic(err)
 	}
 
-	logging.Init(settings.Logging)
+	logger := logging.New(&settings.Logging)
 
-	router := newRouter(settings.Request)
+	router := newRouter(settings.Request, logger)
 	router.Use(func(next http.Handler) http.Handler {
 		return injectAuthFunc(next, authFunc)
 	})
@@ -63,6 +66,7 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...Settings) *Appli
 		Router:   router,
 		settings: settings,
 		authFunc: authFunc,
+		logger:   logger,
 	}
 }
 

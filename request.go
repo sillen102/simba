@@ -20,9 +20,9 @@ const (
 )
 
 // injectLogger injects the logger into the Request context
-func injectLogger(next http.Handler) http.Handler {
+func injectLogger(next http.Handler, logger zerolog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := logging.With(r.Context())
+		ctx := logging.CtxWith(r.Context(), logger)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
