@@ -75,8 +75,8 @@ func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 	writeResponse(w, r, resp, nil)
 }
 
-// AuthenticatedHandlerFunc returns an [http.Handler] that can be used for authenticated routes
-func AuthenticatedHandlerFunc[RequestBody any, Params any, AuthModel any](h AuthenticatedHandler[RequestBody, Params, AuthModel]) http.Handler {
+// AuthHandlerFunc returns an [http.Handler] that can be used for authenticated routes
+func AuthHandlerFunc[RequestBody any, Params any, AuthModel any](h AuthenticatedHandler[RequestBody, Params, AuthModel]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})

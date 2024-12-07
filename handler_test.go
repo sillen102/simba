@@ -441,7 +441,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
+		app.Router.POST("/test/:id", simba.AuthHandlerFunc(handler))
 		app.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -466,7 +466,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
+		app.Router.POST("/test/:id", simba.AuthHandlerFunc(handler))
 		app.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)

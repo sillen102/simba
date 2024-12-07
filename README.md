@@ -102,7 +102,7 @@ Simba automatically injects a [zerolog](https://github.com/rs/zerolog) logger in
 
 ```go
 func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-    logger := logging.FromCtx(ctx)
+    logger := logging.Get(ctx)
     logger.Info().Msg("handling request")
     // ... handle the request
 }
@@ -182,8 +182,8 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
     // ... handle the request
 }
 
-app := simba.DefaultWithAuth[User](authFunc)
-app.GET("/users/:userId", simba.AuthenticatedHandlerFunc(getUser))
+app := simba.DefaultAuthWith(authFunc)
+app.GET("/users/:userId", simba.AuthHandlerFunc(getUser))
 ```
 
 
