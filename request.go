@@ -20,20 +20,20 @@ const (
 )
 
 // injectLogger injects the logger into the Request context
-func injectLogger(next http.Handler, logger zerolog.Logger) http.Handler {
+func injectLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := logging.WithLogger(r.Context(), logger)
+		ctx := logging.With(r.Context())
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// autoCloseRequestBody automatically closes the Request body
-func autoCloseRequestBody(next http.Handler) http.Handler {
+// closeRequestBody automatically closes the Request body after processing
+func closeRequestBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				logging.FromCtx(r.Context()).Error().Err(err).Msg("error closing Request body")
+				logging.Get(r.Context()).Error().Err(err).Msg("error closing Request body")
 			}
 		}(r.Body)
 		next.ServeHTTP(w, r)
@@ -88,7 +88,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 
 	requestSettings := getConfigurationFromContext(r.Context())
 	if requestSettings.LogRequestBody != zerolog.Disabled {
-		logging.FromCtx(r.Context()).
+		logging.Get(r.Context()).
 			WithLevel(requestSettings.LogRequestBody).
 			Interface("body", r.Body).
 			Msg("request body")

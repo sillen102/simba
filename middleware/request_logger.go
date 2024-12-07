@@ -14,7 +14,7 @@ func LogRequests(next http.Handler) http.Handler {
 		wrapped := wrapResponseWriter(w)
 
 		// Get logger from context
-		logger := logging.FromCtx(r.Context())
+		logger := logging.Get(r.Context())
 
 		// Process request
 		next.ServeHTTP(wrapped, r)

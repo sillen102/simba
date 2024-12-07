@@ -134,7 +134,7 @@ func (ve ValidationErrors) Error() string {
 
 // HandleError is a helper function for handling errors in HTTP handlers
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
-	logger := logging.FromCtx(r.Context()).With().
+	logger := logging.Get(r.Context()).With().
 		Str("path", r.URL.Path).
 		Str("method", r.Method).
 		Logger()

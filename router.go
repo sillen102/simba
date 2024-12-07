@@ -5,7 +5,6 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
-	"github.com/rs/zerolog"
 	"github.com/sillen102/simba/middleware"
 )
 
@@ -16,18 +15,15 @@ type Router struct {
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Settings]
-func newRouter(logger zerolog.Logger, requestSettings RequestSettings) *Router {
-
+func newRouter(requestSettings RequestSettings) *Router {
 	return &Router{
 		router: httprouter.New(),
 		middleware: alice.New().
+			Append(injectLogger).
 			Append(middleware.PanicRecovery).
-			Append(autoCloseRequestBody).
+			Append(closeRequestBody).
 			Append(func(next http.Handler) http.Handler {
 				return injectRequestSettings(next, requestSettings)
-			}).
-			Append(func(handler http.Handler) http.Handler {
-				return injectLogger(handler, logger)
 			}),
 	}
 }

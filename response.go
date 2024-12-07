@@ -17,7 +17,7 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err e
 	// Check if resp is nil
 	if resp == nil {
 		// Log this unexpected condition
-		logging.FromCtx(r.Context()).Error().Msg("unexpected nil response")
+		logging.Get(r.Context()).Error().Msg("unexpected nil response")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

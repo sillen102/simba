@@ -436,7 +436,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewWithAuth[test.User](authFunc, simba.Settings{
+		app := simba.NewAuthWith[test.User](authFunc, simba.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
@@ -461,7 +461,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewWithAuth(errorAuthFunc, simba.Settings{
+		app := simba.NewAuthWith(errorAuthFunc, simba.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
@@ -502,7 +502,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewWithAuth(authFunc, simba.Settings{
+		app := simba.NewAuthWith(authFunc, simba.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
