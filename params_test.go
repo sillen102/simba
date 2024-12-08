@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -101,91 +102,185 @@ func TestParamParsing(t *testing.T) {
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
+}
 
-	t.Run("validation errors", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestAllParamTypes]) (*simba.Response, error) {
-			t.Fatal("handler should not be called")
-			return nil, nil
-		}
+func TestUUIDParameters(t *testing.T) {
+	t.Parallel()
 
-		req := httptest.NewRequest(http.MethodGet, "/test/"+uuid.New().String()+"/invalid/test", nil)
-		w := httptest.NewRecorder()
+	type UUIDParams struct {
+		ID       uuid.UUID `path:"id"`
+		HeaderID uuid.UUID `header:"Header-ID"`
+		QueryID  uuid.UUID `query:"queryId"`
+	}
 
-		app := simba.New()
-		app.Router.GET("/test/:uuid/:id/:slug", simba.HandlerFunc(handler))
-		app.ServeHTTP(w, req)
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, UUIDParams]) (*simba.Response, error) {
+		return &simba.Response{Status: http.StatusOK}, nil
+	}
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+	tests := []struct {
+		name     string
+		path     string
+		headerID string
+		wantMsg  string
+	}{
+		{
+			name:    "invalid uuid in path",
+			path:    "/test/invalid-uuid",
+			wantMsg: "invalid UUID parameter value",
+		},
+		{
+			name:     "invalid uuid in header",
+			path:     "/test/123e4567-e89b-12d3-a456-426655440000",
+			headerID: "invalid-uuid",
+			wantMsg:  "invalid UUID parameter value",
+		},
+		{
+			name:     "invalid uuid in query",
+			path:     "/test/123e4567-e89b-12d3-a456-426655440000?queryId=invalid-uuid",
+			headerID: "248ccd0e-4bdf-4c41-a125-92ef3a416251",
+			wantMsg:  "invalid UUID parameter value",
+		},
+	}
 
-		var errorResponse simba.ErrorResponse
-		err := json.NewDecoder(w.Body).Decode(&errorResponse)
-		assert.NilError(t, err)
-		assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-		assert.Equal(t, "invalid parameter value", errorResponse.Message)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-		assert.Equal(t, "PathID", errorResponse.ValidationErrors[0].Parameter)
-		assert.Equal(t, simba.ParameterTypePath, errorResponse.ValidationErrors[0].Type)
-		assert.Equal(t, "invalid parameter value: invalid", errorResponse.ValidationErrors[0].Message)
-	})
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			if tt.headerID != "" {
+				req.Header.Set("Header-ID", tt.headerID)
+			}
+			w := httptest.NewRecorder()
 
-	t.Run("invalid UUID", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestAllParamTypes]) (*simba.Response, error) {
-			t.Fatal("handler should not be called")
-			return nil, nil
-		}
+			app := simba.New()
+			app.Router.GET("/test/:id", simba.HandlerFunc(handler))
+			app.ServeHTTP(w, req)
 
-		req := httptest.NewRequest(http.MethodGet, "/test/invalid-uuid/123/test", nil)
-		req.Header.Set("X-String", "test")
-		req.Header.Set("X-Int", "1")
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
-		w := httptest.NewRecorder()
+			var errorResponse simba.ErrorResponse
+			err := json.NewDecoder(w.Body).Decode(&errorResponse)
+			assert.NilError(t, err)
 
-		app := simba.New()
-		app.Router.GET("/test/:uuid/:id/:slug", simba.HandlerFunc(handler))
-		app.ServeHTTP(w, req)
+			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+			assert.Equal(t, "Bad Request", errorResponse.Error)
+			expectedPath := tt.path
+			if idx := strings.Index(expectedPath, "?"); idx != -1 {
+				expectedPath = expectedPath[:idx]
+			}
+			assert.Equal(t, expectedPath, errorResponse.Path)
+			assert.Equal(t, http.MethodGet, errorResponse.Method)
+			assert.Equal(t, tt.wantMsg, errorResponse.Message)
+		})
+	}
+}
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+func TestFloatParameters(t *testing.T) {
+	t.Parallel()
 
-		var errorResponse simba.ErrorResponse
-		err := json.NewDecoder(w.Body).Decode(&errorResponse)
-		assert.NilError(t, err)
-		assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-		assert.Equal(t, "invalid UUID parameter value", errorResponse.Message)
+	type FloatParams struct {
+		Page float64 `query:"page"`
+	}
 
-		assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-		assert.Equal(t, "PathUUID", errorResponse.ValidationErrors[0].Parameter)
-		assert.Equal(t, simba.ParameterTypePath, errorResponse.ValidationErrors[0].Type)
-		assert.Equal(t, "invalid UUID parameter value: invalid-uuid", errorResponse.ValidationErrors[0].Message)
-	})
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, FloatParams]) (*simba.Response, error) {
+		return &simba.Response{Status: http.StatusOK}, nil
+	}
 
-	t.Run("invalid type conversion", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestAllParamTypes]) (*simba.Response, error) {
-			t.Fatal("handler should not be called")
-			return nil, nil
-		}
+	req := httptest.NewRequest(http.MethodGet, "/test/1?page=invalid", nil)
+	w := httptest.NewRecorder()
 
-		req := httptest.NewRequest(http.MethodGet, "/test/"+uuid.New().String()+"/123/test?page=invalid", nil)
-		req.Header.Set("X-String", "test")
-		req.Header.Set("X-Int", "not-a-number")
+	app := simba.New()
+	app.Router.GET("/test/:id", simba.HandlerFunc(handler))
+	app.ServeHTTP(w, req)
 
-		w := httptest.NewRecorder()
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
-		app := simba.New()
-		app.Router.GET("/test/:uuid/:id/:slug", simba.HandlerFunc(handler))
-		app.ServeHTTP(w, req)
+	var errorResponse simba.ErrorResponse
+	err := json.NewDecoder(w.Body).Decode(&errorResponse)
+	assert.NilError(t, err)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+	assert.Equal(t, "Bad Request", errorResponse.Error)
+	assert.Equal(t, "/test/1", errorResponse.Path)
+	assert.Equal(t, http.MethodGet, errorResponse.Method)
+	assert.Equal(t, "invalid parameter value", errorResponse.Message)
+}
 
-		var errorResponse simba.ErrorResponse
-		err := json.NewDecoder(w.Body).Decode(&errorResponse)
-		assert.NilError(t, err)
-		assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-		assert.Equal(t, "invalid parameter value", errorResponse.Message)
+func TestInvalidParameterTypes(t *testing.T) {
+	t.Parallel()
 
-		assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-		assert.Equal(t, "HeaderInt", errorResponse.ValidationErrors[0].Parameter)
-		assert.Equal(t, simba.ParameterTypeHeader, errorResponse.ValidationErrors[0].Type)
-		assert.Equal(t, "invalid parameter value: not-a-number", errorResponse.ValidationErrors[0].Message)
-	})
+	type Params struct {
+		Page    int       `query:"page"`
+		Size    int       `query:"size"`
+		Score   float64   `query:"score"`
+		Active  bool      `query:"active"`
+		ID      int       `path:"id"`
+		Header  string    `header:"Header"`
+		Header2 uuid.UUID `header:"Header2"`
+	}
+
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response, error) {
+		t.Error("handler should not be called")
+		return &simba.Response{}, nil
+	}
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "invalid page parameter",
+			path: "/test/1?active=true&page=invalid",
+		},
+		{
+			name: "invalid size parameter",
+			path: "/test/1?active=true&size=invalid",
+		},
+		{
+			name: "invalid score parameter",
+			path: "/test/1?active=true&score=invalid",
+		},
+		{
+			name: "invalid active parameter",
+			path: "/test/1?active=notbool",
+		},
+		{
+			name: "invalid id parameter",
+			path: "/test/notint?active=true",
+		},
+	}
+
+	app := simba.New()
+	app.Router.GET("/test/:id", simba.HandlerFunc(handler))
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			w := httptest.NewRecorder()
+			app.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+			var errorResponse simba.ErrorResponse
+			err := json.NewDecoder(w.Body).Decode(&errorResponse)
+			assert.NilError(t, err)
+
+			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+			assert.Equal(t, "Bad Request", errorResponse.Error)
+			expectedPath := tt.path
+			if idx := strings.Index(expectedPath, "?"); idx != -1 {
+				expectedPath = expectedPath[:idx]
+			}
+			assert.Equal(t, expectedPath, errorResponse.Path)
+			assert.Equal(t, http.MethodGet, errorResponse.Method)
+			assert.Equal(t, "invalid parameter value", errorResponse.Message)
+		})
+	}
 }

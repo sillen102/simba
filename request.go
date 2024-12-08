@@ -99,7 +99,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	}
 
 	if validationErrors := validateStruct(req); len(validationErrors) > 0 {
-		return NewHttpError(http.StatusBadRequest, "invalid Request body", nil, validationErrors...)
+		return NewHttpError(http.StatusBadRequest, "invalid request body", nil, validationErrors...)
 	}
 
 	return nil
@@ -113,7 +113,7 @@ func readJson(body io.ReadCloser, requestSettings *RequestSettings, model any) e
 	}
 	err := decoder.Decode(&model)
 	if err != nil {
-		return NewHttpError(http.StatusBadRequest, "invalid Request body", err)
+		return NewHttpError(http.StatusBadRequest, "invalid request body", err)
 	}
 	return nil
 }
