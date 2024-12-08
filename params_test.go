@@ -79,7 +79,7 @@ func TestParamParsing(t *testing.T) {
 		app.Router.GET("/test/:uuid/:id/:slug", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("default values", func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestParamParsing(t *testing.T) {
 		app.Router.GET("/test/:uuid/:id/:slug", simba.HandlerFunc(handler))
 		app.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
 
