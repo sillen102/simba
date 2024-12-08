@@ -98,11 +98,11 @@ app.GET("/users/:userId", simba.HandlerFunc(getUser))
 
 ## Logging
 
-Simba automatically injects a [zerolog](https://github.com/rs/zerolog) logger into every request's context. You can access this logger from any handler or middleware using the `logging` package:
+Simba automatically injects a [zerolog](https://github.com/rs/zerolog) logger into the request's context.
 
 ```go
 func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-    logger := logging.FromCtx(ctx)
+    logger := simba.LoggerFrom(ctx)
     logger.Info().Msg("handling request")
     // ... handle the request
 }
@@ -182,8 +182,8 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
     // ... handle the request
 }
 
-app := simba.DefaultWithAuth[User](authFunc)
-app.GET("/users/:userId", simba.AuthenticatedHandlerFunc(getUser))
+app := simba.DefaultAuthWith(authFunc)
+app.GET("/users/:userId", simba.AuthHandlerFunc(getUser))
 ```
 
 

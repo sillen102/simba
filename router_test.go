@@ -10,6 +10,15 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// TODO: Add more tests
+// 	1. Route conflicts
+// 	2. Wildcard routes
+//  3. Middleware chain ordering
+//  4. Route parameter validation
+//  5. Method not allowed scenarios
+//  6. OPTIONS requests handling
+//  7. HEAD requests handling
+
 func TestEndpoints(t *testing.T) {
 	t.Parallel()
 

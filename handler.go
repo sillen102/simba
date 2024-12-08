@@ -12,17 +12,17 @@ func HandlerFunc[RequestBody any, Params any](h Handler[RequestBody, Params]) ht
 	})
 }
 
-// Handler handles a request with the request body and params.
+// Handler handles a Request with the Request body and params.
 //
 //	Example usage:
 //
-// Define a request body struct:
+// Define a Request body struct:
 //
 //	type RequestBody struct {
 //		Test string `json:"test" validate:"required"`
 //	}
 //
-// Define a request params struct:
+// Define a Request params struct:
 //
 //	type Params struct {
 //		Name   string `header:"name" validate:"required"`
@@ -35,7 +35,7 @@ func HandlerFunc[RequestBody any, Params any](h Handler[RequestBody, Params]) ht
 // Define a handler function:
 //
 //	func(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response, error) {
-//		// Access the request body and params fields
+//		// Access the Request body and params fields
 //		req.Body.Test
 //		req.Params.Name
 //		req.Params.ID
@@ -75,24 +75,24 @@ func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 	writeResponse(w, r, resp, nil)
 }
 
-// AuthenticatedHandlerFunc returns an [http.Handler] that can be used for authenticated routes
-func AuthenticatedHandlerFunc[RequestBody any, Params any, AuthModel any](h AuthenticatedHandler[RequestBody, Params, AuthModel]) http.Handler {
+// AuthHandlerFunc returns an [http.Handler] that can be used for authenticated routes
+func AuthHandlerFunc[RequestBody any, Params any, AuthModel any](h AuthenticatedHandler[RequestBody, Params, AuthModel]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
 }
 
-// AuthenticatedHandler handles a request with the request body and params.
+// AuthenticatedHandler handles a Request with the Request body and params.
 //
 //	Example usage:
 //
-// Define a request body struct:
+// Define a Request body struct:
 //
 //	type RequestBody struct {
 //		Test string `json:"test" validate:"required"`
 //	}
 //
-// Define a request params struct:
+// Define a Request params struct:
 //
 //	type Params struct {
 //		Name   string `header:"name" validate:"required"`
@@ -113,7 +113,7 @@ func AuthenticatedHandlerFunc[RequestBody any, Params any, AuthModel any](h Auth
 // Define a handler function:
 //
 //	func(ctx context.Context, req *simba.Request[RequestBody, Params], user *AuthModel) (*simba.Response, error) {
-//		// Access the request body and params fields
+//		// Access the Request body and params fields
 //		req.Body.Test
 //		req.Params.Name
 //		req.Params.ID
@@ -170,16 +170,12 @@ func (h AuthenticatedHandler[RequestBody, Params, AuthModel]) ServeHTTP(w http.R
 	writeResponse(w, r, resp, nil)
 }
 
-// handleRequest handles extracting body and params from the request
+// handleRequest handles extracting body and params from the Request
 func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[RequestBody, Params], error) {
 	var reqBody RequestBody
-	err := decodeBodyIfNeeded(r, &reqBody)
+	err := handleJsonBody(r, &reqBody)
 	if err != nil {
 		return nil, err
-	}
-
-	if validationErrors := validateStruct(reqBody); len(validationErrors) > 0 {
-		return nil, NewHttpError(http.StatusBadRequest, "invalid request body", nil, validationErrors...)
 	}
 
 	params, err := parseAndValidateParams[Params](r)
