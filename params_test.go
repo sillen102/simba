@@ -185,7 +185,7 @@ func TestValidationRules(t *testing.T) {
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
 			assert.NilError(t, err)
 			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-			assert.Equal(t, "missing required parameters", errorResponse.Message)
+			assert.Equal(t, "request validation failed", errorResponse.Message)
 
 			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
 			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
@@ -237,19 +237,19 @@ func TestUUIDParameters(t *testing.T) {
 		{
 			name:    "invalid uuid in path",
 			path:    "/test/invalid-uuid",
-			wantMsg: "invalid UUID parameter value",
+			wantMsg: "invalid UUID parameter value: invalid-uuid",
 		},
 		{
 			name:     "invalid uuid in header",
 			path:     "/test/123e4567-e89b-12d3-a456-426655440000",
 			headerID: "invalid-uuid",
-			wantMsg:  "invalid UUID parameter value",
+			wantMsg:  "invalid UUID parameter value: invalid-uuid",
 		},
 		{
 			name:     "invalid uuid in query",
 			path:     "/test/123e4567-e89b-12d3-a456-426655440000?queryId=invalid-uuid",
 			headerID: "248ccd0e-4bdf-4c41-a125-92ef3a416251",
-			wantMsg:  "invalid UUID parameter value",
+			wantMsg:  "invalid UUID parameter value: invalid-uuid",
 		},
 	}
 
@@ -316,7 +316,7 @@ func TestFloatParameters(t *testing.T) {
 	assert.Equal(t, "Bad Request", errorResponse.Error)
 	assert.Equal(t, "/test/1", errorResponse.Path)
 	assert.Equal(t, http.MethodGet, errorResponse.Method)
-	assert.Equal(t, "invalid parameter value", errorResponse.Message)
+	assert.Equal(t, "invalid float parameter value: invalid", errorResponse.Message)
 }
 
 func TestInvalidParameterTypes(t *testing.T) {
@@ -338,28 +338,34 @@ func TestInvalidParameterTypes(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		path string
+		name         string
+		path         string
+		errorMessage string
 	}{
 		{
-			name: "invalid page parameter",
-			path: "/test/1?active=true&page=invalid",
+			name:         "invalid page parameter",
+			path:         "/test/1?active=true&page=invalid",
+			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
-			name: "invalid size parameter",
-			path: "/test/1?active=true&size=invalid",
+			name:         "invalid size parameter",
+			path:         "/test/1?active=true&size=invalid",
+			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
-			name: "invalid score parameter",
-			path: "/test/1?active=true&score=invalid",
+			name:         "invalid score parameter",
+			path:         "/test/1?active=true&score=invalid",
+			errorMessage: "invalid float parameter value: invalid",
 		},
 		{
-			name: "invalid active parameter",
-			path: "/test/1?active=notbool",
+			name:         "invalid active parameter",
+			path:         "/test/1?active=notbool",
+			errorMessage: "invalid bool parameter value: notbool",
 		},
 		{
-			name: "invalid id parameter",
-			path: "/test/notint?active=true",
+			name:         "invalid id parameter",
+			path:         "/test/notint?active=true",
+			errorMessage: "invalid int parameter value: notint",
 		},
 	}
 
@@ -390,7 +396,7 @@ func TestInvalidParameterTypes(t *testing.T) {
 			}
 			assert.Equal(t, expectedPath, errorResponse.Path)
 			assert.Equal(t, http.MethodGet, errorResponse.Method)
-			assert.Equal(t, "invalid parameter value", errorResponse.Message)
+			assert.Equal(t, tt.errorMessage, errorResponse.Message)
 		})
 	}
 }

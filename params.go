@@ -46,25 +46,16 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 			continue
 		}
 
-		// Handle special case for UUID
-		if field.Type.String() == "uuid.UUID" {
-			if err := handleUUIDField(fieldValue, value); err != nil {
-				return instance, NewHttpError(http.StatusBadRequest, "invalid UUID parameter value", err,
-					ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid UUID parameter value: " + value})
-			}
-			continue
-		}
-
 		// Set field value
 		if err := setFieldValue(fieldValue, value); err != nil {
-			return instance, NewHttpError(http.StatusBadRequest, "invalid parameter value", err,
+			return instance, NewHttpError(http.StatusBadRequest, err.Error(), err,
 				ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid parameter value: " + value})
 		}
 	}
 
 	// Validate required fields
 	if validationErrors := validateStruct(instance, getParamType(t.Field(0))); len(validationErrors) > 0 {
-		return instance, NewHttpError(http.StatusBadRequest, "missing required parameters", nil, validationErrors...)
+		return instance, NewHttpError(http.StatusBadRequest, "request validation failed", nil, validationErrors...)
 	}
 
 	return instance, nil
@@ -109,10 +100,18 @@ func setFieldValue(fieldValue reflect.Value, value string) error {
 	switch fieldValue.Type().String() {
 	case "time.Time":
 		var timeVal time.Time
-		if timeVal, err = time.Parse(time.RFC3339, value); err == nil {
-			fieldValue.Set(reflect.ValueOf(timeVal))
+		if timeVal, err = time.Parse(time.RFC3339, value); err != nil {
+			return fmt.Errorf("invalid time parameter value: %s", value)
 		}
-		return err
+		fieldValue.Set(reflect.ValueOf(timeVal))
+		return nil
+	case "uuid.UUID":
+		var uuidVal uuid.UUID
+		if uuidVal, err = uuid.Parse(value); err != nil {
+			return fmt.Errorf("invalid UUID parameter value: %s", value)
+		}
+		fieldValue.Set(reflect.ValueOf(uuidVal))
+		return nil
 	}
 
 	switch fieldValue.Kind() {
@@ -120,22 +119,29 @@ func setFieldValue(fieldValue reflect.Value, value string) error {
 		fieldValue.SetString(value)
 	case reflect.Int, reflect.Int64:
 		var intVal int64
-		if intVal, err = strconv.ParseInt(value, 10, 64); err == nil {
-			fieldValue.SetInt(intVal)
+		if intVal, err = strconv.ParseInt(value, 10, 64); err != nil {
+			return fmt.Errorf("invalid int parameter value: %s", value)
 		}
+		fieldValue.SetInt(intVal)
+		return nil
 	case reflect.Bool:
 		var boolVal bool
-		if boolVal, err = strconv.ParseBool(value); err == nil {
-			fieldValue.SetBool(boolVal)
+		if boolVal, err = strconv.ParseBool(value); err != nil {
+			return fmt.Errorf("invalid bool parameter value: %s", value)
 		}
+		fieldValue.SetBool(boolVal)
+		return nil
 	case reflect.Float64:
 		var floatVal float64
-		if floatVal, err = strconv.ParseFloat(value, 64); err == nil {
-			fieldValue.SetFloat(floatVal)
+		if floatVal, err = strconv.ParseFloat(value, 64); err != nil {
+			return fmt.Errorf("invalid float parameter value: %s", value)
 		}
+		fieldValue.SetFloat(floatVal)
+		return nil
 	default:
 		return fmt.Errorf("unsupported field type: %v", fieldValue.Kind())
 	}
+
 	return err
 }
 
@@ -146,17 +152,4 @@ func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) error 
 		return nil
 	}
 	return setFieldValue(fieldValue, defaultVal)
-}
-
-// handleUUIDField handles the special case of UUID field types
-func handleUUIDField(fieldValue reflect.Value, value string) error {
-	if value == "" {
-		return nil
-	}
-	uuidVal, err := uuid.Parse(value)
-	if err != nil {
-		return err
-	}
-	fieldValue.Set(reflect.ValueOf(uuidVal))
-	return nil
 }
