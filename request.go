@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/rs/zerolog"
-	"github.com/sillen102/simba/logging"
 )
 
 type requestContextKey string
@@ -22,7 +21,7 @@ const (
 // injectLogger injects the logger into the Request context
 func injectLogger(next http.Handler, logger zerolog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := logging.CtxWith(r.Context(), logger)
+		ctx := logger.WithContext(r.Context())
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -33,7 +32,7 @@ func closeRequestBody(next http.Handler) http.Handler {
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				logging.Get(r.Context()).Error().Err(err).Msg("error closing Request body")
+				LoggerFrom(r.Context()).Error().Err(err).Msg("error closing Request body")
 			}
 		}(r.Body)
 		next.ServeHTTP(w, r)
@@ -88,7 +87,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 
 	requestSettings := getConfigurationFromContext(r.Context())
 	if requestSettings.LogRequestBody != zerolog.Disabled {
-		logging.Get(r.Context()).
+		zerolog.Ctx(r.Context()).
 			WithLevel(requestSettings.LogRequestBody).
 			Interface("body", r.Body).
 			Msg("request body")

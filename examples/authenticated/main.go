@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 )
 
 type ResponseBody struct {
@@ -52,6 +51,6 @@ func main() {
 	app := simba.DefaultAuthWith(authFunc)
 	app.Router.GET("/user", simba.AuthHandlerFunc(authenticatedHandler))
 
-	logging.Get().Info().Msg("Listening on http://localhost:9999")
+	app.GetLogger().Info().Msg("Listening on http://localhost:9999")
 	http.ListenAndServe(":9999", app)
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/justinas/alice"
 	"github.com/rs/zerolog"
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 )
 
@@ -55,7 +54,7 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...Settings) *Appli
 		panic(err)
 	}
 
-	logger := logging.New(&settings.Logging)
+	logger := NewLogger(&settings.Logging)
 
 	router := newRouter(settings.Request, logger)
 	router.Use(func(next http.Handler) http.Handler {

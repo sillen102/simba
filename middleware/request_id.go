@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/oklog/ulid"
-	"github.com/sillen102/simba/logging"
 )
 
 type RequestIdMode int
@@ -74,7 +73,7 @@ func (c *RequestIdConfig) RequestID(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
 
 		// Add request ID to logger in context
-		logger := logging.Get(r.Context()).With().Str(string(RequestIDKey), requestID).Logger()
+		logger := getLogger(r.Context()).With().Str(string(RequestIDKey), requestID).Logger()
 		ctx = logger.WithContext(ctx)
 
 		// Set the request ID header

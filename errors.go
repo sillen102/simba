@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 )
 
@@ -134,7 +133,7 @@ func (ve ValidationErrors) Error() string {
 
 // HandleError is a helper function for handling errors in HTTP handlers
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
-	logger := logging.Get(r.Context()).With().
+	logger := LoggerFrom(r.Context()).With().
 		Str("path", r.URL.Path).
 		Str("method", r.Method).
 		Logger()

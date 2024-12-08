@@ -3,8 +3,6 @@ package simba
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/sillen102/simba/logging"
 )
 
 // writeResponse writes the response to the client
@@ -17,7 +15,7 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err e
 	// Check if resp is nil
 	if resp == nil {
 		// Log this unexpected condition
-		logging.Get(r.Context()).Error().Msg("unexpected nil response")
+		LoggerFrom(r.Context()).Error().Msg("unexpected nil response")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

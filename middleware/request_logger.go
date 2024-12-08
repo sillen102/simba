@@ -3,8 +3,6 @@ package middleware
 import (
 	"net/http"
 	"time"
-
-	"github.com/sillen102/simba/logging"
 )
 
 // LogRequests logs the incoming requests
@@ -14,7 +12,7 @@ func LogRequests(next http.Handler) http.Handler {
 		wrapped := wrapResponseWriter(w)
 
 		// Get logger from context
-		logger := logging.Get(r.Context())
+		logger := getLogger(r.Context())
 
 		// Process request
 		next.ServeHTTP(wrapped, r)

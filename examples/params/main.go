@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 )
 
 type RequestBody struct {
@@ -65,6 +64,6 @@ func main() {
 	app := simba.Default()
 	app.Router.POST("/params/:id", simba.HandlerFunc(handler))
 
-	logging.Get().Info().Msg("Listening on http://localhost:9999")
+	app.GetLogger().Info().Msg("Listening on http://localhost:9999")
 	http.ListenAndServe(":9999", app)
 }
