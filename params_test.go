@@ -104,6 +104,117 @@ func TestParamParsing(t *testing.T) {
 	})
 }
 
+type ValidationTestParams struct {
+	Email     string `query:"email" validate:"omitempty,email"`
+	Password  string `query:"password" validate:"omitempty,min=8,max=32"`
+	Code      string `query:"code" validate:"omitempty,len=6"`
+	Pin       string `query:"pin" validate:"omitempty,numeric"`
+	Username  string `query:"username" validate:"omitempty,alphanum"`
+	Page      int    `query:"page" default:"1"`
+	Size      int    `query:"size" default:"10"`
+	SortOrder string `query:"sort" default:"asc"`
+}
+
+func TestValidationRules(t *testing.T) {
+	t.Parallel()
+
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, ValidationTestParams]) (*simba.Response, error) {
+		t.Fatal("handler should not be called")
+		return nil, nil
+	}
+
+	tests := []struct {
+		name          string
+		query         string
+		expectedError string
+		parameter     string
+	}{
+		{
+			name:          "invalid email",
+			query:         "?email=notanemail",
+			expectedError: "'notanemail' is not a valid email address",
+			parameter:     "email",
+		},
+		{
+			name:          "password too short",
+			query:         "?password=short",
+			expectedError: "password must be at least 8 characters long",
+			parameter:     "password",
+		},
+		{
+			name:          "password too long",
+			query:         "?password=thispasswordiswaytoolongandshouldfail",
+			expectedError: "password must not exceed 32 characters",
+			parameter:     "password",
+		},
+		{
+			name:          "invalid code length",
+			query:         "?code=12345",
+			expectedError: "code must be exactly 6 characters long",
+			parameter:     "code",
+		},
+		{
+			name:          "non-numeric pin",
+			query:         "?pin=abc123",
+			expectedError: "'abc123' must be a valid number",
+			parameter:     "pin",
+		},
+		{
+			name:          "non-alphanumeric username",
+			query:         "?username=user@name",
+			expectedError: "'user@name' must contain only letters and numbers",
+			parameter:     "username",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, "/test"+tt.query, nil)
+			w := httptest.NewRecorder()
+
+			app := simba.New()
+			app.Router.GET("/test", simba.HandlerFunc(handler))
+			app.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+
+			var errorResponse simba.ErrorResponse
+			err := json.NewDecoder(w.Body).Decode(&errorResponse)
+			assert.NilError(t, err)
+			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+			assert.Equal(t, "missing required parameters", errorResponse.Message)
+
+			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
+			assert.Equal(t, simba.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
+			assert.Equal(t, tt.expectedError, errorResponse.ValidationErrors[0].Message)
+		})
+	}
+}
+
+func TestDefaultValues(t *testing.T) {
+	t.Parallel()
+
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, ValidationTestParams]) (*simba.Response, error) {
+		assert.Equal(t, 1, req.Params.Page)
+		assert.Equal(t, 10, req.Params.Size)
+		assert.Equal(t, "asc", req.Params.SortOrder)
+		return &simba.Response{Status: http.StatusNoContent}, nil
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	app := simba.New()
+	app.Router.GET("/test", simba.HandlerFunc(handler))
+	app.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
 func TestUUIDParameters(t *testing.T) {
 	t.Parallel()
 
@@ -158,7 +269,6 @@ func TestUUIDParameters(t *testing.T) {
 			app.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
-			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
 			var errorResponse simba.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)

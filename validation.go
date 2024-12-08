@@ -11,7 +11,7 @@ import (
 var validate = validator.New(validator.WithRequiredStructEnabled())
 
 // validateStruct is a helper function for validating requests
-func validateStruct(request any) ValidationErrors {
+func validateStruct(request any, paramType ParameterType) ValidationErrors {
 	err := validate.Struct(request)
 	if err == nil {
 		return nil
@@ -41,7 +41,7 @@ func validateStruct(request any) ValidationErrors {
 			message := getValidationMessage(e, valueStr)
 			validationErrorsData[i] = ValidationError{
 				Parameter: strcase.ToLowerCamel(e.Field()),
-				Type:      ParameterTypeBody,
+				Type:      paramType,
 				Message:   message,
 			}
 		}
