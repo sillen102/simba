@@ -5,6 +5,11 @@ import (
 	"net/http"
 )
 
+// TODO: Response testing
+//  1. Error response formatting
+//  2. Response headers and cookies
+//  3. Response compression
+
 // writeResponse writes the response to the client
 func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err error) {
 	if err != nil {

@@ -10,6 +10,12 @@ import (
 	"github.com/sillen102/simba/middleware"
 )
 
+// TODO: Settings testing
+// 	1. Configuration validation
+//  2. Default settings behavior
+//  3. Settings override scenarios
+//  4. Invalid settings handling
+
 // Settings is a struct that holds the application Settings
 type Settings struct {
 

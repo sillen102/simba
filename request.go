@@ -10,6 +10,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// TODO: Request process testing
+// 	1. Request timeouts
+//  2. Large request body
+//  3. Malformed JSON
+//  4. Header validation edge cases
+
 type requestContextKey string
 type authContextKey string
 

@@ -8,6 +8,11 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
+// TODO: Validation testing
+// 	1. Custom validation messages generation
+// 	2. Edge cases with various data types
+// 	3. Error handling for invalid structs
+
 var validate = validator.New(validator.WithRequiredStructEnabled())
 
 // validateStruct is a helper function for validating requests
