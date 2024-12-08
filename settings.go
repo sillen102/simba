@@ -15,15 +15,29 @@ import (
 //  2. Default settings behavior
 //  3. Settings override scenarios
 //  4. Invalid settings handling
+//  5. Server settings
 
 // Settings is a struct that holds the application Settings
 type Settings struct {
+
+	// Server settings
+	Server ServerSettings
 
 	// Request settings
 	Request RequestSettings
 
 	// Logging settings
 	Logging LoggingConfig
+}
+
+// ServerSettings holds the Settings for the application server
+type ServerSettings struct {
+
+	// Host is the host the server will listen on
+	Host string `yaml:"host" env:"HOST" env-default:"localhost"`
+
+	// Addr is the address the server will listen on
+	Port string `yaml:"port" env:"PORT" env-default:"8000"`
 }
 
 // RequestSettings holds the Settings for the Request processing
@@ -61,8 +75,8 @@ func (u AllowUnknownFields) String() string {
 	}
 }
 
-func (f *AllowUnknownFields) SetValue(s string) error {
-	*f = ParseAllowUnknownFields(s)
+func (u *AllowUnknownFields) SetValue(s string) error {
+	*u = ParseAllowUnknownFields(s)
 	return nil
 }
 
@@ -171,6 +185,14 @@ func loadConfig(provided ...Settings) (*Settings, error) {
 
 	if len(provided) > 0 {
 		st := provided[0]
+
+		if st.Server.Host != "" {
+			settings.Server.Host = st.Server.Host
+		}
+
+		if st.Server.Port != "" {
+			settings.Server.Port = st.Server.Port
+		}
 
 		// Disallow is the default so if the user doesn't set any different, we don't override it
 		if st.Request.AllowUnknownFields != Disallow {
