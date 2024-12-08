@@ -9,6 +9,7 @@ import (
 //  1. Error response formatting
 //  2. Response headers and cookies
 //  3. Response compression
+//  4. Response specific test cases (such as 204 when body is nil and status is 0)
 
 // writeResponse writes the response to the client
 func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err error) {
@@ -39,7 +40,7 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err e
 		}
 	}
 
-	if resp.Body == nil {
+	if resp.Body == nil && resp.Status == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
