@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 )
 
@@ -63,9 +62,9 @@ type ErrorResponse struct {
 	Status int `json:"status"`
 	// HTTP error type
 	Error string `json:"error"`
-	// Path of the request
+	// Path of the Request
 	Path string `json:"path"`
-	// Method of the request
+	// Method of the Request
 	Method string `json:"method"`
 	// Request ID
 	RequestID string `json:"requestId,omitempty"`
@@ -106,6 +105,10 @@ const (
 	ParameterTypeBody   ParameterType = "body"
 )
 
+func (p ParameterType) String() string {
+	return string(p)
+}
+
 // ValidationError defines the interface for a validation error
 // @Description Detailed information about a validation error
 type ValidationError struct {
@@ -125,12 +128,12 @@ func (ve ValidationErrors) Error() string {
 	if len(ve) == 0 {
 		return "no validation errors"
 	}
-	return fmt.Sprintf("request validation failed: %d errors", len(ve))
+	return fmt.Sprintf("Request validation failed: %d errors", len(ve))
 }
 
 // HandleError is a helper function for handling errors in HTTP handlers
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
-	logger := logging.FromCtx(r.Context()).With().
+	logger := LoggerFrom(r.Context()).With().
 		Str("path", r.URL.Path).
 		Str("method", r.Method).
 		Logger()
