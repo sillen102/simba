@@ -114,18 +114,18 @@ Customize behavior with settings:
 ```go
 app := simba.New(simba.Settings{
     Server: simba.ServerSettings{
-		Host: "localhost",
+        Host: "localhost",
         Port: 9999,
     },
-	Request: simba.RequestSettings{
+    Request: simba.RequestSettings{
         AllowUnknownFields: enums.Allow,
-		LogRequestBody: enums.Enabled,
+        LogRequestBody: enums.Enabled,
         RequestIdMode: enums.AcceptFromHeader,
     },
     Logging: logging.Config{
         Level: slog.LevelInfo,
         Format: logging.JsonFormat,
-		Output: os.Stdout,
+        Output: os.Stdout,
     },
 })
 
