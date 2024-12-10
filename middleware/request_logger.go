@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"math"
 	"net/http"
 	"time"
+
+	"github.com/sillen102/simba/logging"
 )
 
 // LogRequests logs the incoming requests
@@ -11,23 +14,26 @@ func LogRequests(next http.Handler) http.Handler {
 		start := time.Now()
 		wrapped := wrapResponseWriter(w)
 
-		// Get logger from context
-		logger := getLogger(r.Context())
-
 		// Process request
 		next.ServeHTTP(wrapped, r)
 
+		// Get duration
+		duration := roundDuration(time.Since(start))
+
 		// Log request details after processing
-		duration := time.Since(start).Round(time.Microsecond)
-		logger.Info().
-			Str("remoteIp", r.RemoteAddr).
-			Str("userAgent", r.UserAgent()).
-			Str("method", r.Method).
-			Str("path", r.URL.Path).
-			Int("status", wrapped.Status()).
-			Dur("duration (ms)", duration).
-			Msg("request processed")
+		logging.From(r.Context()).Info("request processed",
+			"remoteIp", r.RemoteAddr,
+			"userAgent", r.UserAgent(),
+			"status", wrapped.Status(),
+			"duration (ms)", duration,
+		)
 	})
+}
+
+// roundDuration returns the duration in milliseconds rounded to 3 decimal places
+func roundDuration(d time.Duration) float64 {
+	duration := d.Seconds() * 1000
+	return math.Round(duration*1000) / 1000
 }
 
 // responseWriter is a minimal wrapper for http.ResponseWriter that allows the

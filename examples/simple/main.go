@@ -47,7 +47,5 @@ func main() {
 	app := simba.Default()
 	app.Router.POST("/users", simba.HandlerFunc(handler))
 	app.Router.GET("/no-body", simba.HandlerFunc(noBodyHandler))
-
-	app.GetLogger().Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", app)
+	app.Start(context.Background())
 }

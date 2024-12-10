@@ -2,10 +2,11 @@ package simba
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/justinas/alice"
-	"github.com/rs/zerolog"
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 )
 
@@ -25,7 +26,8 @@ type Application[AuthModel any] struct {
 	// from the Request
 	authFunc AuthFunc[AuthModel]
 
-	logger zerolog.Logger
+	// logger is the application's primary logging instance
+	logger *slog.Logger
 }
 
 // AuthFunc is a function type for authenticating and retrieving an authenticated model struct from a Request
@@ -58,7 +60,7 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...Settings) *Appli
 		panic(err)
 	}
 
-	logger := NewLogger(&settings.Logging)
+	logger := logging.NewLogger(settings.Logging)
 
 	router := newRouter(settings.Request, logger)
 	router.Use(func(next http.Handler) http.Handler {
@@ -66,7 +68,7 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...Settings) *Appli
 	})
 
 	return &Application[User]{
-		Server:   &http.Server{Addr: fmt.Sprintf("%s:%s", settings.Server.Host, settings.Server.Port), Handler: router},
+		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", settings.Server.Host, settings.Server.Port), Handler: router},
 		Router:   router,
 		settings: settings,
 		authFunc: authFunc,
@@ -74,19 +76,14 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...Settings) *Appli
 	}
 }
 
-// ServeHTTP implements the [http.Handler] interface for the Simba [Application]
-func (a *Application[AuthModel]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	a.Router.ServeHTTP(w, req)
+// GetLogger returns the default Simba application logger
+func (a *Application[AuthModel]) GetLogger() *slog.Logger {
+	return a.logger
 }
 
 // defaultMiddleware returns the middleware chain used in the default [Application] application
 func (a *Application[AuthModel]) defaultMiddleware() alice.Chain {
-	requestIdConfig := middleware.RequestIdConfig{
-		AcceptFromHeader: a.settings.Request.RequestIdMode == middleware.AcceptFromHeader,
-	}
-
 	return alice.New(
-		requestIdConfig.RequestID,
 		middleware.LogRequests,
 	)
 }

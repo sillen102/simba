@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/sillen102/simba/logging"
 )
 
 func (a *Application[AuthModel]) Start(ctx context.Context) {
-	logger := LoggerFrom(ctx)
+	logger := logging.From(ctx)
 
 	// Channel to listen for OS signals
 	stop := make(chan os.Signal, 1)
@@ -18,18 +20,18 @@ func (a *Application[AuthModel]) Start(ctx context.Context) {
 
 	// Run server in a goroutine
 	go func() {
-		logger.Info().Msg("server listening on " + a.Server.Addr)
+		logger.Info("server listening on " + a.Server.Addr)
 		if err := a.Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error().Err(err).Msg("error starting server")
+			logger.Error("error starting server", "error", err)
 			panic(err)
 		}
 	}()
 	<-stop
 
 	// Gracefully shutdown the server
-	logger.Info().Msg("shutting down server...")
+	logger.Info("shutting down server...")
 	if err := a.Stop(); err != nil {
-		logger.Error().Err(err).Msg("error shutting down server")
+		logger.Error("error shutting down server", "error", err)
 		panic(err)
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/middleware"
+	"github.com/sillen102/simba/logging"
 )
 
 type HTTPError struct {
@@ -78,7 +78,7 @@ type ErrorResponse struct {
 func NewErrorResponse(r *http.Request, status int, message string, validationErrors ...ValidationError) *ErrorResponse {
 	// Safely get RequestID from context
 	var requestID string
-	if id := r.Context().Value(middleware.RequestIDKey); id != nil {
+	if id := r.Context().Value(RequestIDKey); id != nil {
 		if strID, ok := id.(string); ok {
 			requestID = strID
 		}
@@ -133,25 +133,20 @@ func (ve ValidationErrors) Error() string {
 
 // HandleError is a helper function for handling errors in HTTP handlers
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
-	logger := LoggerFrom(r.Context()).With().
-		Str("path", r.URL.Path).
-		Str("method", r.Method).
-		Logger()
+	logger := logging.From(r.Context())
 
 	var httpErr *HTTPError
 	if !errors.As(err, &httpErr) {
 		// Log unexpected errors as they are always serious
-		logger.Error().Stack().Msg("unexpected error encountered")
+		logger.Error("unexpected error encountered", "error", err)
 		err = writeJSONError(w, NewErrorResponse(r, http.StatusInternalServerError, "Internal server error"))
 		if err != nil {
-			logger.Error().Err(err).Msg("failed to write error response")
+			logger.Error("failed to write error response", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		return
 	}
-
-	logger = logger.With().Err(httpErr.Unwrap()).Logger()
 
 	errorMessage := httpErr.Message
 	if errorMessage == "" {
@@ -167,11 +162,11 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 		// Log debug for 400, 404, 405, 409 and 422 errors as they are not serious
 		// and, are returned before reaching the handler and can usually be fixed
 		// by the user.
-		logger.Debug().Msg(errorMessage)
+		logger.Debug(errorMessage, "error", httpErr.Unwrap())
 
 	case http.StatusUnauthorized:
 		// Log warnings for 401 errors
-		logger.Warn().Msg(errorMessage)
+		logger.Warn(errorMessage, "error", httpErr.Unwrap())
 		// Set error message to "unauthorized" for the response
 		// to hide details of the error to a potential attacker
 		// and reduce the amount of information that can be
@@ -180,7 +175,7 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 
 	case http.StatusForbidden:
 		// Log warnings for 403 errors
-		logger.Warn().Msg(errorMessage)
+		logger.Warn(errorMessage, "error", httpErr.Unwrap())
 		// Set error message to "forbidden" for the response
 		// to hide details of the error to a potential attacker
 		// and reduce the amount of information that can be
@@ -189,7 +184,7 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 
 	default:
 		// Log errors for other HTTP status codes
-		logger.Error().Stack().Msg(errorMessage)
+		logger.Error(errorMessage, "error", httpErr.Unwrap())
 	}
 
 	var errorResponse *ErrorResponse
@@ -201,7 +196,7 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 
 	err = writeJSONError(w, errorResponse)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to write error response")
+		logger.Error("failed to write error response", "error", err)
 		handleUnexpectedError(w)
 		return
 	}

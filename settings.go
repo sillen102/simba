@@ -1,21 +1,15 @@
 package simba
 
 import (
-	"io"
+	"errors"
+	"log/slog"
 	"os"
-	"strings"
+	"reflect"
+	"strconv"
 
-	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/rs/zerolog"
-	"github.com/sillen102/simba/middleware"
+	"github.com/sillen102/simba/enums"
+	"github.com/sillen102/simba/logging"
 )
-
-// TODO: Settings testing
-// 	1. Configuration validation
-//  2. Default settings behavior
-//  3. Settings override scenarios
-//  4. Invalid settings handling
-//  5. Server settings
 
 // Settings is a struct that holds the application Settings
 type Settings struct {
@@ -27,17 +21,17 @@ type Settings struct {
 	Request RequestSettings
 
 	// Logging settings
-	Logging LoggingConfig
+	Logging logging.Config
 }
 
 // ServerSettings holds the Settings for the application server
 type ServerSettings struct {
 
 	// Host is the host the server will listen on
-	Host string `yaml:"host" env:"HOST" env-default:"localhost"`
+	Host string `default:"0.0.0.0"`
 
 	// Addr is the address the server will listen on
-	Port string `yaml:"port" env:"PORT" env-default:"8000"`
+	Port int `default:"9999"`
 }
 
 // RequestSettings holds the Settings for the Request processing
@@ -46,182 +40,138 @@ type RequestSettings struct {
 	// AllowUnknownFields will set the behavior for unknown fields in the Request body,
 	// resulting in a 400 Bad Request response if a field is present that cannot be
 	// mapped to the model struct.
-	AllowUnknownFields AllowUnknownFields `yaml:"request_allow_unknown_fields" env:"REQUEST_ALLOW_UNKNOWN_FIELDS" env-default:"disallow"`
+	AllowUnknownFields enums.AllowOrNot `default:"Disallow"`
 
 	// LogRequestBody will determine if the Request body will be logged
 	// If set to "disabled", the Request body will not be logged, which is also the default
-	LogRequestBody zerolog.Level `yaml:"log_request_body" env:"LOG_REQUEST_BODY" env-default:"disabled"`
+	LogRequestBody enums.EnableDisable `default:"Disabled"`
 
-	// AcceptRequestIdHeader will determine if the Request ID should be read from the
-	// Request header. If not set, the Request ID will be generated.
-	RequestIdMode middleware.RequestIdMode `yaml:"request_id_mode" env:"REQUEST_ID_MODE" env-default:"accept_from_header"`
+	// RequestIdMode determines how the Request ID will be handled
+	RequestIdMode enums.RequestIdMode `default:"AcceptFromHeader"`
 }
 
-type AllowUnknownFields int
-
-const (
-	Allow AllowUnknownFields = iota
-	Disallow
-)
-
-func (u AllowUnknownFields) String() string {
-	switch u {
-	case Allow:
-		return "allow"
-	case Disallow:
-		return "disallow"
-	default:
-		return "disallow"
-	}
-}
-
-func (u *AllowUnknownFields) SetValue(s string) error {
-	*u = ParseAllowUnknownFields(s)
-	return nil
-}
-
-func ParseAllowUnknownFields(s string) AllowUnknownFields {
-	switch strings.ToLower(s) {
-	case "disallow":
-		return Disallow
-	default:
-		return Allow
-	}
-}
-
-// LoggingConfig holds the settings for the logger
-type LoggingConfig struct {
-
-	// Level is the log Level for the logger that will be used
-	Level zerolog.Level `yaml:"log_level" env:"LOG_LEVEL" env-default:"info"`
-
-	// Format is the log Format for the logger that will be used
-	Format LogFormat `yaml:"log_format" env:"LOG_FORMAT" env-default:"text"`
-
-	// output is the name of the output for the logger that will be used
-	output LogOutput `yaml:"log_output" env:"LOG_OUTPUT" env-default:"stdout"`
-
-	// Output is the Output for the logger that will be used
-	Output io.Writer
-}
-
-type LogFormat string
-
-const (
-	JsonFormat LogFormat = "json"
-	TextFormat LogFormat = "text"
-	TimeFormat string    = "2006-01-02T15:04:05.000000"
-)
-
-func (f LogFormat) String() string {
-	switch f {
-	case JsonFormat:
-		return "json"
-	default:
-		return "text"
-	}
-}
-
-func (f *LogFormat) SetValue(s string) error {
-	*f = ParseLogFormat(s)
-	return nil
-}
-
-func ParseLogFormat(s string) LogFormat {
-	switch strings.ToLower(s) {
-	case "json":
-		return JsonFormat
-	default:
-		return TextFormat
-	}
-}
-
-type LogOutput string
-
-const (
-	Stdout LogOutput = "stdout"
-	Stderr LogOutput = "stderr"
-)
-
-func (o LogOutput) String() string {
-	switch o {
-	case Stdout:
-		return "stdout"
-	case Stderr:
-		return "stderr"
-	default:
-		return "stdout"
-	}
-}
-
-func ParseLogOutput(s string) LogOutput {
-	switch strings.ToLower(s) {
-	case "stdout":
-		return Stdout
-	case "stderr":
-		return Stderr
-	default:
-		return Stdout
-	}
-}
-
-func getOutput(o LogOutput) io.Writer {
-	switch o {
-	case Stdout:
-		return os.Stdout
-	case Stderr:
-		return os.Stderr
-	default:
-		return os.Stdout
-	}
-}
-
-func loadConfig(provided ...Settings) (*Settings, error) {
+func loadConfig(st ...Settings) (*Settings, error) {
 	var settings Settings
-	err := cleanenv.ReadEnv(&settings)
-	if err != nil {
+	if err := setDefaults(&settings); err != nil {
 		return nil, err
 	}
+	settings.Logging.Output = os.Stdout
 
-	if len(provided) > 0 {
-		st := provided[0]
+	if len(st) > 0 {
+		provided := st[0]
 
-		if st.Server.Host != "" {
-			settings.Server.Host = st.Server.Host
+		if provided.Server.Host != "" {
+			settings.Server.Host = provided.Server.Host
 		}
 
-		if st.Server.Port != "" {
-			settings.Server.Port = st.Server.Port
+		if provided.Server.Port != 0 {
+			settings.Server.Port = provided.Server.Port
 		}
 
 		// Disallow is the default so if the user doesn't set any different, we don't override it
-		if st.Request.AllowUnknownFields != Disallow {
-			settings.Request.AllowUnknownFields = st.Request.AllowUnknownFields
+		if provided.Request.AllowUnknownFields != enums.Disallow {
+			settings.Request.AllowUnknownFields = provided.Request.AllowUnknownFields
 		}
 
 		// Disabled is the default so if the user doesn't set any different, we don't override it
-		if st.Request.LogRequestBody != zerolog.Disabled {
-			settings.Request.LogRequestBody = st.Request.LogRequestBody
+		if provided.Request.LogRequestBody != enums.Disabled {
+			settings.Request.LogRequestBody = provided.Request.LogRequestBody
 		}
 
 		// AcceptFromHeader is the default so if the user doesn't set any different, we don't override it
-		if st.Request.RequestIdMode != middleware.AcceptFromHeader {
-			settings.Request.RequestIdMode = st.Request.RequestIdMode
+		if provided.Request.RequestIdMode != enums.AcceptFromHeader {
+			settings.Request.RequestIdMode = provided.Request.RequestIdMode
 		}
 
-		if st.Logging.Format != "" {
-			settings.Logging.Format = st.Logging.Format
+		if provided.Logging.Format != "" {
+			settings.Logging.Format = provided.Logging.Format
 		}
 
 		// Info is the default so if the user doesn't set any different, we don't override it
-		if st.Logging.Level != zerolog.InfoLevel {
-			settings.Logging.Level = st.Logging.Level
+		if provided.Logging.Level != slog.LevelInfo {
+			settings.Logging.Level = provided.Logging.Level
 		}
 
-		if st.Logging.Output != nil {
-			settings.Logging.Output = st.Logging.Output
+		if provided.Logging.Output != nil {
+			settings.Logging.Output = provided.Logging.Output
 		}
 	}
 
 	return &settings, nil
+}
+
+func setDefaults(ptr interface{}) error {
+	val := reflect.ValueOf(ptr)
+	if val.Kind() != reflect.Pointer || val.Elem().Kind() != reflect.Struct {
+		return errors.New("provided argument must be a pointer to a struct")
+	}
+
+	val = val.Elem()
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldType := typ.Field(i)
+
+		if field.Kind() == reflect.Struct {
+			if err := setDefaults(field.Addr().Interface()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		defaultTag := fieldType.Tag.Get("default")
+		if defaultTag == "" {
+			continue // Skip if no default tag is present
+		}
+
+		// If the field can be set, update it
+		if field.CanSet() {
+			switch field.Kind() {
+			case reflect.String:
+				field.SetString(defaultTag)
+			case reflect.Int, reflect.Int64:
+				switch field.Type() {
+				case reflect.TypeOf(enums.AllowOrNot(0)):
+					// Handle AllowOrNot enum
+					if defaultTag == enums.Allow.String() {
+						field.SetInt(int64(enums.Allow))
+					} else {
+						field.SetInt(int64(enums.Disallow))
+					}
+				case reflect.TypeOf(enums.RequestIdMode(0)):
+					// Handle RequestIdMode enum
+					if defaultTag == enums.AcceptFromHeader.String() {
+						field.SetInt(int64(enums.AcceptFromHeader))
+					} else {
+						field.SetInt(int64(enums.AlwaysGenerate))
+					}
+				case reflect.TypeOf(enums.EnableDisable(0)):
+					// Handle EnableDisable enum
+					if defaultTag == enums.Enabled.String() {
+						field.SetInt(int64(enums.Enabled))
+					} else {
+						field.SetInt(int64(enums.Disabled))
+					}
+				case reflect.TypeOf(slog.Level(0)):
+					// Handle slog.Level enum
+					level, err := logging.ParseLogLevel(defaultTag)
+					if err != nil {
+						return err
+					}
+					field.SetInt(int64(level))
+				default:
+					intValue, err := strconv.Atoi(defaultTag)
+					if err != nil {
+						return err
+					}
+					field.SetInt(int64(intValue))
+				}
+			default:
+				continue
+			}
+		}
+	}
+
+	return nil
 }

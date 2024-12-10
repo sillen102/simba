@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
 )
 
 type ResponseBody struct {
@@ -24,7 +25,11 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
 }
 
 func main() {
-	app := simba.Default()
+	app := simba.Default(simba.Settings{
+		Logging: logging.Config{
+			Format: logging.JsonFormat,
+		},
+	})
 	app.Router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.Header.Set("X-Middleware", "123")
@@ -33,6 +38,5 @@ func main() {
 	})
 	app.Router.POST("/users", simba.HandlerFunc(handler))
 
-	app.GetLogger().Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", app)
+	app.Start(context.Background())
 }

@@ -21,7 +21,7 @@ func New[AuthModel any](t *testing.T, authFunc simba.AuthFunc[AuthModel], settin
 
 	return &TestApplication[AuthModel]{
 		Application: app,
-		Server:      httptest.NewServer(app),
+		Server:      httptest.NewServer(app.Router),
 		T:           t,
 	}
 }
