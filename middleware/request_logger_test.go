@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 	"gotest.tools/v3/assert"
 )
@@ -22,6 +23,11 @@ func TestLogRequests(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		w := httptest.NewRecorder()
+
+		// Create a logger and inject it into the context
+		logger := logging.NewLogger()
+		ctx := logging.With(req.Context(), logger)
+		req = req.WithContext(ctx)
 
 		middleware.LogRequests(handler).ServeHTTP(w, req)
 

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
@@ -61,9 +60,11 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 }
 
 func main() {
-	app := simba.Default()
-	app.Router.POST("/params/:id", simba.HandlerFunc(handler))
-
-	app.GetLogger().Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", app)
+	app := simba.Default(simba.Settings{
+		Server: simba.ServerSettings{
+			Port: 9999,
+		},
+	})
+	app.Router.POST("/params/{id}", simba.HandlerFunc(handler))
+	app.Start(context.Background())
 }

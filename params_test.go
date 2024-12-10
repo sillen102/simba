@@ -76,8 +76,8 @@ func TestParamParsing(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		app := simba.New()
-		app.Router.GET("/test/:uuid/:id/:slug", simba.HandlerFunc(handler))
-		app.ServeHTTP(w, req)
+		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.HandlerFunc(handler))
+		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
@@ -97,8 +97,8 @@ func TestParamParsing(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		app := simba.New()
-		app.Router.GET("/test/:uuid/:id/:slug", simba.HandlerFunc(handler))
-		app.ServeHTTP(w, req)
+		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.HandlerFunc(handler))
+		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
@@ -177,7 +177,7 @@ func TestValidationRules(t *testing.T) {
 
 			app := simba.New()
 			app.Router.GET("/test", simba.HandlerFunc(handler))
-			app.ServeHTTP(w, req)
+			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -185,7 +185,7 @@ func TestValidationRules(t *testing.T) {
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
 			assert.NilError(t, err)
 			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-			assert.Equal(t, "request validation failed", errorResponse.Message)
+			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
 
 			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
 			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
@@ -210,7 +210,7 @@ func TestDefaultValues(t *testing.T) {
 
 	app := simba.New()
 	app.Router.GET("/test", simba.HandlerFunc(handler))
-	app.ServeHTTP(w, req)
+	app.Router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
@@ -229,27 +229,35 @@ func TestUUIDParameters(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		path     string
-		headerID string
-		wantMsg  string
+		name      string
+		path      string
+		paramType simba.ParameterType
+		parameter string
+		headerID  string
+		wantMsg   string
 	}{
 		{
-			name:    "invalid uuid in path",
-			path:    "/test/invalid-uuid",
-			wantMsg: "invalid UUID parameter value: invalid-uuid",
+			name:      "invalid uuid in path",
+			path:      "/test/invalid-uuid",
+			paramType: simba.ParameterTypePath,
+			parameter: "ID",
+			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
 		{
-			name:     "invalid uuid in header",
-			path:     "/test/123e4567-e89b-12d3-a456-426655440000",
-			headerID: "invalid-uuid",
-			wantMsg:  "invalid UUID parameter value: invalid-uuid",
+			name:      "invalid uuid in header",
+			path:      "/test/123e4567-e89b-12d3-a456-426655440000",
+			paramType: simba.ParameterTypeHeader,
+			parameter: "HeaderID",
+			headerID:  "invalid-uuid",
+			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
 		{
-			name:     "invalid uuid in query",
-			path:     "/test/123e4567-e89b-12d3-a456-426655440000?queryId=invalid-uuid",
-			headerID: "248ccd0e-4bdf-4c41-a125-92ef3a416251",
-			wantMsg:  "invalid UUID parameter value: invalid-uuid",
+			name:      "invalid uuid in query",
+			path:      "/test/123e4567-e89b-12d3-a456-426655440000?queryId=invalid-uuid",
+			paramType: simba.ParameterTypeQuery,
+			parameter: "QueryID",
+			headerID:  "248ccd0e-4bdf-4c41-a125-92ef3a416251",
+			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
 	}
 
@@ -265,8 +273,8 @@ func TestUUIDParameters(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			app := simba.New()
-			app.Router.GET("/test/:id", simba.HandlerFunc(handler))
-			app.ServeHTTP(w, req)
+			app.Router.GET("/test/{id}", simba.HandlerFunc(handler))
+			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -282,7 +290,11 @@ func TestUUIDParameters(t *testing.T) {
 			}
 			assert.Equal(t, expectedPath, errorResponse.Path)
 			assert.Equal(t, http.MethodGet, errorResponse.Method)
-			assert.Equal(t, tt.wantMsg, errorResponse.Message)
+			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+			assert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
+			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
+			assert.Equal(t, tt.wantMsg, errorResponse.ValidationErrors[0].Message)
 		})
 	}
 }
@@ -302,8 +314,8 @@ func TestFloatParameters(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.New()
-	app.Router.GET("/test/:id", simba.HandlerFunc(handler))
-	app.ServeHTTP(w, req)
+	app.Router.GET("/test/{id}", simba.HandlerFunc(handler))
+	app.Router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -316,7 +328,11 @@ func TestFloatParameters(t *testing.T) {
 	assert.Equal(t, "Bad Request", errorResponse.Error)
 	assert.Equal(t, "/test/1", errorResponse.Path)
 	assert.Equal(t, http.MethodGet, errorResponse.Method)
-	assert.Equal(t, "invalid float parameter value: invalid", errorResponse.Message)
+	assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+	assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+	assert.Equal(t, "Page", errorResponse.ValidationErrors[0].Parameter)
+	assert.Equal(t, simba.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
+	assert.Equal(t, "invalid float parameter value: invalid", errorResponse.ValidationErrors[0].Message)
 }
 
 func TestInvalidParameterTypes(t *testing.T) {
@@ -340,37 +356,49 @@ func TestInvalidParameterTypes(t *testing.T) {
 	tests := []struct {
 		name         string
 		path         string
+		paramType    simba.ParameterType
+		paramName    string
 		errorMessage string
 	}{
 		{
 			name:         "invalid page parameter",
 			path:         "/test/1?active=true&page=invalid",
+			paramType:    simba.ParameterTypeQuery,
+			paramName:    "Page",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid size parameter",
 			path:         "/test/1?active=true&size=invalid",
+			paramType:    simba.ParameterTypeQuery,
+			paramName:    "Size",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid score parameter",
 			path:         "/test/1?active=true&score=invalid",
+			paramType:    simba.ParameterTypeQuery,
+			paramName:    "Score",
 			errorMessage: "invalid float parameter value: invalid",
 		},
 		{
 			name:         "invalid active parameter",
 			path:         "/test/1?active=notbool",
+			paramType:    simba.ParameterTypeQuery,
+			paramName:    "Active",
 			errorMessage: "invalid bool parameter value: notbool",
 		},
 		{
 			name:         "invalid id parameter",
 			path:         "/test/notint?active=true",
+			paramType:    simba.ParameterTypePath,
+			paramName:    "ID",
 			errorMessage: "invalid int parameter value: notint",
 		},
 	}
 
 	app := simba.New()
-	app.Router.GET("/test/:id", simba.HandlerFunc(handler))
+	app.Router.GET("/test/{id}", simba.HandlerFunc(handler))
 
 	for _, tt := range tests {
 		tt := tt
@@ -379,7 +407,7 @@ func TestInvalidParameterTypes(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
 			w := httptest.NewRecorder()
-			app.ServeHTTP(w, req)
+			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -396,7 +424,11 @@ func TestInvalidParameterTypes(t *testing.T) {
 			}
 			assert.Equal(t, expectedPath, errorResponse.Path)
 			assert.Equal(t, http.MethodGet, errorResponse.Method)
-			assert.Equal(t, tt.errorMessage, errorResponse.Message)
+			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+			assert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
+			assert.Equal(t, tt.paramName, errorResponse.ValidationErrors[0].Parameter)
+			assert.Equal(t, tt.errorMessage, errorResponse.ValidationErrors[0].Message)
 		})
 	}
 }

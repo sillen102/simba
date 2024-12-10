@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 
-	"github.com/rs/zerolog"
+	"github.com/google/uuid"
+	"github.com/sillen102/simba/enums"
+	"github.com/sillen102/simba/logging"
 )
 
 // TODO: Request process testing
@@ -18,17 +21,44 @@ import (
 
 type requestContextKey string
 type authContextKey string
+type requestIdContextKey string
+
+const (
+	RequestIDKey    requestIdContextKey = "requestId"
+	RequestIDHeader string              = "X-Request-Id"
+)
 
 const (
 	requestSettingsKey requestContextKey = "requestSettings"
 	authFuncKey        authContextKey    = "authFunc"
 )
 
-// injectLogger injects the logger into the Request context
-func injectLogger(next http.Handler, logger zerolog.Logger) http.Handler {
+// injectRequestID injects the Request ID into the [Request] context
+func injectRequestID(next http.Handler, acceptFromHeader bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := logger.WithContext(r.Context())
+		var requestID string
+		if acceptFromHeader {
+			requestID = r.Header.Get(RequestIDHeader)
+		}
+		if requestID == "" {
+			requestID = uuid.NewString()
+		}
+		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
+		w.Header().Set(RequestIDHeader, requestID)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// injectLogger injects the logger into the Request context
+func injectLogger(next http.Handler, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(logging.With(r.Context(),
+			logger.With(
+				"method", r.Method,
+				"path", r.URL.Path,
+				"requestId", r.Context().Value(RequestIDKey),
+			),
+		)))
 	})
 }
 
@@ -38,7 +68,7 @@ func closeRequestBody(next http.Handler) http.Handler {
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				LoggerFrom(r.Context()).Error().Err(err).Msg("error closing Request body")
+				logging.From(r.Context()).Error("error closing Request body", "error", err)
 			}
 		}(r.Body)
 		next.ServeHTTP(w, r)
@@ -92,11 +122,8 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	}
 
 	requestSettings := getConfigurationFromContext(r.Context())
-	if requestSettings.LogRequestBody != zerolog.Disabled {
-		zerolog.Ctx(r.Context()).
-			WithLevel(requestSettings.LogRequestBody).
-			Interface("body", r.Body).
-			Msg("request body")
+	if requestSettings.LogRequestBody != enums.Disabled {
+		logging.From(r.Context()).Info("request body", "body", r.Body)
 	}
 
 	err = readJson(r.Body, requestSettings, req)
@@ -114,7 +141,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 // readJson reads the JSON body and unmarshalls it into the model
 func readJson(body io.ReadCloser, requestSettings *RequestSettings, model any) error {
 	decoder := json.NewDecoder(body)
-	if requestSettings.AllowUnknownFields == Disallow {
+	if requestSettings.AllowUnknownFields == enums.Disallow {
 		decoder.DisallowUnknownFields()
 	}
 	err := decoder.Decode(&model)

@@ -50,7 +50,5 @@ func main() {
 	// for each request that uses the AuthHandlerFunc and pass it to the handler
 	app := simba.DefaultAuthWith(authFunc)
 	app.Router.GET("/user", simba.AuthHandlerFunc(authenticatedHandler))
-
-	app.GetLogger().Info().Msg("Listening on http://localhost:9999")
-	http.ListenAndServe(":9999", app)
+	app.Start(context.Background())
 }

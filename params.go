@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/julienschmidt/httprouter"
 )
 
 // parseAndValidateParams creates a new instance of the parameter struct,
@@ -25,6 +24,9 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	}
 	v := reflect.ValueOf(&instance).Elem()
 
+	// NewLogger validation errors
+	var validationErrors []ValidationError
+
 	// Extract parameters from struct tags and set values
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -34,28 +36,40 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 			continue
 		}
 
-		// Get value from Request
 		value := getParamValue(r, field)
 
 		// If no value was provided, try to set default value
 		if value == "" {
 			if err := setDefaultValue(fieldValue, field); err != nil {
-				return instance, NewHttpError(http.StatusBadRequest, "invalid default value", err,
+				// If the default value is not valid it's not a client error and should therefore return a 500
+				return instance, NewHttpError(http.StatusInternalServerError, "invalid default value", err,
 					ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid default value"})
 			}
 			continue
 		}
 
-		// Set field value
 		if err := setFieldValue(fieldValue, value); err != nil {
-			return instance, NewHttpError(http.StatusBadRequest, err.Error(), err,
-				ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid parameter value: " + value})
+			validationErrors = append(validationErrors, ValidationError{
+				Parameter: field.Name,
+				Type:      getParamType(field),
+				Message:   err.Error(),
+			})
 		}
 	}
 
-	// Validate required fields
-	if validationErrors := validateStruct(instance, getParamType(t.Field(0))); len(validationErrors) > 0 {
-		return instance, NewHttpError(http.StatusBadRequest, "request validation failed", nil, validationErrors...)
+	if valErrs := validateStruct(instance, getParamType(t.Field(0))); len(valErrs) > 0 {
+		validationErrors = append(validationErrors, valErrs...)
+	}
+
+	if len(validationErrors) > 0 {
+		var errorMessage string
+		if len(validationErrors) == 1 {
+			errorMessage = "request validation failed, 1 validation error"
+		} else {
+			errorMessage = fmt.Sprintf("request validation failed, %d validation errors", len(validationErrors))
+		}
+
+		return instance, NewHttpError(http.StatusBadRequest, errorMessage, nil, validationErrors...)
 	}
 
 	return instance, nil
@@ -67,9 +81,8 @@ func getParamValue(r *http.Request, field reflect.StructField) string {
 	case field.Tag.Get("header") != "":
 		return r.Header.Get(field.Tag.Get("header"))
 	case field.Tag.Get("path") != "":
-		if params := httprouter.ParamsFromContext(r.Context()); params != nil {
-			return params.ByName(field.Tag.Get("path"))
-		}
+		paramName := field.Tag.Get("path")
+		return r.PathValue(paramName)
 	case field.Tag.Get("query") != "":
 		return r.URL.Query().Get(field.Tag.Get("query"))
 	}

@@ -8,7 +8,6 @@ Simba is a lightweight, type-safe HTTP router framework for Go that makes buildi
 - **Built-in authentication** support
 - **Middleware support**
 - **Strong request/response typing**
-- **High performance** through [httprouter](https://github.com/julienschmidt/httprouter)
 
 ## Installation
 
@@ -68,7 +67,7 @@ func main() {
     // If you wish to build up your own router without any default middleware etc., use simba.New()
     app := simba.Default()
 	app.Router.POST("/users", simba.HandlerFunc(handler))
-    http.ListenAndServe(":9999", app)
+	app.Start(context.Background())
 }
 ```
 
@@ -93,33 +92,41 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
     // ... handle the request
 }
 
-app.GET("/users/:userId", simba.HandlerFunc(getUser))
+app.GET("/users/{userId}", simba.HandlerFunc(getUser))
 ```
 
 ## Logging
 
-Simba automatically injects a [zerolog](https://github.com/rs/zerolog) logger into the request's context.
+Simba automatically injects an slog logger into the request's context. To access the logger, use the `logging.From` function in Simba's logging package:
 
 ```go
 func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-    logger := simba.LoggerFrom(ctx)
-    logger.Info().Msg("handling request")
+    logger := logging.From(ctx)
+    logger.Info("handling request")
     // ... handle the request
 }
 ```
 
 ## Configuration
 
-Customize behavior with options:
+Customize behavior with settings:
 
 ```go
-app := simba.New(simba.Options{
-    RequestDisallowUnknownFields: true,
-    RequestIdAcceptHeader:        true,
-    LogRequestBody:               true,
-    LogLevel:                     zerolog.DebugLevel,
-    LogFormat:                    logging.JsonFormat,
-    LogOutput:                    os.Stdout,
+app := simba.New(simba.Settings{
+    Server: simba.ServerSettings{
+		Host: "localhost",
+        Port: 9999,
+    },
+	Request: simba.RequestSettings{
+        AllowUnknownFields: enums.Allow,
+		LogRequestBody: enums.Enabled,
+        RequestIdMode: enums.AcceptFromHeader,
+    },
+    Logging: logging.Config{
+        Level: slog.LevelInfo,
+        Format: logging.JsonFormat,
+		Output: os.Stdout,
+    },
 })
 
 ```
@@ -136,12 +143,12 @@ Simba provides automatic error handling with standardized JSON responses. All er
   "path": "/api/resource",
   "method": "POST",
   "requestId": "01JE61MX24YEGF08E8G0RA0Y14",
-  "message": "invalid request body",
+  "message": "request validation failed, 1 validation error",
   "validationErrors": [
     {
       "parameter": "email",
       "type": "body",
-      "message": "'email' is not a valid email address"
+      "message": "'notanemail' is not a valid email address"
     }
   ]
 }
@@ -183,7 +190,7 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
 }
 
 app := simba.DefaultAuthWith(authFunc)
-app.GET("/users/:userId", simba.AuthHandlerFunc(getUser))
+app.GET("/users/{userId}", simba.AuthHandlerFunc(getUser))
 ```
 
 

@@ -60,7 +60,7 @@ func TestEndpoints(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		w := httptest.NewRecorder()
 
-		app.ServeHTTP(w, req)
+		app.Router.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
 }
