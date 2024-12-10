@@ -35,6 +35,21 @@ const (
 	TextFormat LogFormat = "text"
 )
 
+// With returns a new context with the logger added to it.
+func With(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, LoggerKey, logger)
+}
+
+// From returns the logger from the context.
+// Returns a new logger if no logger is found in the context.
+func From(ctx context.Context) *slog.Logger {
+	if logger, ok := ctx.Value(LoggerKey).(*slog.Logger); ok {
+		return logger
+	} else {
+		return slog.Default()
+	}
+}
+
 func NewLogger(provided ...Config) *slog.Logger {
 	var config Config
 	if len(provided) > 0 {
@@ -72,6 +87,15 @@ func NewLogger(provided ...Config) *slog.Logger {
 	return logger
 }
 
+// MustParseLogLevel parses a string into a slog.Level and panics if it fails
+func MustParseLogLevel(levelStr string) slog.Level {
+	level, err := ParseLogLevel(levelStr)
+	if err != nil {
+		panic(err)
+	}
+	return level
+}
+
 // ParseLogLevel parses a string into a slog.Level
 func ParseLogLevel(levelStr string) (slog.Level, error) {
 	switch levelStr {
@@ -88,17 +112,23 @@ func ParseLogLevel(levelStr string) (slog.Level, error) {
 	}
 }
 
-// With returns a new context with the logger added to it.
-func With(ctx context.Context, logger *slog.Logger) context.Context {
-	return context.WithValue(ctx, LoggerKey, logger)
+// MustParseLogFormat parses a string into a LogFormat and panics if it fails
+func MustParseLogFormat(formatStr string) LogFormat {
+	format, err := ParseLogFormat(formatStr)
+	if err != nil {
+		panic(err)
+	}
+	return format
 }
 
-// From returns the logger from the context.
-// Returns a new logger if no logger is found in the context.
-func From(ctx context.Context) *slog.Logger {
-	if logger, ok := ctx.Value(LoggerKey).(*slog.Logger); ok {
-		return logger
-	} else {
-		return slog.Default()
+// ParseLogFormat parses a string into a LogFormat
+func ParseLogFormat(formatStr string) (LogFormat, error) {
+	switch formatStr {
+	case "text":
+		return TextFormat, nil
+	case "json":
+		return JsonFormat, nil
+	default:
+		return TextFormat, errors.New("invalid log format")
 	}
 }
