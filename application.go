@@ -20,15 +20,15 @@ type Application[AuthModel any] struct {
 	// Router is the main Mux for the application
 	Router *Router
 
-	// settings is the application settings
-	settings *settings.Settings
+	// Settings is the application Settings
+	Settings *settings.Settings
 
-	// authFunc is the function used to authenticate and retrieve the authenticated model
+	// AuthFunc is the function used to authenticate and retrieve the authenticated model
 	// from the Request
-	authFunc AuthFunc[AuthModel]
+	AuthFunc AuthFunc[AuthModel]
 
-	// logger is the logger used by the application
-	logger *slog.Logger
+	// Logger is the Logger used by the application
+	Logger *slog.Logger
 }
 
 // AuthFunc is a function type for authenticating and retrieving an authenticated model struct from a Request
@@ -45,7 +45,7 @@ func New(settings ...settings.Settings) *Application[struct{}] {
 }
 
 // DefaultAuthWith returns a new [Application] application with default Settings and ability to have authenticated routes
-// using the provided authFunc to authenticate and retrieve the user
+// using the provided AuthFunc to authenticate and retrieve the user
 func DefaultAuthWith[AuthModel any](authFunc AuthFunc[AuthModel], settings ...settings.Settings) *Application[AuthModel] {
 	app := NewAuthWith(authFunc, settings...)
 	app.Router.Extend(app.defaultMiddleware())
@@ -70,9 +70,9 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...settings.Setting
 	return &Application[User]{
 		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), Handler: router},
 		Router:   router,
-		settings: cfg,
-		authFunc: authFunc,
-		logger:   logger,
+		Settings: cfg,
+		AuthFunc: authFunc,
+		Logger:   logger,
 	}
 }
 
@@ -80,7 +80,7 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...settings.Setting
 func (a *Application[AuthModel]) defaultMiddleware() alice.Chain {
 	return alice.New(
 		middleware.RequestID,
-		middleware.Logger{Logger: a.logger}.ContextLogger,
+		middleware.Logger{Logger: a.Logger}.ContextLogger,
 		middleware.PanicRecovery,
 		middleware.LogRequests,
 	)

@@ -66,8 +66,8 @@ func main() {
     //
     // If you wish to build up your own router without any default middleware etc., use simba.New()
     app := simba.Default()
-	app.Router.POST("/users", simba.HandlerFunc(handler))
-	app.Start(context.Background())
+	app.Router.POST("/users", simba.JsonHandler(handler))
+	app.Start()
 }
 ```
 
@@ -92,7 +92,7 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
     // ... handle the request
 }
 
-app.GET("/users/{userId}", simba.HandlerFunc(getUser))
+app.GET("/users/{userId}", simba.JsonHandler(getUser))
 ```
 
 ## Logging
@@ -190,7 +190,7 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
 }
 
 app := simba.DefaultAuthWith(authFunc)
-app.GET("/users/{userId}", simba.AuthHandlerFunc(getUser))
+app.GET("/users/{userId}", simba.AuthJsonHandler(getUser))
 ```
 
 
