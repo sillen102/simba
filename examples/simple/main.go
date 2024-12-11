@@ -47,5 +47,5 @@ func main() {
 	app := simba.Default()
 	app.Router.POST("/users", simba.JsonHandler(handler))
 	app.Router.GET("/no-body", simba.JsonHandler(noBodyHandler))
-	app.Start(context.Background())
+	app.Start()
 }

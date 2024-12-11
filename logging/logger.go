@@ -6,14 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"sync"
 
 	"github.com/sillen102/simba/simbaContext"
-)
-
-var (
-	logger *slog.Logger
-	once   sync.Once
 )
 
 const (
@@ -40,9 +34,9 @@ const (
 	TextFormat LogFormat = "text"
 )
 
-// GetLogger returns the default logger
-func GetLogger() *slog.Logger {
-	return logger
+// NewLogger returns a new [slog.Logger] with the provided settings.
+func NewLogger(config ...Config) *slog.Logger {
+	return newLogger(config...)
 }
 
 // With returns a new context with the logger added to it.
@@ -56,32 +50,24 @@ func From(ctx context.Context) *slog.Logger {
 	if l, ok := ctx.Value(simbaContext.LoggerKey).(*slog.Logger); ok {
 		return l
 	} else {
-		return logger
+		return slog.Default()
 	}
-}
-
-func NewLogger(config ...Config) *slog.Logger {
-	return newLogger(config...)
-}
-
-func Initialize(provided ...Config) {
-	once.Do(func() {
-		logger = newLogger(provided...)
-		slog.SetDefault(logger)
-	})
 }
 
 func newLogger(provided ...Config) *slog.Logger {
 	var config Config
 	if len(provided) > 0 {
 		config = provided[0]
-	} else {
-		// Default logger settings
-		config = Config{
-			Level:  slog.LevelInfo,
-			Format: TextFormat,
-			Output: os.Stdout,
-		}
+	}
+
+	if config.Level == 0 {
+		config.Level = slog.LevelInfo
+	}
+	if config.Format == "" {
+		config.Format = TextFormat
+	}
+	if config.Output == nil {
+		config.Output = os.Stdout
 	}
 
 	opts := slog.HandlerOptions{
