@@ -48,7 +48,7 @@ import (
 //
 // Register the handler:
 //
-//	Mux.POST("/test/:id", simba.JsonHandler(handler))
+//	Mux.POST("/test/{id}", simba.JsonHandler(handler))
 func JsonHandler[RequestBody any, Params any](h JsonHandlerFunc[RequestBody, Params]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
@@ -131,7 +131,7 @@ func (h JsonHandlerFunc[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r
 //
 // Register the handler:
 //
-//	Mux.POST("/test/:id", simba.AuthJsonHandler(handler))
+//	Mux.POST("/test/{id}", simba.AuthJsonHandler(handler))
 func AuthJsonHandler[RequestBody any, Params any, AuthModel any](h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)

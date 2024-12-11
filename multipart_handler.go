@@ -46,7 +46,7 @@ import (
 //
 // Register the handler:
 //
-//	Mux.POST("/test/:id", simba.MultipartHandler(handler))
+//	Mux.POST("/test/{id}", simba.MultipartHandler(handler))
 func MultipartHandler[Params any](h MultipartHandlerFunc[Params]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
@@ -125,7 +125,7 @@ func (h MultipartHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 //
 // Register the handler:
 //
-//	Mux.POST("/test/:id", simba.AuthMultipartHandler(handler))
+//	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
 func AuthMultipartHandler[Params any, AuthModel any](h AuthenticatedMultipartHandlerFunc[Params, AuthModel]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
