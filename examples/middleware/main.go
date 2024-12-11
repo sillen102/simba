@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/sillen102/simba"
@@ -28,6 +29,7 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
 func main() {
 	app := simba.Default(settings.Settings{
 		Logging: logging.Config{
+			Level:  slog.LevelDebug,
 			Format: logging.JsonFormat,
 		},
 	})

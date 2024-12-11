@@ -13,7 +13,7 @@ type Router struct {
 	middleware alice.Chain
 }
 
-// newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Settings]
+// newRouter creates a new [Router] instance with the given Logger (that is injected in each Request context) and [Settings]
 func newRouter(requestSettings settings.RequestSettings) *Router {
 	return &Router{
 		Mux: http.NewServeMux(),
@@ -38,6 +38,11 @@ func (r *Router) Use(middleware func(next http.Handler) http.Handler) {
 // Extend extends the middleware chain with another chain
 func (r *Router) Extend(middleware alice.Chain) {
 	r.middleware = r.middleware.Extend(middleware)
+}
+
+// Handle registers a standard lib handler for the given pattern
+func (r *Router) Handle(pattern string, handler http.HandlerFunc) {
+	r.Mux.Handle(pattern, r.middleware.Then(handler))
 }
 
 // POST registers a handler for POST requests to the given pattern

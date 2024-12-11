@@ -53,7 +53,7 @@ func injectAuthFunc[User any](next http.Handler, authFunc AuthFunc[User]) http.H
 }
 
 // getConfigurationFromContext retrieves RequestSettings from the given context.
-// Returns the request settings stored in the context or zero value for RequestSettings if not found in the context.
+// Returns the request Settings stored in the context or zero value for RequestSettings if not found in the context.
 func getConfigurationFromContext(ctx context.Context) *settings.RequestSettings {
 	requestSettings, ok := ctx.Value(simbaContext.RequestSettingsKey).(*settings.RequestSettings)
 	if !ok {

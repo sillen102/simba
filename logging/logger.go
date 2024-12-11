@@ -60,9 +60,6 @@ func newLogger(provided ...Config) *slog.Logger {
 		config = provided[0]
 	}
 
-	if config.Level == 0 {
-		config.Level = slog.LevelInfo
-	}
 	if config.Format == "" {
 		config.Format = TextFormat
 	}
