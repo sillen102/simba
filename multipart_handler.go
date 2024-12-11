@@ -9,7 +9,9 @@ import (
 	"github.com/sillen102/simba/simbaContext"
 )
 
-// MultipartHandler handles a Request with the Request body and params.
+// MultipartHandler handles a MultipartRequest with params.
+// // The MultipartRequest holds a MultipartReader and the parsed params.
+// // The reason to provide the reader is to allow the logic for processing the parts to be handled by the handler function.
 //
 //	Example usage:
 //
@@ -73,7 +75,7 @@ func (h MultipartHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 	writeResponse(w, r, resp, nil)
 }
 
-// AuthMultipartHandler handles a MultipartRequest with params.
+// AuthMultipartHandler handles a MultipartRequest with params and an authenticated model.
 // The MultipartRequest holds a MultipartReader and the parsed params.
 // The reason to provide the reader is to allow the logic for processing the parts to be handled by the handler function.
 //
