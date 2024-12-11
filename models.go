@@ -1,6 +1,7 @@
 package simba
 
 import (
+	"mime/multipart"
 	"net/http"
 )
 
@@ -8,6 +9,12 @@ import (
 type Request[RequestBody any, RequestParams any] struct {
 	Cookies []*http.Cookie
 	Body    RequestBody
+	Params  RequestParams
+}
+
+type MultipartRequest[RequestParams any] struct {
+	Cookies []*http.Cookie
+	Reader  *multipart.Reader
 	Params  RequestParams
 }
 

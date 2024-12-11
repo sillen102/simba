@@ -2,20 +2,16 @@ package simba
 
 import (
 	"context"
+	"mime"
 	"net/http"
+	"strings"
 
 	"github.com/sillen102/simba/simbaContext"
 )
 
-// JsonHandler handles a Request with the Request body and params.
+// MultipartHandler handles a Request with the Request body and params.
 //
 //	Example usage:
-//
-// Define a Request body struct:
-//
-//	type RequestBody struct {
-//		Test string `json:"test" validate:"required"`
-//	}
 //
 // Define a Request params struct:
 //
@@ -30,12 +26,12 @@ import (
 // Define a handler function:
 //
 //	func(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response, error) {
-//		// Access the Request body and params fields
-//		req.Body.Test
+//		// Access the Multipart reader and params fields
 //		req.Params.Name
 //		req.Params.ID
 //		req.Params.Page
 //		req.Params.Size
+//		req.Reader // Multipart reader
 //
 //		// Return a response
 //		return &simba.Response{
@@ -48,21 +44,21 @@ import (
 //
 // Register the handler:
 //
-//	Mux.POST("/test/:id", simba.JsonHandler(handler))
-func JsonHandler[RequestBody any, Params any](h JsonHandlerFunc[RequestBody, Params]) http.Handler {
+//	Mux.POST("/test/:id", simba.MultipartHandler(handler))
+func MultipartHandler[Params any](h MultipartHandlerFunc[Params]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
 }
 
-// JsonHandlerFunc is a function type for handling routes with Request body and params
-type JsonHandlerFunc[RequestBody any, Params any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response, error)
+// MultipartHandlerFunc is a function type for handling routes with Request body and params
+type MultipartHandlerFunc[Params any] func(ctx context.Context, req *MultipartRequest[Params]) (*Response, error)
 
 // ServeHTTP implements the http.Handler interface for JsonHandlerFunc
-func (h JsonHandlerFunc[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h MultipartHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	req, err := handleRequest[RequestBody, Params](r)
+	req, err := handleMultipartRequest[Params](r)
 	if err != nil {
 		HandleError(w, r, err)
 		return
@@ -77,15 +73,11 @@ func (h JsonHandlerFunc[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r
 	writeResponse(w, r, resp, nil)
 }
 
-// AuthJsonHandler handles a Request with the Request body and params.
+// AuthMultipartHandler handles a MultipartRequest with params.
+// The MultipartRequest holds a MultipartReader and the parsed params.
+// The reason to provide the reader is to allow the logic for processing the parts to be handled by the handler function.
 //
 //	Example usage:
-//
-// Define a Request body struct:
-//
-//	type RequestBody struct {
-//		Test string `json:"test" validate:"required"`
-//	}
 //
 // Define a Request params struct:
 //
@@ -107,13 +99,13 @@ func (h JsonHandlerFunc[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r
 //
 // Define a handler function:
 //
-//	func(ctx context.Context, req *simba.Request[RequestBody, Params], authModel *AuthModel) (*simba.Response, error) {
-//		// Access the Request body and params fields
-//		req.Body.Test
+//	func(ctx context.Context, req *simba.MultipartRequest[Params], authModel *AuthModel) (*simba.Response, error) {
+//		// Access the Multipart reader and params fields
 //		req.Params.Name
 //		req.Params.ID
 //		req.Params.Page
 //		req.Params.Size
+//		req.Reader // Multipart reader
 //
 //		// Access the user fields
 //		user.ID
@@ -131,18 +123,17 @@ func (h JsonHandlerFunc[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r
 //
 // Register the handler:
 //
-//	Mux.POST("/test/:id", simba.AuthJsonHandler(handler))
-func AuthJsonHandler[RequestBody any, Params any, AuthModel any](h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) http.Handler {
+//	Mux.POST("/test/:id", simba.AuthMultipartHandler(handler))
+func AuthMultipartHandler[Params any, AuthModel any](h AuthenticatedMultipartHandlerFunc[Params, AuthModel]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
 }
 
-// AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
-type AuthenticatedJsonHandlerFunc[RequestBody any, Params any, AuthModel any] func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response, error)
+// AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
+type AuthenticatedMultipartHandlerFunc[Params any, AuthModel any] func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response, error)
 
-// ServeHTTP implements the http.Handler interface for AuthenticatedJsonHandlerFunc
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	authFunc := r.Context().Value(simbaContext.AuthFuncKey).(AuthFunc[AuthModel])
@@ -157,7 +148,7 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) ServeHTTP(
 		return
 	}
 
-	req, err := handleRequest[RequestBody, Params](r)
+	req, err := handleMultipartRequest[Params](r)
 	if err != nil {
 		HandleError(w, r, err)
 		return
@@ -172,22 +163,35 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) ServeHTTP(
 	writeResponse(w, r, resp, nil)
 }
 
-// handleRequest handles extracting body and params from the Request
-func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[RequestBody, Params], error) {
-	var reqBody RequestBody
-	err := handleJsonBody(r, &reqBody)
+// handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request
+func handleMultipartRequest[Params any](r *http.Request) (*MultipartRequest[Params], error) {
+
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "" || !strings.HasPrefix(contentType, "multipart/form-data") {
+		return nil, NewHttpError(http.StatusBadRequest, "invalid content type", nil)
+	}
+
+	reqParams, err := parseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
 	}
 
-	params, err := parseAndValidateParams[Params](r)
-	if err != nil {
-		return nil, err
+	if _, params, err := mime.ParseMediaType(contentType); err != nil || params["boundary"] == "" {
+		return nil, NewHttpError(http.StatusBadRequest, "invalid content type", err, ValidationError{
+			Parameter: "Content-Type",
+			Type:      ParameterTypeHeader,
+			Message:   "multipart form-data requests must include a boundary parameter",
+		})
 	}
 
-	return &Request[RequestBody, Params]{
+	multipartReader, err := r.MultipartReader()
+	if err != nil {
+		return nil, NewHttpError(http.StatusBadRequest, "invalid request body", err)
+	}
+
+	return &MultipartRequest[Params]{
 		Cookies: r.Cookies(),
-		Body:    reqBody,
-		Params:  params,
+		Reader:  multipartReader,
+		Params:  reqParams,
 	}, nil
 }
