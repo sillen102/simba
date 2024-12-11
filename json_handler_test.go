@@ -12,6 +12,7 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/test"
 	"gotest.tools/v3/assert"
 )
@@ -44,12 +45,12 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(simba.Settings{
+		app := simba.New(settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.HandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -76,12 +77,12 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(simba.Settings{
+		app := simba.New(settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.HandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -106,12 +107,12 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(simba.Settings{
+		app := simba.New(settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.HandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -135,12 +136,12 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(simba.Settings{
+		app := simba.New(settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.HandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -160,12 +161,12 @@ func TestHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(simba.Settings{
+		app := simba.New(settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.HandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -234,7 +235,7 @@ func TestHandlerErrors(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			app := simba.New()
-			app.Router.POST("/test/{id}", simba.HandlerFunc(handler))
+			app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
@@ -290,12 +291,12 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewAuthWith[test.User](authFunc, simba.Settings{
+		app := simba.NewAuthWith[test.User](authFunc, settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.AuthHandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -315,12 +316,12 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewAuthWith[test.User](errorAuthFunc, simba.Settings{
+		app := simba.NewAuthWith[test.User](errorAuthFunc, settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.AuthHandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -331,7 +332,7 @@ func TestAuthenticatedHandler(t *testing.T) {
 		assert.Equal(t, "unauthorized", errorResponse.Message)
 	})
 
-	t.Run("router with auth with unauthenticated handler", func(t *testing.T) {
+	t.Run("Mux with auth with unauthenticated handler", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params]) (*simba.Response, error) {
 			assert.Equal(t, "John", req.Params.Name)
 			assert.Equal(t, 1, req.Params.ID)
@@ -356,12 +357,12 @@ func TestAuthenticatedHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewAuthWith[test.User](authFunc, simba.Settings{
+		app := simba.NewAuthWith[test.User](authFunc, settings.Settings{
 			Logging: logging.Config{
 				Output: logBuffer,
 			},
 		})
-		app.Router.POST("/test/{id}", simba.HandlerFunc(handler))
+		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)

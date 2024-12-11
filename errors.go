@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/simbaContext"
 )
 
 type HTTPError struct {
@@ -78,7 +79,7 @@ type ErrorResponse struct {
 func NewErrorResponse(r *http.Request, status int, message string, validationErrors ...ValidationError) *ErrorResponse {
 	// Safely get RequestID from context
 	var requestID string
-	if id := r.Context().Value(RequestIDKey); id != nil {
+	if id := r.Context().Value(simbaContext.RequestIDKey); id != nil {
 		if strID, ok := id.(string); ok {
 			requestID = strID
 		}

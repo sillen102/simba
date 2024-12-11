@@ -1,4 +1,4 @@
-package simba
+package settings
 
 import (
 	"errors"
@@ -50,7 +50,7 @@ type RequestSettings struct {
 	RequestIdMode enums.RequestIdMode `default:"AcceptFromHeader"`
 }
 
-func loadConfig(st ...Settings) (*Settings, error) {
+func Load(st ...Settings) (*Settings, error) {
 	var settings Settings
 	if err := setDefaults(&settings); err != nil {
 		return nil, err

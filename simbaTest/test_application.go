@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/settings"
 )
 
 // TestApplication represents a test application with additional testing utilities
@@ -16,7 +17,7 @@ type TestApplication[AuthModel any] struct {
 }
 
 // New creates a new test application with the given settings
-func New[AuthModel any](t *testing.T, authFunc simba.AuthFunc[AuthModel], settings ...simba.Settings) *TestApplication[AuthModel] {
+func New[AuthModel any](t *testing.T, authFunc simba.AuthFunc[AuthModel], settings ...settings.Settings) *TestApplication[AuthModel] {
 	app := simba.NewAuthWith(authFunc, settings...)
 
 	return &TestApplication[AuthModel]{

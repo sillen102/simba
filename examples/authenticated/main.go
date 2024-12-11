@@ -47,8 +47,8 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 
 func main() {
 	// the app will use the authFunc to authenticate and retrieve the user
-	// for each request that uses the AuthHandlerFunc and pass it to the handler
+	// for each request that uses the AuthJsonHandler and pass it to the handler
 	app := simba.DefaultAuthWith(authFunc)
-	app.Router.GET("/user", simba.AuthHandlerFunc(authenticatedHandler))
+	app.Router.GET("/user", simba.AuthJsonHandler(authenticatedHandler))
 	app.Start(context.Background())
 }

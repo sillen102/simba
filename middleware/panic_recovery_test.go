@@ -5,12 +5,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 	"gotest.tools/v3/assert"
 )
 
 func TestPanicRecovery(t *testing.T) {
 	t.Parallel()
+
+	logging.Initialize()
 
 	t.Run("recovers from panic", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +33,7 @@ func TestPanicRecovery(t *testing.T) {
 	t.Run("does not interfere with normal requests", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			_, _ = w.Write([]byte("success"))
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)

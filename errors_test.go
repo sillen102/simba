@@ -12,6 +12,7 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/simbaContext"
 	"gotest.tools/v3/assert"
 )
 
@@ -27,7 +28,7 @@ func TestHandleError(t *testing.T) {
 			Output: logBuffer,
 			Format: logging.TextFormat,
 		})
-		ctx := context.WithValue(req.Context(), logging.LoggerKey, logger)
+		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
 		simba.HandleError(w, req, simba.WrapErrorHTTP(http.StatusInternalServerError, errors.New("wrapped error"), "Internal server error"))
@@ -54,7 +55,7 @@ func TestHandleError(t *testing.T) {
 			Output: logBuffer,
 			Format: logging.TextFormat,
 		})
-		ctx := context.WithValue(req.Context(), logging.LoggerKey, logger)
+		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
 		simba.HandleError(w, req, simba.WrapErrorHTTP(http.StatusUnauthorized, errors.New("wrapped error"), "Internal server error"))
@@ -81,7 +82,7 @@ func TestHandleError(t *testing.T) {
 			Output: logBuffer,
 			Format: logging.TextFormat,
 		})
-		ctx := context.WithValue(req.Context(), logging.LoggerKey, logger)
+		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
 		simba.HandleError(w, req, simba.WrapErrorHTTP(http.StatusForbidden, errors.New("wrapped error"), "Internal server error"))

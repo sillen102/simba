@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"mime"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/sillen102/simba/enums"
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/settings"
+	"github.com/sillen102/simba/simbaContext"
 )
 
 // TODO: Request process testing
@@ -18,49 +18,6 @@ import (
 //  2. Large request body
 //  3. Malformed JSON
 //  4. Header validation edge cases
-
-type requestContextKey string
-type authContextKey string
-type requestIdContextKey string
-
-const (
-	RequestIDKey    requestIdContextKey = "requestId"
-	RequestIDHeader string              = "X-Request-Id"
-)
-
-const (
-	requestSettingsKey requestContextKey = "requestSettings"
-	authFuncKey        authContextKey    = "authFunc"
-)
-
-// injectRequestID injects the Request ID into the [Request] context
-func injectRequestID(next http.Handler, acceptFromHeader bool) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var requestID string
-		if acceptFromHeader {
-			requestID = r.Header.Get(RequestIDHeader)
-		}
-		if requestID == "" {
-			requestID = uuid.NewString()
-		}
-		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
-		w.Header().Set(RequestIDHeader, requestID)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// injectLogger injects the logger into the Request context
-func injectLogger(next http.Handler, logger *slog.Logger) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r.WithContext(logging.With(r.Context(),
-			logger.With(
-				"method", r.Method,
-				"path", r.URL.Path,
-				"requestId", r.Context().Value(RequestIDKey),
-			),
-		)))
-	})
-}
 
 // closeRequestBody automatically closes the Request body after processing
 func closeRequestBody(next http.Handler) http.Handler {
@@ -76,9 +33,9 @@ func closeRequestBody(next http.Handler) http.Handler {
 }
 
 // injectRequestSettings injects the application Settings into the Request context
-func injectRequestSettings(next http.Handler, settings RequestSettings) http.Handler {
+func injectRequestSettings(next http.Handler, settings settings.RequestSettings) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), requestSettingsKey, settings)
+		ctx := context.WithValue(r.Context(), simbaContext.RequestSettingsKey, settings)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -90,18 +47,18 @@ func injectAuthFunc[User any](next http.Handler, authFunc AuthFunc[User]) http.H
 			next.ServeHTTP(w, r)
 			return
 		}
-		ctx := context.WithValue(r.Context(), authFuncKey, authFunc)
+		ctx := context.WithValue(r.Context(), simbaContext.AuthFuncKey, authFunc)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 // getConfigurationFromContext retrieves RequestSettings from the given context.
 // Returns the request settings stored in the context or zero value for RequestSettings if not found in the context.
-func getConfigurationFromContext(ctx context.Context) *RequestSettings {
-	requestSettings, ok := ctx.Value(requestSettingsKey).(*RequestSettings)
+func getConfigurationFromContext(ctx context.Context) *settings.RequestSettings {
+	requestSettings, ok := ctx.Value(simbaContext.RequestSettingsKey).(*settings.RequestSettings)
 	if !ok {
 		// Return a default or zero value, or handle the absence of RequestSettings appropriately
-		return &RequestSettings{}
+		return &settings.RequestSettings{}
 	}
 	return requestSettings
 }
@@ -139,7 +96,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 }
 
 // readJson reads the JSON body and unmarshalls it into the model
-func readJson(body io.ReadCloser, requestSettings *RequestSettings, model any) error {
+func readJson(body io.ReadCloser, requestSettings *settings.RequestSettings, model any) error {
 	decoder := json.NewDecoder(body)
 	if requestSettings.AllowUnknownFields == enums.Disallow {
 		decoder.DisallowUnknownFields()

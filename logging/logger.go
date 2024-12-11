@@ -6,13 +6,18 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
+
+	"github.com/sillen102/simba/simbaContext"
 )
 
-type loggerKey string
+var (
+	logger *slog.Logger
+	once   sync.Once
+)
 
 const (
-	TimeFormat string    = "2006-01-02T15:04:05.000000"
-	LoggerKey  loggerKey = "logger"
+	TimeFormat string = "2006-01-02T15:04:05.000000"
 )
 
 // Config holds the settings for the logger
@@ -35,22 +40,38 @@ const (
 	TextFormat LogFormat = "text"
 )
 
+// GetLogger returns the default logger
+func GetLogger() *slog.Logger {
+	return logger
+}
+
 // With returns a new context with the logger added to it.
 func With(ctx context.Context, logger *slog.Logger) context.Context {
-	return context.WithValue(ctx, LoggerKey, logger)
+	return context.WithValue(ctx, simbaContext.LoggerKey, logger)
 }
 
 // From returns the logger from the context.
 // Returns a new logger if no logger is found in the context.
 func From(ctx context.Context) *slog.Logger {
-	if logger, ok := ctx.Value(LoggerKey).(*slog.Logger); ok {
-		return logger
+	if l, ok := ctx.Value(simbaContext.LoggerKey).(*slog.Logger); ok {
+		return l
 	} else {
-		return slog.Default()
+		return logger
 	}
 }
 
-func NewLogger(provided ...Config) *slog.Logger {
+func NewLogger(config ...Config) *slog.Logger {
+	return newLogger(config...)
+}
+
+func Initialize(provided ...Config) {
+	once.Do(func() {
+		logger = newLogger(provided...)
+		slog.SetDefault(logger)
+	})
+}
+
+func newLogger(provided ...Config) *slog.Logger {
 	var config Config
 	if len(provided) > 0 {
 		config = provided[0]
@@ -81,10 +102,7 @@ func NewLogger(provided ...Config) *slog.Logger {
 		handler = slog.NewJSONHandler(config.Output, &opts)
 	}
 
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
-
-	return logger
+	return slog.New(handler)
 }
 
 // MustParseLogLevel parses a string into a slog.Level and panics if it fails
