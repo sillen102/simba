@@ -61,9 +61,7 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...settings.Setting
 		panic(err)
 	}
 
-	logging.Initialize(cfg.Logging)
 	logger := logging.NewLogger(cfg.Logging)
-
 	router := newRouter(cfg.Request)
 	router.Use(func(next http.Handler) http.Handler {
 		return injectAuthFunc(next, authFunc)
@@ -82,7 +80,7 @@ func NewAuthWith[User any](authFunc AuthFunc[User], provided ...settings.Setting
 func (a *Application[AuthModel]) defaultMiddleware() alice.Chain {
 	return alice.New(
 		middleware.RequestID,
-		middleware.CtxLogger{Logger: a.logger}.ContextLogger,
+		middleware.Logger{Logger: a.logger}.ContextLogger,
 		middleware.PanicRecovery,
 		middleware.LogRequests,
 	)

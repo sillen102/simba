@@ -67,5 +67,5 @@ func main() {
 		},
 	})
 	app.Router.POST("/params/{id}", simba.JsonHandler(handler))
-	app.Start(context.Background())
+	app.Start()
 }

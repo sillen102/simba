@@ -5,15 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 	"gotest.tools/v3/assert"
 )
 
 func TestPanicRecovery(t *testing.T) {
 	t.Parallel()
-
-	logging.Initialize()
 
 	t.Run("recovers from panic", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

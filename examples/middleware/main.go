@@ -38,6 +38,5 @@ func main() {
 		})
 	})
 	app.Router.POST("/users", simba.JsonHandler(handler))
-
-	app.Start(context.Background())
+	app.Start()
 }

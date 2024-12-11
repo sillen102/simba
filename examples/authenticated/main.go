@@ -50,5 +50,5 @@ func main() {
 	// for each request that uses the AuthJsonHandler and pass it to the handler
 	app := simba.DefaultAuthWith(authFunc)
 	app.Router.GET("/user", simba.AuthJsonHandler(authenticatedHandler))
-	app.Start(context.Background())
+	app.Start()
 }

@@ -3,7 +3,6 @@ package settings
 import (
 	"errors"
 	"log/slog"
-	"os"
 	"reflect"
 	"strconv"
 
@@ -55,45 +54,21 @@ func Load(st ...Settings) (*Settings, error) {
 	if err := setDefaults(&settings); err != nil {
 		return nil, err
 	}
-	settings.Logging.Output = os.Stdout
 
 	if len(st) > 0 {
 		provided := st[0]
+		providedVal := reflect.ValueOf(provided)
+		settingsVal := reflect.ValueOf(&settings).Elem()
+		defaultVal := reflect.ValueOf(Settings{})
 
-		if provided.Server.Host != "" {
-			settings.Server.Host = provided.Server.Host
-		}
+		for i := 0; i < providedVal.NumField(); i++ {
+			providedField := providedVal.Field(i)
+			settingsField := settingsVal.Field(i)
+			defaultField := defaultVal.Field(i)
 
-		if provided.Server.Port != 0 {
-			settings.Server.Port = provided.Server.Port
-		}
-
-		// Disallow is the default so if the user doesn't set any different, we don't override it
-		if provided.Request.AllowUnknownFields != enums.Disallow {
-			settings.Request.AllowUnknownFields = provided.Request.AllowUnknownFields
-		}
-
-		// Disabled is the default so if the user doesn't set any different, we don't override it
-		if provided.Request.LogRequestBody != enums.Disabled {
-			settings.Request.LogRequestBody = provided.Request.LogRequestBody
-		}
-
-		// AcceptFromHeader is the default so if the user doesn't set any different, we don't override it
-		if provided.Request.RequestIdMode != enums.AcceptFromHeader {
-			settings.Request.RequestIdMode = provided.Request.RequestIdMode
-		}
-
-		if provided.Logging.Format != "" {
-			settings.Logging.Format = provided.Logging.Format
-		}
-
-		// Info is the default so if the user doesn't set any different, we don't override it
-		if provided.Logging.Level != slog.LevelInfo {
-			settings.Logging.Level = provided.Logging.Level
-		}
-
-		if provided.Logging.Output != nil {
-			settings.Logging.Output = provided.Logging.Output
+			if !providedField.IsZero() && !reflect.DeepEqual(providedField.Interface(), defaultField.Interface()) {
+				settingsField.Set(providedField)
+			}
 		}
 	}
 
