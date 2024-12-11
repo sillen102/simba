@@ -168,7 +168,6 @@ func TestValidationRules(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -262,7 +261,6 @@ func TestUUIDParameters(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -401,7 +399,6 @@ func TestInvalidParameterTypes(t *testing.T) {
 	app.Router.GET("/test/{id}", simba.JsonHandler(handler))
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -431,4 +428,31 @@ func TestInvalidParameterTypes(t *testing.T) {
 			assert.Equal(t, tt.errorMessage, errorResponse.ValidationErrors[0].Message)
 		})
 	}
+}
+
+func TestTimeParameters(t *testing.T) {
+	t.Parallel()
+
+	type TimeParams struct {
+		CustomTime  time.Time `query:"customTime" format:"2006-01-02"`
+		DefaultTime time.Time `query:"defaultTime"`
+	}
+
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TimeParams]) (*simba.Response, error) {
+		expectedDefaultTime, _ := time.Parse(time.RFC3339, "2023-10-15T14:00:00Z")
+		expectedCustomTime, _ := time.Parse("2006-01-02", "2023-10-15")
+
+		assert.Equal(t, expectedDefaultTime, req.Params.DefaultTime)
+		assert.Equal(t, expectedCustomTime, req.Params.CustomTime)
+		return &simba.Response{Status: http.StatusOK}, nil
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/test?defaultTime=2023-10-15T14:00:00Z&customTime=2023-10-15", nil)
+	w := httptest.NewRecorder()
+
+	app := simba.New()
+	app.Router.GET("/test", simba.JsonHandler(handler))
+	app.Router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 }
