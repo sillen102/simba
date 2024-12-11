@@ -6,6 +6,7 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/settings"
 )
 
 type ResponseBody struct {
@@ -25,7 +26,7 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
 }
 
 func main() {
-	app := simba.Default(simba.Settings{
+	app := simba.Default(settings.Settings{
 		Logging: logging.Config{
 			Format: logging.JsonFormat,
 		},
@@ -36,7 +37,7 @@ func main() {
 			next.ServeHTTP(w, r)
 		})
 	})
-	app.Router.POST("/users", simba.HandlerFunc(handler))
+	app.Router.POST("/users", simba.JsonHandler(handler))
 
 	app.Start(context.Background())
 }

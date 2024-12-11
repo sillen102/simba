@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/settings"
 )
 
 type RequestBody struct {
@@ -60,11 +61,11 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 }
 
 func main() {
-	app := simba.Default(simba.Settings{
-		Server: simba.ServerSettings{
+	app := simba.Default(settings.Settings{
+		Server: settings.ServerSettings{
 			Port: 9999,
 		},
 	})
-	app.Router.POST("/params/{id}", simba.HandlerFunc(handler))
+	app.Router.POST("/params/{id}", simba.JsonHandler(handler))
 	app.Start(context.Background())
 }

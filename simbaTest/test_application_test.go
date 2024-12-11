@@ -15,7 +15,7 @@ func TestTestApplication(t *testing.T) {
 	app := simbaTest.New[struct{}](t, nil)
 
 	// Add a test route
-	app.Router.GET("/test", simba.HandlerFunc(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
+	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
 		return &simba.Response{Status: http.StatusOK, Body: []byte("test response")}, nil
 	}))
 
@@ -42,7 +42,7 @@ func TestTestApplicationWithAuth(t *testing.T) {
 	app := simbaTest.New(t, authFunc)
 
 	// Add an authenticated test route
-	app.Router.GET("/protected", simba.AuthHandlerFunc(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
+	app.Router.GET("/protected", simba.AuthJsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
 		return &simba.Response{Status: http.StatusOK}, nil
 	}))
 

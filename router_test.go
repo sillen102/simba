@@ -55,7 +55,7 @@ func TestEndpoints(t *testing.T) {
 
 		app := simba.New()
 		app.Router.Use(middleware)
-		app.Router.GET("/test", simba.HandlerFunc(handler))
+		app.Router.GET("/test", simba.JsonHandler(handler))
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		w := httptest.NewRecorder()

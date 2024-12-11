@@ -18,7 +18,7 @@ func TestLogRequests(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(10 * time.Millisecond) // Simulate some work
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message":"success"}`))
+			_, _ = w.Write([]byte(`{"message":"success"}`))
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)

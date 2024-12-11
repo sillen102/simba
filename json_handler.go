@@ -3,16 +3,18 @@ package simba
 import (
 	"context"
 	"net/http"
+
+	"github.com/sillen102/simba/simbaContext"
 )
 
-// HandlerFunc returns an [http.Handler] that can be used for non-authenticated routes
-func HandlerFunc[RequestBody any, Params any](h Handler[RequestBody, Params]) http.Handler {
+// JsonHandler returns a [http.Handler] that can be used for non-authenticated routes
+func JsonHandler[RequestBody any, Params any](h JsonHandlerFunc[RequestBody, Params]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
 }
 
-// Handler handles a Request with the Request body and params.
+// JsonHandlerFunc handles a Request with the Request body and params.
 //
 //	Example usage:
 //
@@ -53,11 +55,11 @@ func HandlerFunc[RequestBody any, Params any](h Handler[RequestBody, Params]) ht
 //
 // Register the handler:
 //
-//	router.POST("/test/:id", simba.HandlerFunc(handler))
-type Handler[RequestBody any, Params any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response, error)
+//	Mux.POST("/test/:id", simba.JsonHandler(handler))
+type JsonHandlerFunc[RequestBody any, Params any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response, error)
 
-// ServeHTTP implements the http.Handler interface for Handler
-func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements the http.Handler interface for JsonHandlerFunc
+func (h JsonHandlerFunc[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	req, err := handleRequest[RequestBody, Params](r)
@@ -75,14 +77,14 @@ func (h Handler[RequestBody, Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 	writeResponse(w, r, resp, nil)
 }
 
-// AuthHandlerFunc returns an [http.Handler] that can be used for authenticated routes
-func AuthHandlerFunc[RequestBody any, Params any, AuthModel any](h AuthenticatedHandler[RequestBody, Params, AuthModel]) http.Handler {
+// AuthJsonHandler returns an [http.Handler] that can be used for authenticated routes
+func AuthJsonHandler[RequestBody any, Params any, AuthModel any](h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
 }
 
-// AuthenticatedHandler handles a Request with the Request body and params.
+// AuthenticatedJsonHandlerFunc handles a Request with the Request body and params.
 //
 //	Example usage:
 //
@@ -136,14 +138,14 @@ func AuthHandlerFunc[RequestBody any, Params any, AuthModel any](h Authenticated
 //
 // Register the handler:
 //
-//	router.POST("/test/:id", simba.AuthenticatedHandlerFunc(handler))
-type AuthenticatedHandler[RequestBody any, Params any, AuthModel any] func(ctx context.Context, req *Request[RequestBody, Params], user *AuthModel) (*Response, error)
+//	Mux.POST("/test/:id", simba.AuthJsonHandler(handler))
+type AuthenticatedJsonHandlerFunc[RequestBody any, Params any, AuthModel any] func(ctx context.Context, req *Request[RequestBody, Params], user *AuthModel) (*Response, error)
 
-// ServeHTTP implements the http.Handler interface for AuthenticatedHandler
-func (h AuthenticatedHandler[RequestBody, Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements the http.Handler interface for AuthenticatedJsonHandlerFunc
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authFunc := r.Context().Value(authFuncKey).(AuthFunc[AuthModel])
+	authFunc := r.Context().Value(simbaContext.AuthFuncKey).(AuthFunc[AuthModel])
 	if authFunc == nil {
 		HandleError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
 		return

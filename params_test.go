@@ -76,7 +76,7 @@ func TestParamParsing(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		app := simba.New()
-		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.HandlerFunc(handler))
+		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -97,7 +97,7 @@ func TestParamParsing(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		app := simba.New()
-		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.HandlerFunc(handler))
+		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -176,7 +176,7 @@ func TestValidationRules(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			app := simba.New()
-			app.Router.GET("/test", simba.HandlerFunc(handler))
+			app.Router.GET("/test", simba.JsonHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -209,7 +209,7 @@ func TestDefaultValues(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.New()
-	app.Router.GET("/test", simba.HandlerFunc(handler))
+	app.Router.GET("/test", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
@@ -273,7 +273,7 @@ func TestUUIDParameters(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			app := simba.New()
-			app.Router.GET("/test/{id}", simba.HandlerFunc(handler))
+			app.Router.GET("/test/{id}", simba.JsonHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -314,7 +314,7 @@ func TestFloatParameters(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.New()
-	app.Router.GET("/test/{id}", simba.HandlerFunc(handler))
+	app.Router.GET("/test/{id}", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -398,7 +398,7 @@ func TestInvalidParameterTypes(t *testing.T) {
 	}
 
 	app := simba.New()
-	app.Router.GET("/test/{id}", simba.HandlerFunc(handler))
+	app.Router.GET("/test/{id}", simba.JsonHandler(handler))
 
 	for _, tt := range tests {
 		tt := tt
