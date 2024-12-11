@@ -48,7 +48,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 			continue
 		}
 
-		if err := setFieldValue(fieldValue, value); err != nil {
+		if err := setFieldValue(fieldValue, value, field); err != nil {
 			validationErrors = append(validationErrors, ValidationError{
 				Parameter: field.Name,
 				Type:      getParamType(field),
@@ -104,7 +104,7 @@ func getParamType(field reflect.StructField) ParameterType {
 }
 
 // setFieldValue converts and sets a string value to the appropriate field type
-func setFieldValue(fieldValue reflect.Value, value string) error {
+func setFieldValue(fieldValue reflect.Value, value string, field reflect.StructField) error {
 	if value == "" {
 		return nil
 	}
@@ -112,8 +112,12 @@ func setFieldValue(fieldValue reflect.Value, value string) error {
 	var err error
 	switch fieldValue.Type().String() {
 	case "time.Time":
+		format := field.Tag.Get("format")
+		if format == "" {
+			format = time.RFC3339
+		}
 		var timeVal time.Time
-		if timeVal, err = time.Parse(time.RFC3339, value); err != nil {
+		if timeVal, err = time.Parse(format, value); err != nil {
 			return fmt.Errorf("invalid time parameter value: %s", value)
 		}
 		fieldValue.Set(reflect.ValueOf(timeVal))
@@ -164,5 +168,5 @@ func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) error 
 	if defaultVal == "" {
 		return nil
 	}
-	return setFieldValue(fieldValue, defaultVal)
+	return setFieldValue(fieldValue, defaultVal, field)
 }
