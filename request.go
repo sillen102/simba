@@ -32,8 +32,8 @@ func closeRequestBody(next http.Handler) http.Handler {
 	})
 }
 
-// injectRequestSettings injects the application Settings into the Request context
-func injectRequestSettings(next http.Handler, settings settings.RequestSettings) http.Handler {
+// injectRequestSettings injects the application Config into the Request context
+func injectRequestSettings(next http.Handler, settings settings.Request) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), simbaContext.RequestSettingsKey, settings)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -52,13 +52,13 @@ func injectAuthFunc[User any](next http.Handler, authFunc AuthFunc[User]) http.H
 	})
 }
 
-// getConfigurationFromContext retrieves RequestSettings from the given context.
-// Returns the request Settings stored in the context or zero value for RequestSettings if not found in the context.
-func getConfigurationFromContext(ctx context.Context) *settings.RequestSettings {
-	requestSettings, ok := ctx.Value(simbaContext.RequestSettingsKey).(*settings.RequestSettings)
+// getConfigurationFromContext retrieves Request from the given context.
+// Returns the request Config stored in the context or zero value for Request if not found in the context.
+func getConfigurationFromContext(ctx context.Context) *settings.Request {
+	requestSettings, ok := ctx.Value(simbaContext.RequestSettingsKey).(*settings.Request)
 	if !ok {
-		// Return a default or zero value, or handle the absence of RequestSettings appropriately
-		return &settings.RequestSettings{}
+		// Return a default or zero value, or handle the absence of Request appropriately
+		return &settings.Request{}
 	}
 	return requestSettings
 }
@@ -96,7 +96,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 }
 
 // readJson reads the JSON body and unmarshalls it into the model
-func readJson(body io.ReadCloser, requestSettings *settings.RequestSettings, model any) error {
+func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) error {
 	decoder := json.NewDecoder(body)
 	if requestSettings.AllowUnknownFields == enums.Disallow {
 		decoder.DisallowUnknownFields()

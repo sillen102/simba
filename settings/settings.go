@@ -7,24 +7,23 @@ import (
 	"strconv"
 
 	"github.com/sillen102/simba/enums"
-	"github.com/sillen102/simba/logging"
 )
 
-// Settings is a struct that holds the application Settings
-type Settings struct {
+// Config is a struct that holds the application settings
+type Config struct {
 
 	// Server settings
-	Server ServerSettings
+	Server
 
 	// Request settings
-	Request RequestSettings
+	Request
 
-	// Logging settings
-	Logging logging.Config
+	// Logger settings
+	Logger *slog.Logger
 }
 
-// ServerSettings holds the Settings for the application server
-type ServerSettings struct {
+// Server holds the Config for the application server
+type Server struct {
 
 	// Host is the host the server will listen on
 	Host string `default:"0.0.0.0"`
@@ -33,8 +32,8 @@ type ServerSettings struct {
 	Port int `default:"9999"`
 }
 
-// RequestSettings holds the Settings for the Request processing
-type RequestSettings struct {
+// Request holds the Config for the Request processing
+type Request struct {
 
 	// AllowUnknownFields will set the behavior for unknown fields in the Request body,
 	// resulting in a 400 Bad Request response if a field is present that cannot be
@@ -49,8 +48,8 @@ type RequestSettings struct {
 	RequestIdMode enums.RequestIdMode `default:"AcceptFromHeader"`
 }
 
-func Load(st ...Settings) (*Settings, error) {
-	var settings Settings
+func Load(st ...Config) (*Config, error) {
+	var settings Config
 	if err := setDefaults(&settings); err != nil {
 		return nil, err
 	}
@@ -59,7 +58,7 @@ func Load(st ...Settings) (*Settings, error) {
 		provided := st[0]
 		providedVal := reflect.ValueOf(provided)
 		settingsVal := reflect.ValueOf(&settings).Elem()
-		defaultVal := reflect.ValueOf(Settings{})
+		defaultVal := reflect.ValueOf(Config{})
 
 		for i := 0; i < providedVal.NumField(); i++ {
 			providedField := providedVal.Field(i)
@@ -70,6 +69,14 @@ func Load(st ...Settings) (*Settings, error) {
 				settingsField.Set(providedField)
 			}
 		}
+
+		if provided.Logger != nil {
+			settings.Logger = provided.Logger
+		}
+	}
+
+	if settings.Logger == nil {
+		settings.Logger = slog.Default()
 	}
 
 	return &settings, nil
@@ -128,13 +135,6 @@ func setDefaults(ptr interface{}) error {
 					} else {
 						field.SetInt(int64(enums.Disabled))
 					}
-				case reflect.TypeOf(slog.Level(0)):
-					// Handle slog.Level enum
-					level, err := logging.ParseLogLevel(defaultTag)
-					if err != nil {
-						return err
-					}
-					field.SetInt(int64(level))
 				default:
 					intValue, err := strconv.Atoi(defaultTag)
 					if err != nil {

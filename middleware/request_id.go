@@ -14,7 +14,7 @@ func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var requestID string
 
-		requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.RequestSettings)
+		requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.Request)
 		if ok && requestSettings.RequestIdMode == enums.AcceptFromHeader {
 			requestID = r.Header.Get(simbaContext.RequestIDHeader)
 		}

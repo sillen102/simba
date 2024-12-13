@@ -17,7 +17,7 @@ type TestApplication[AuthModel any] struct {
 }
 
 // New creates a new test application with the given settings
-func New[AuthModel any](t *testing.T, authFunc simba.AuthFunc[AuthModel], settings ...settings.Settings) *TestApplication[AuthModel] {
+func New[AuthModel any](t *testing.T, authFunc simba.AuthFunc[AuthModel], settings ...settings.Config) *TestApplication[AuthModel] {
 	app := simba.NewAuthWith(authFunc, settings...)
 
 	return &TestApplication[AuthModel]{

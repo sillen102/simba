@@ -61,8 +61,8 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 }
 
 func main() {
-	app := simba.Default(settings.Settings{
-		Server: settings.ServerSettings{
+	app := simba.Default(settings.Config{
+		Server: settings.Server{
 			Port: 9999,
 		},
 	})

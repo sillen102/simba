@@ -97,7 +97,11 @@ app.GET("/users/{userId}", simba.JsonHandler(getUser))
 
 ## Logging
 
-Simba automatically injects an slog logger into the request's context. To access the logger, use the `logging.From` function in Simba's logging package:
+Simba relies on slog to handle logging. If no logger is provided slog.Default will be used.
+If you use the Default or DefaultWithAuth constructors an slog logger will be injected into the request context for all requests.
+To access the injected logger, use the `logging.From` function the logging package.
+
+Example:
 
 ```go
 func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
@@ -142,7 +146,7 @@ Simba provides automatic error handling with standardized JSON responses. All er
   "error": "Bad Request",
   "path": "/api/resource",
   "method": "POST",
-  "requestId": "01JE61MX24YEGF08E8G0RA0Y14",
+  "requestId": "40ad8bb4-215a-4748-8a7f-9e236d988c5b",
   "message": "request validation failed, 1 validation error",
   "validationErrors": [
     {

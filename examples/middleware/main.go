@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/settings"
 )
 
@@ -27,12 +27,8 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
 }
 
 func main() {
-	app := simba.Default(settings.Settings{
-		Logging: logging.Config{
-			Level:  slog.LevelDebug,
-			Format: logging.JsonFormat,
-		},
-	})
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	app := simba.Default(settings.Config{Logger: logger})
 	app.Router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.Header.Set("X-Middleware", "123")

@@ -5,13 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/test"
 	"gotest.tools/v3/assert"
@@ -48,11 +48,8 @@ func TestMultipartHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(settings.Settings{
-			Logging: logging.Config{
-				Output: logBuffer,
-			},
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.New(settings.Config{Logger: logger})
 		app.Router.POST("/multipart-test/{id}", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -79,11 +76,8 @@ func TestMultipartHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(settings.Settings{
-			Logging: logging.Config{
-				Output: logBuffer,
-			},
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.New(settings.Config{Logger: logger})
 		app.Router.POST("/multipart-test", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -104,11 +98,8 @@ func TestMultipartHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(settings.Settings{
-			Logging: logging.Config{
-				Output: logBuffer,
-			},
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.New(settings.Config{Logger: logger})
 		app.Router.POST("/multipart-test/{id}", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -129,11 +120,8 @@ func TestMultipartHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.New(settings.Settings{
-			Logging: logging.Config{
-				Output: logBuffer,
-			},
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.New(settings.Config{Logger: logger})
 		app.Router.POST("/multipart-test/{id}", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -201,11 +189,8 @@ func TestMultipartHandlerErrors(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			logBuffer := &bytes.Buffer{}
-			app := simba.New(settings.Settings{
-				Logging: logging.Config{
-					Output: logBuffer,
-				},
-			})
+			logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+			app := simba.New(settings.Config{Logger: logger})
 			app.Router.POST("/test/{id}", simba.MultipartHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
@@ -262,11 +247,8 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewAuthWith(authFunc, settings.Settings{
-			Logging: logging.Config{
-				Output: logBuffer,
-			},
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.NewAuthWith(authFunc, settings.Config{Logger: logger})
 		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -283,11 +265,8 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		app := simba.NewAuthWith(errorAuthFunc, settings.Settings{
-			Logging: logging.Config{
-				Output: logBuffer,
-			},
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.NewAuthWith(errorAuthFunc, settings.Config{Logger: logger})
 		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 

@@ -1,13 +1,16 @@
 package middleware_test
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
+	"github.com/sillen102/simba/simbaContext"
 	"gotest.tools/v3/assert"
 )
 
@@ -25,8 +28,8 @@ func TestLogRequests(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Create a logger and inject it into the context
-		logger := logging.NewLogger()
-		ctx := logging.With(req.Context(), logger)
+		logger := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})
+		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
 		middleware.LogRequests(handler).ServeHTTP(w, req)
