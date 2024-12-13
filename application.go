@@ -2,11 +2,8 @@ package simba
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 
-	"github.com/justinas/alice"
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/settings"
 )
@@ -21,32 +18,29 @@ type Application[AuthModel any] struct {
 	Router *Router
 
 	// Settings is the application Settings
-	Settings *settings.Settings
+	Settings *settings.Config
 
 	// AuthFunc is the function used to authenticate and retrieve the authenticated model
 	// from the Request
 	AuthFunc AuthFunc[AuthModel]
-
-	// Logger is the Logger used by the application
-	Logger *slog.Logger
 }
 
 // AuthFunc is a function type for authenticating and retrieving an authenticated model struct from a Request
 type AuthFunc[AuthModel any] func(r *http.Request) (*AuthModel, error)
 
-// Default returns a new [Application] application with default Settings
-func Default(settings ...settings.Settings) *Application[struct{}] {
+// Default returns a new [Application] application with default Config
+func Default(settings ...settings.Config) *Application[struct{}] {
 	return DefaultAuthWith[struct{}](nil, settings...)
 }
 
 // New returns a new [Application] application
-func New(settings ...settings.Settings) *Application[struct{}] {
+func New(settings ...settings.Config) *Application[struct{}] {
 	return NewAuthWith[struct{}](nil, settings...)
 }
 
-// DefaultAuthWith returns a new [Application] application with default Settings and ability to have authenticated routes
+// DefaultAuthWith returns a new [Application] application with default Config and ability to have authenticated routes
 // using the provided AuthFunc to authenticate and retrieve the user
-func DefaultAuthWith[AuthModel any](authFunc AuthFunc[AuthModel], settings ...settings.Settings) *Application[AuthModel] {
+func DefaultAuthWith[AuthModel any](authFunc AuthFunc[AuthModel], settings ...settings.Config) *Application[AuthModel] {
 	app := NewAuthWith(authFunc, settings...)
 	app.Router.Extend(app.defaultMiddleware())
 	app.addDefaultEndpoints()
@@ -55,33 +49,31 @@ func DefaultAuthWith[AuthModel any](authFunc AuthFunc[AuthModel], settings ...se
 
 // NewAuthWith returns a new [Application] application with ability to have authenticated routes
 // using the provided [AuthFunc] to authenticate and retrieve the authenticated model
-func NewAuthWith[User any](authFunc AuthFunc[User], provided ...settings.Settings) *Application[User] {
+func NewAuthWith[AuthModel any](authFunc AuthFunc[AuthModel], provided ...settings.Config) *Application[AuthModel] {
 	cfg, err := settings.Load(provided...)
 	if err != nil {
 		panic(err)
 	}
 
-	logger := logging.NewLogger(cfg.Logging)
 	router := newRouter(cfg.Request)
 	router.Use(func(next http.Handler) http.Handler {
 		return injectAuthFunc(next, authFunc)
 	})
 
-	return &Application[User]{
+	return &Application[AuthModel]{
 		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), Handler: router},
 		Router:   router,
 		Settings: cfg,
 		AuthFunc: authFunc,
-		Logger:   logger,
 	}
 }
 
 // defaultMiddleware returns the middleware chain used in the default [Application] application
-func (a *Application[AuthModel]) defaultMiddleware() alice.Chain {
-	return alice.New(
+func (a *Application[AuthModel]) defaultMiddleware() []func(http.Handler) http.Handler {
+	return []func(http.Handler) http.Handler{
 		middleware.RequestID,
-		middleware.Logger{Logger: a.Logger}.ContextLogger,
+		middleware.Logger{Logger: a.Settings.Logger}.ContextLogger,
 		middleware.PanicRecovery,
 		middleware.LogRequests,
-	)
+	}
 }

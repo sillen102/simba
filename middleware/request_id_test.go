@@ -46,7 +46,7 @@ func TestRequestID(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set(simbaContext.RequestIDHeader, "test-request-id")
-		req = req.WithContext(context.WithValue(req.Context(), simbaContext.RequestSettingsKey, &settings.RequestSettings{
+		req = req.WithContext(context.WithValue(req.Context(), simbaContext.RequestSettingsKey, &settings.Request{
 			RequestIdMode: enums.AcceptFromHeader,
 		}))
 		w := httptest.NewRecorder()

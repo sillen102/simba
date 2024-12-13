@@ -24,7 +24,6 @@ func TestDefaultApplication(t *testing.T) {
 		assert.Assert(t, app.Server != nil)
 		assert.Assert(t, app.Router != nil)
 		assert.Assert(t, app.Settings != nil)
-		assert.Assert(t, app.Logger != nil)
 	})
 
 	t.Run("adds default endpoints", func(t *testing.T) {
@@ -53,9 +52,9 @@ func TestDefaultApplication(t *testing.T) {
 func TestNewApplication(t *testing.T) {
 	t.Parallel()
 
-	t.Run("creates new application with provided Settings", func(t *testing.T) {
-		cfg := settings.Settings{
-			Server: settings.ServerSettings{
+	t.Run("creates new application with provided Config", func(t *testing.T) {
+		cfg := settings.Config{
+			Server: settings.Server{
 				Host: "localhost",
 				Port: 8080,
 			},
@@ -66,7 +65,6 @@ func TestNewApplication(t *testing.T) {
 		assert.Assert(t, app.Server != nil)
 		assert.Assert(t, app.Router != nil)
 		assert.Assert(t, app.Settings != nil)
-		assert.Assert(t, app.Logger != nil)
 		assert.Equal(t, "localhost:8080", app.Server.Addr)
 	})
 }

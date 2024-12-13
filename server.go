@@ -16,18 +16,18 @@ func (a *Application[AuthModel]) Start() {
 
 	// Run server in a goroutine
 	go func() {
-		a.Logger.Info("server listening on " + a.Server.Addr)
+		a.Settings.Logger.Info("server listening on " + a.Server.Addr)
 		if err := a.Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			a.Logger.Error("error starting server", "error", err)
+			a.Settings.Logger.Error("error starting server", "error", err)
 			panic(err)
 		}
 	}()
 	<-stop
 
 	// Gracefully shutdown the server
-	a.Logger.Info("shutting down server...")
+	a.Settings.Logger.Info("shutting down server...")
 	if err := a.Stop(); err != nil {
-		a.Logger.Error("error shutting down server", "error", err)
+		a.Settings.Logger.Error("error shutting down server", "error", err)
 		panic(err)
 	}
 }

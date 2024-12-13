@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -135,7 +136,10 @@ func (ve ValidationErrors) Error() string {
 // HandleError is a helper function for handling errors in HTTP handlers
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	logger := logging.From(r.Context())
-
+	if logger == nil {
+		logger = slog.Default()
+	}
+	
 	var httpErr *HTTPError
 	if !errors.As(err, &httpErr) {
 		// Log unexpected errors as they are always serious

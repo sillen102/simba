@@ -5,13 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaContext"
 	"gotest.tools/v3/assert"
 )
@@ -24,10 +24,7 @@ func TestHandleError(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		logger := logging.NewLogger(logging.Config{
-			Output: logBuffer,
-			Format: logging.TextFormat,
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
@@ -51,10 +48,7 @@ func TestHandleError(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		logger := logging.NewLogger(logging.Config{
-			Output: logBuffer,
-			Format: logging.TextFormat,
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
@@ -78,10 +72,7 @@ func TestHandleError(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
-		logger := logging.NewLogger(logging.Config{
-			Output: logBuffer,
-			Format: logging.TextFormat,
-		})
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
