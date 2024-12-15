@@ -22,7 +22,11 @@ type HTTPError struct {
 // Error implements the error interface and returns the full error details
 func (e *HTTPError) Error() string {
 	if e.err != nil {
-		return e.PublicMessage + ": " + e.err.Error()
+		if e.PublicMessage != "" {
+			return e.PublicMessage + ": " + e.err.Error()
+		} else {
+			return e.err.Error()
+		}
 	}
 	return e.PublicMessage
 }
