@@ -302,7 +302,7 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
-		var errorResponse simba.HTTPError
+		var errorResponse simba.ErrorResponse
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
 		assert.NilError(t, err)
 		assert.Equal(t, "unauthorized", errorResponse.Message)

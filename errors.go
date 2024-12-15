@@ -14,23 +14,24 @@ import (
 
 type HTTPError struct {
 	HttpStatusCode   int
-	Message          string
+	PublicMessage    string
 	err              error
 	ValidationErrors ValidationErrors
 }
 
 // Error implements the error interface and returns the full error details
 func (e *HTTPError) Error() string {
-	// If there's an underlying error, just return the message
-	// as the underlying error will be accessible via Unwrap()
-	return e.Message
+	if e.err != nil {
+		return e.PublicMessage + ": " + e.err.Error()
+	}
+	return e.PublicMessage
 }
 
-// WrapErrorHTTP wraps an error with an HTTP status code
-func WrapErrorHTTP(httpStatusCode int, err error, message string) *HTTPError {
+// WrapError wraps an error with an HTTP status code
+func WrapError(httpStatusCode int, err error, publicMessage string) *HTTPError {
 	return &HTTPError{
 		HttpStatusCode: httpStatusCode,
-		Message:        message,
+		PublicMessage:  publicMessage,
 		err:            err,
 	}
 }
@@ -49,7 +50,7 @@ func (e *HTTPError) HasValidationErrors() bool {
 func NewHttpError(httpStatusCode int, publicMessage string, err error, validationErrors ...ValidationError) *HTTPError {
 	return &HTTPError{
 		HttpStatusCode:   httpStatusCode,
-		Message:          publicMessage,
+		PublicMessage:    publicMessage,
 		ValidationErrors: validationErrors,
 		err:              err,
 	}
@@ -139,7 +140,7 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	
+
 	var httpErr *HTTPError
 	if !errors.As(err, &httpErr) {
 		// Log unexpected errors as they are always serious
@@ -153,7 +154,7 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 
-	errorMessage := httpErr.Message
+	errorMessage := httpErr.PublicMessage
 	if errorMessage == "" {
 		errorMessage = "an error occurred"
 	}
@@ -181,11 +182,6 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	case http.StatusForbidden:
 		// Log warnings for 403 errors
 		logger.Warn(errorMessage, "error", httpErr.Unwrap())
-		// Set error message to "forbidden" for the response
-		// to hide details of the error to a potential attacker
-		// and reduce the amount of information that can be
-		// leaked. The error is logged above.
-		errorMessage = "forbidden"
 
 	default:
 		// Log errors for other HTTP status codes
