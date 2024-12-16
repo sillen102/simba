@@ -59,6 +59,9 @@ func NewAuthWith[AuthModel any](authFunc AuthFunc[AuthModel], provided ...settin
 	router.Use(func(next http.Handler) http.Handler {
 		return injectAuthFunc(next, authFunc)
 	})
+	router.Use(func(next http.Handler) http.Handler {
+		return injectRequestSettings(next, cfg.Request)
+	})
 
 	return &Application[AuthModel]{
 		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), Handler: router},
