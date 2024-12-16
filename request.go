@@ -103,7 +103,16 @@ func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) 
 	}
 	err := decoder.Decode(&model)
 	if err != nil {
-		return NewHttpError(http.StatusBadRequest, "invalid request body", err)
+		return NewHttpError(
+			http.StatusUnprocessableEntity,
+			"invalid request body",
+			err,
+			ValidationError{
+				Parameter: "body",
+				Type:      ParameterTypeBody,
+				Message:   err.Error(),
+			},
+		)
 	}
 	return nil
 }
