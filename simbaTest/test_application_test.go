@@ -12,7 +12,7 @@ import (
 
 func TestTestApplication(t *testing.T) {
 	// Create a new test application
-	app := simbaTest.New[struct{}](nil)
+	app := simbaTest.NewWithAuth[struct{}](nil)
 
 	// Add a test route
 	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
@@ -39,7 +39,7 @@ func TestTestApplicationWithAuth(t *testing.T) {
 	}
 
 	// Create a new test application with auth
-	app := simbaTest.New(authFunc)
+	app := simbaTest.NewWithAuth(authFunc)
 
 	// Add an authenticated test route
 	app.Router.GET("/protected", simba.AuthJsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
