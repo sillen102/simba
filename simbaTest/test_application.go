@@ -15,8 +15,28 @@ type TestApplication[AuthModel any] struct {
 }
 
 // New creates a new test application with the given settings
-func New[AuthModel any](authFunc simba.AuthFunc[AuthModel], settings ...settings.Config) *TestApplication[AuthModel] {
+func New(settings ...settings.Config) *TestApplication[struct{}] {
+	return NewWithAuth[struct{}](nil, settings...)
+}
+
+// NewWithAuth creates a new test application with the given settings and with authentication
+func NewWithAuth[AuthModel any](authFunc simba.AuthFunc[AuthModel], settings ...settings.Config) *TestApplication[AuthModel] {
 	app := simba.NewAuthWith(authFunc, settings...)
+
+	return &TestApplication[AuthModel]{
+		Application: app,
+		Server:      httptest.NewServer(app.Router),
+	}
+}
+
+// Default creates a new test application with default settings
+func Default(settings ...settings.Config) *TestApplication[struct{}] {
+	return DefaultWithAuth[struct{}](nil, settings...)
+}
+
+// DefaultWithAuth creates a new test application with default settings and with authentication
+func DefaultWithAuth[AuthModel any](authFunc simba.AuthFunc[AuthModel], settings ...settings.Config) *TestApplication[AuthModel] {
+	app := simba.DefaultAuthWith(authFunc, settings...)
 
 	return &TestApplication[AuthModel]{
 		Application: app,
