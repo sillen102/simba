@@ -3,7 +3,6 @@ package simbaTest
 import (
 	"net/http"
 	"net/http/httptest"
-	"testing"
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/settings"
@@ -13,17 +12,15 @@ import (
 type TestApplication[AuthModel any] struct {
 	*simba.Application[AuthModel]
 	Server *httptest.Server
-	T      *testing.T
 }
 
 // New creates a new test application with the given settings
-func New[AuthModel any](t *testing.T, authFunc simba.AuthFunc[AuthModel], settings ...settings.Config) *TestApplication[AuthModel] {
+func New[AuthModel any](authFunc simba.AuthFunc[AuthModel], settings ...settings.Config) *TestApplication[AuthModel] {
 	app := simba.NewAuthWith(authFunc, settings...)
 
 	return &TestApplication[AuthModel]{
 		Application: app,
 		Server:      httptest.NewServer(app.Router),
-		T:           t,
 	}
 }
 
