@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/enums"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/test"
 	"gotest.tools/v3/assert"
@@ -307,4 +308,46 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, "unauthorized", errorResponse.Message)
 	})
+}
+
+type TestRequestBody struct {
+	Test string `json:"test"`
+}
+
+func TestReadJson_DisallowUnknownFields(t *testing.T) {
+	t.Parallel()
+
+	handler := func(ctx context.Context, req *simba.Request[TestRequestBody, simba.NoParams]) (*simba.Response, error) {
+		return &simba.Response{Status: http.StatusOK}, nil
+	}
+
+	body := strings.NewReader(`{"test": "value", "unknown": "field"}`)
+	req := httptest.NewRequest(http.MethodPost, "/test", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	logBuffer := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+	app := simba.New(settings.Config{
+		Logger: logger,
+		Request: settings.Request{
+			AllowUnknownFields: enums.Disallow,
+		},
+	})
+	app.Router.POST("/test", simba.JsonHandler(handler))
+	app.Router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+	var errorResponse simba.ErrorResponse
+	err := json.NewDecoder(w.Body).Decode(&errorResponse)
+	assert.NilError(t, err)
+	assert.Equal(t, http.StatusUnprocessableEntity, errorResponse.Status)
+	assert.Equal(t, "invalid request body", errorResponse.Message)
+	assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+
+	validationError := errorResponse.ValidationErrors[0]
+	assert.Equal(t, "body", validationError.Parameter)
+	assert.Equal(t, simba.ParameterTypeBody, validationError.Type)
+	assert.Equal(t, "json: unknown field \"unknown\"", validationError.Message)
 }
