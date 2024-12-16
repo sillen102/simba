@@ -19,7 +19,7 @@ func newRouter(requestSettings settings.Request) *Router {
 		middleware: []func(http.Handler) http.Handler{
 			closeRequestBody,
 			func(next http.Handler) http.Handler {
-				return injectRequestSettings(next, requestSettings)
+				return injectRequestSettings(next, &requestSettings)
 			},
 		},
 	}

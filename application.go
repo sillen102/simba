@@ -60,7 +60,7 @@ func NewAuthWith[AuthModel any](authFunc AuthFunc[AuthModel], provided ...settin
 		return injectAuthFunc(next, authFunc)
 	})
 	router.Use(func(next http.Handler) http.Handler {
-		return injectRequestSettings(next, cfg.Request)
+		return injectRequestSettings(next, &cfg.Request)
 	})
 
 	return &Application[AuthModel]{
