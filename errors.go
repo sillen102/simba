@@ -119,7 +119,7 @@ func (p ParameterType) String() string {
 // ValidationError defines the interface for a validation error
 // @Description Detailed information about a validation error
 type ValidationError struct {
-	// Parameter that failed validation
+	// Parameter or field that failed validation
 	Parameter string `json:"parameter"`
 	// Type indicates where the parameter was located (header, path, query, body)
 	Type ParameterType `json:"type"`
