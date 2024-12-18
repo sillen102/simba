@@ -21,6 +21,7 @@ func TestValidateStruct(t *testing.T) {
 		paramType     simba.ParameterType
 		expectedError bool
 		errorCount    int
+		expectedMsgs  []string
 	}{
 		{
 			name: "Valid struct",
@@ -41,6 +42,7 @@ func TestValidateStruct(t *testing.T) {
 			paramType:     simba.ParameterTypeBody,
 			expectedError: true,
 			errorCount:    3, // Name, Email, and Password are required
+			expectedMsgs:  []string{"name is required", "email is required", "password is required"},
 		},
 		{
 			name: "Invalid struct - invalid email",
@@ -50,9 +52,10 @@ func TestValidateStruct(t *testing.T) {
 				Email:    "invalid-email",
 				Password: "password123",
 			},
-			paramType:     simba.ParameterTypeQuery,
+			paramType:     simba.ParameterTypeBody,
 			expectedError: true,
 			errorCount:    1,
+			expectedMsgs:  []string{"'invalid-email' is not a valid email address"},
 		},
 		{
 			name: "Invalid struct - age out of range",
@@ -65,6 +68,7 @@ func TestValidateStruct(t *testing.T) {
 			paramType:     simba.ParameterTypePath,
 			expectedError: true,
 			errorCount:    1,
+			expectedMsgs:  []string{"age must be less than or equal to 130"},
 		},
 		{
 			name:          "Nil input",
@@ -86,7 +90,7 @@ func TestValidateStruct(t *testing.T) {
 				for _, err := range errors {
 					assert.Equal(t, tt.paramType, err.Type)
 					assert.NotEmpty(t, err.Parameter)
-					assert.NotEmpty(t, err.Message)
+					assert.Contains(t, tt.expectedMsgs, err.Message)
 				}
 			} else {
 				assert.Nil(t, errors)
