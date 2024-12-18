@@ -51,7 +51,7 @@ func ValidateStruct(request any, paramType ParameterType) ValidationErrors {
 				valueStr = fmt.Sprintf("%v", e.Value())
 			}
 
-			message := getValidationMessage(e, valueStr)
+			message := MapValidationMessage(e, valueStr)
 			validationErrorsData[i] = ValidationError{
 				Parameter: strcase.ToLowerCamel(e.Field()),
 				Type:      paramType,
@@ -64,8 +64,8 @@ func ValidateStruct(request any, paramType ParameterType) ValidationErrors {
 	return nil
 }
 
-// getValidationMessage returns appropriate error message based on the validation tag
-func getValidationMessage(e validator.FieldError, value string) string {
+// MapValidationMessage returns appropriate error message based on the validation tag
+func MapValidationMessage(e validator.FieldError, value string) string {
 	switch e.Tag() {
 	case "required":
 		return fmt.Sprintf("%s is required", strcase.ToLowerCamel(e.Field()))
