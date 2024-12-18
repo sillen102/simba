@@ -57,7 +57,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		}
 	}
 
-	if valErrs := validateStruct(instance, getParamType(t.Field(0))); len(valErrs) > 0 {
+	if valErrs := ValidateStruct(instance, getParamType(t.Field(0))); len(valErrs) > 0 {
 		validationErrors = append(validationErrors, valErrs...)
 	}
 

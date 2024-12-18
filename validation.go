@@ -15,8 +15,16 @@ import (
 
 var validate = validator.New(validator.WithRequiredStructEnabled())
 
-// validateStruct is a helper function for validating requests
-func validateStruct(request any, paramType ParameterType) ValidationErrors {
+// ValidateStruct is a helper function for validating requests using the validator
+// package. If the request is nil, it will return nil. If the request is valid, it
+// will return an empty slice of ValidationErrors. If the request is invalid, it
+// will return a slice of ValidationErrors containing the validation errors for
+// each field.
+func ValidateStruct(request any, paramType ParameterType) ValidationErrors {
+	if request == nil {
+		return nil
+	}
+
 	err := validate.Struct(request)
 	if err == nil {
 		return nil
@@ -27,8 +35,8 @@ func validateStruct(request any, paramType ParameterType) ValidationErrors {
 		return ValidationErrors{
 			{
 				Parameter: "unknown",
-				Type:      "unknown",
-				Message:   "An unknown validation error occurred.",
+				Type:      paramType,
+				Message:   "validation failed",
 			},
 		}
 	}
