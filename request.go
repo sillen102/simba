@@ -88,7 +88,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 		return err
 	}
 
-	if validationErrors := validateStruct(req, ParameterTypeBody); len(validationErrors) > 0 {
+	if validationErrors := ValidateStruct(req, ParameterTypeBody); len(validationErrors) > 0 {
 		return NewHttpError(http.StatusBadRequest, "invalid request body", nil, validationErrors...)
 	}
 
