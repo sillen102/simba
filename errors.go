@@ -15,8 +15,8 @@ import (
 type HTTPError struct {
 	HttpStatusCode   int
 	PublicMessage    string
-	err              error
 	ValidationErrors ValidationErrors
+	err              error
 }
 
 // Error implements the error interface and returns the full error details
@@ -32,11 +32,12 @@ func (e *HTTPError) Error() string {
 }
 
 // WrapError wraps an error with an HTTP status code
-func WrapError(httpStatusCode int, err error, publicMessage string) *HTTPError {
+func WrapError(httpStatusCode int, err error, publicMessage string, validationErrors ...ValidationError) *HTTPError {
 	return &HTTPError{
-		HttpStatusCode: httpStatusCode,
-		PublicMessage:  publicMessage,
-		err:            err,
+		HttpStatusCode:   httpStatusCode,
+		PublicMessage:    publicMessage,
+		ValidationErrors: validationErrors,
+		err:              err,
 	}
 }
 
