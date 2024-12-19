@@ -50,15 +50,17 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 
 		if err := setFieldValue(fieldValue, value, field); err != nil {
 			validationErrors = append(validationErrors, ValidationError{
-				Parameter: field.Name,
+				Parameter: getParamName(field),
 				Type:      getParamType(field),
 				Message:   err.Error(),
 			})
 		}
 	}
 
-	if valErrs := ValidateStruct(instance, getParamType(t.Field(0))); len(valErrs) > 0 {
-		validationErrors = append(validationErrors, valErrs...)
+	if len(validationErrors) == 0 {
+		if valErrs := ValidateStruct(instance, getParamType(t.Field(0))); len(valErrs) > 0 {
+			validationErrors = append(validationErrors, valErrs...)
+		}
 	}
 
 	if len(validationErrors) > 0 {
@@ -100,6 +102,20 @@ func getParamType(field reflect.StructField) ParameterType {
 		return ParameterTypeQuery
 	default:
 		return ParameterTypeBody
+	}
+}
+
+// getParamName returns the parameter name based on the struct tag
+func getParamName(field reflect.StructField) string {
+	switch {
+	case field.Tag.Get("header") != "":
+		return field.Tag.Get("header")
+	case field.Tag.Get("path") != "":
+		return field.Tag.Get("path")
+	case field.Tag.Get("query") != "":
+		return field.Tag.Get("query")
+	default:
+		return field.Name
 	}
 }
 

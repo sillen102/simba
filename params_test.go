@@ -239,14 +239,14 @@ func TestUUIDParameters(t *testing.T) {
 			name:      "invalid uuid in path",
 			path:      "/test/invalid-uuid",
 			paramType: simba.ParameterTypePath,
-			parameter: "ID",
+			parameter: "id",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
 		{
 			name:      "invalid uuid in header",
 			path:      "/test/123e4567-e89b-12d3-a456-426655440000",
 			paramType: simba.ParameterTypeHeader,
-			parameter: "HeaderID",
+			parameter: "Header-ID",
 			headerID:  "invalid-uuid",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
@@ -254,7 +254,7 @@ func TestUUIDParameters(t *testing.T) {
 			name:      "invalid uuid in query",
 			path:      "/test/123e4567-e89b-12d3-a456-426655440000?queryId=invalid-uuid",
 			paramType: simba.ParameterTypeQuery,
-			parameter: "QueryID",
+			parameter: "queryId",
 			headerID:  "248ccd0e-4bdf-4c41-a125-92ef3a416251",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
@@ -328,7 +328,7 @@ func TestFloatParameters(t *testing.T) {
 	assert.Equal(t, http.MethodGet, errorResponse.Method)
 	assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
 	assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-	assert.Equal(t, "Page", errorResponse.ValidationErrors[0].Parameter)
+	assert.Equal(t, "page", errorResponse.ValidationErrors[0].Parameter)
 	assert.Equal(t, simba.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
 	assert.Equal(t, "invalid float parameter value: invalid", errorResponse.ValidationErrors[0].Message)
 }
@@ -362,35 +362,35 @@ func TestInvalidParameterTypes(t *testing.T) {
 			name:         "invalid page parameter",
 			path:         "/test/1?active=true&page=invalid",
 			paramType:    simba.ParameterTypeQuery,
-			paramName:    "Page",
+			paramName:    "page",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid size parameter",
 			path:         "/test/1?active=true&size=invalid",
 			paramType:    simba.ParameterTypeQuery,
-			paramName:    "Size",
+			paramName:    "size",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid score parameter",
 			path:         "/test/1?active=true&score=invalid",
 			paramType:    simba.ParameterTypeQuery,
-			paramName:    "Score",
+			paramName:    "score",
 			errorMessage: "invalid float parameter value: invalid",
 		},
 		{
 			name:         "invalid active parameter",
 			path:         "/test/1?active=notbool",
 			paramType:    simba.ParameterTypeQuery,
-			paramName:    "Active",
+			paramName:    "active",
 			errorMessage: "invalid bool parameter value: notbool",
 		},
 		{
 			name:         "invalid id parameter",
 			path:         "/test/notint?active=true",
 			paramType:    simba.ParameterTypePath,
-			paramName:    "ID",
+			paramName:    "id",
 			errorMessage: "invalid int parameter value: notint",
 		},
 	}

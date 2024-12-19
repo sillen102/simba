@@ -174,13 +174,13 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel]) ServeHTTP(
 
 // handleRequest handles extracting body and params from the Request
 func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[RequestBody, Params], error) {
-	var reqBody RequestBody
-	err := handleJsonBody(r, &reqBody)
+	params, err := parseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
 	}
 
-	params, err := parseAndValidateParams[Params](r)
+	var reqBody RequestBody
+	err = handleJsonBody(r, &reqBody)
 	if err != nil {
 		return nil, err
 	}
