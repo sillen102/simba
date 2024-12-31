@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,19 +37,19 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 			continue
 		}
 
-		value := getParamValue(r, field)
+		values := getParamValues(r, field)
 
-		// If no value was provided, try to set default value
-		if value == "" {
+		// If no values was provided, try to set default values
+		if len(values) == 0 {
 			if err := setDefaultValue(fieldValue, field); err != nil {
-				// If the default value is not valid it's not a client error and should therefore return a 500
-				return instance, NewHttpError(http.StatusInternalServerError, "invalid default value", err,
-					ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid default value"})
+				// If the default values is not valid it's not a client error and should therefore return a 500
+				return instance, NewHttpError(http.StatusInternalServerError, "invalid default values", err,
+					ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid default values"})
 			}
 			continue
 		}
 
-		if err := setFieldValue(fieldValue, value, field); err != nil {
+		if err := setFieldValue(fieldValue, values, field); err != nil {
 			validationErrors = append(validationErrors, ValidationError{
 				Parameter: getParamName(field),
 				Type:      getParamType(field),
@@ -77,18 +78,27 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	return instance, nil
 }
 
-// getParamValue returns the parameter value based on the struct tag
-func getParamValue(r *http.Request, field reflect.StructField) string {
+// getParamValues returns the parameter value based on the struct tag
+func getParamValues(r *http.Request, field reflect.StructField) []string {
 	switch {
 	case field.Tag.Get("header") != "":
-		return r.Header.Get(field.Tag.Get("header"))
+		return []string{r.Header.Get(field.Tag.Get("header"))}
 	case field.Tag.Get("path") != "":
 		paramName := field.Tag.Get("path")
-		return r.PathValue(paramName)
+		return []string{r.PathValue(paramName)}
 	case field.Tag.Get("query") != "":
-		return r.URL.Query().Get(field.Tag.Get("query"))
+		queryValues := r.URL.Query()[field.Tag.Get("query")]
+		if len(queryValues) == 0 {
+			return nil
+		}
+		// Split comma-separated values
+		var result []string
+		for _, value := range queryValues {
+			result = append(result, strings.Split(value, ",")...)
+		}
+		return result
 	}
-	return ""
+	return nil
 }
 
 // getParamType returns the parameter type based on the struct tag
@@ -119,8 +129,38 @@ func getParamName(field reflect.StructField) string {
 	}
 }
 
-// setFieldValue converts and sets a string value to the appropriate field type
-func setFieldValue(fieldValue reflect.Value, value string, field reflect.StructField) error {
+func setFieldValue(fieldValue reflect.Value, values []string, field reflect.StructField) error {
+	if len(values) == 0 {
+		return nil
+	}
+
+	var err error
+
+	// Check if the field is a slice
+	if fieldValue.Kind() == reflect.Slice {
+		slice := reflect.MakeSlice(fieldValue.Type(), len(values), len(values))
+
+		for i, value := range values {
+			elem := slice.Index(i)
+			if err = setSingleValue(elem, value, field); err != nil {
+				return err
+			}
+		}
+
+		fieldValue.Set(slice)
+		return nil
+	}
+
+	// Handle single values
+	if len(values) == 1 {
+		return setSingleValue(fieldValue, values[0], field)
+	}
+
+	return fmt.Errorf("unsupported field type: %v", fieldValue.Kind())
+}
+
+// setSingleValue converts and sets a string value to the appropriate field type
+func setSingleValue(fieldValue reflect.Value, value string, field reflect.StructField) error {
 	if value == "" {
 		return nil
 	}
@@ -184,5 +224,7 @@ func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) error 
 	if defaultVal == "" {
 		return nil
 	}
-	return setFieldValue(fieldValue, defaultVal, field)
+	// Split comma-separated values in case of slice
+	defaultVals := strings.Split(defaultVal, ",")
+	return setFieldValue(fieldValue, defaultVals, field)
 }

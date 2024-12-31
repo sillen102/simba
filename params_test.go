@@ -3,6 +3,7 @@ package simba_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,6 +33,8 @@ type TestAllParamTypes struct {
 	QueryFilter  string    `query:"filter"`
 	QueryEnabled bool      `query:"enabled" default:"true"`
 	QueryDate    time.Time `query:"date"`
+	QuerySlice1  []string  `query:"slice1"`
+	QuerySlice2  []string  `query:"slice2"`
 }
 
 func TestParamParsing(t *testing.T) {
@@ -60,12 +63,25 @@ func TestParamParsing(t *testing.T) {
 			assert.Equal(t, true, req.Params.QueryEnabled)
 			assert.Equal(t, testDate, req.Params.QueryDate)
 
+			// Verify query slice
+			assert.DeepEqual(t, []string{"one", "two"}, req.Params.QuerySlice1)
+			assert.DeepEqual(t, []string{"three", "four"}, req.Params.QuerySlice2)
+
 			return &simba.Response{Status: http.StatusOK}, nil
 		}
 
 		// Create request with all parameter types
-		path := "/test/" + testUUID.String() + "/123/test-slug"
-		req := httptest.NewRequest(http.MethodGet, path+"?page=2&size=20&filter=active&date="+testDate.Format(time.RFC3339), nil)
+		path := fmt.Sprintf("/test/%s/%d/%s?page=%d&size=%d&filter=%s&enabled=%t&date=%s&slice1=one&slice1=two&slice2=three,four",
+			testUUID.String(),
+			123,
+			"test-slug",
+			2,
+			20,
+			"active",
+			true,
+			testDate.Format(time.RFC3339),
+		)
+		req := httptest.NewRequest(http.MethodGet, path, nil)
 
 		// Set headers
 		req.Header.Set("X-String", "test-string")
@@ -453,6 +469,8 @@ func TestTimeParameters(t *testing.T) {
 	app := simba.New()
 	app.Router.GET("/test", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
+
+	println(w.Body.String())
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
