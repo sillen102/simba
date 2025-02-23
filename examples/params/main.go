@@ -32,7 +32,7 @@ type ResponseBody struct {
 	Score   float64   `json:"score"`
 }
 
-func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response, error) {
+func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response[ResponseBody], error) {
 
 	// Access the request body and params fields
 	// req.Body.Age
@@ -47,7 +47,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 	// Access the request headers
 	// req.Headers
 
-	return &simba.Response{
+	return &simba.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are %d years old", req.Params.Name, req.Body.Age),
 			ID:      req.Params.ID,

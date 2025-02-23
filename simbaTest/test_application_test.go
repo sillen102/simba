@@ -15,8 +15,8 @@ func TestNew(t *testing.T) {
 	app := simbaTest.New()
 
 	// Add a test route
-	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{Status: http.StatusOK, Body: []byte("test response")}, nil
+	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[[]byte], error) {
+		return &simba.Response[[]byte]{Status: http.StatusOK, Body: []byte("test response")}, nil
 	}))
 
 	// Run test with the application
@@ -42,8 +42,8 @@ func TestNewWithAuth(t *testing.T) {
 	app := simbaTest.NewWithAuth(authFunc)
 
 	// Add an authenticated test route
-	app.Router.GET("/protected", simba.AuthJsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
-		return &simba.Response{Status: http.StatusOK}, nil
+	app.Router.GET("/protected", simba.AuthJsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[simba.NoBody], error) {
+		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
 	}))
 
 	// Run test with the application
@@ -60,8 +60,8 @@ func TestDefault(t *testing.T) {
 	app := simbaTest.Default()
 
 	// Add a test route
-	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{Status: http.StatusOK, Body: []byte("test response")}, nil
+	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[[]byte], error) {
+		return &simba.Response[[]byte]{Status: http.StatusOK, Body: []byte("test response")}, nil
 	}))
 
 	// Run test with the application
@@ -87,8 +87,8 @@ func TestDefaultWithAuth(t *testing.T) {
 	app := simbaTest.DefaultWithAuth(authFunc)
 
 	// Add an authenticated test route
-	app.Router.GET("/protected", simba.AuthJsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
-		return &simba.Response{Status: http.StatusOK}, nil
+	app.Router.GET("/protected", simba.AuthJsonHandler(func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[simba.NoBody], error) {
+		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
 	}))
 
 	// Run test with the application

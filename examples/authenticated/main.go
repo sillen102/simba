@@ -30,7 +30,7 @@ func authFunc(r *http.Request) (*User, error) {
 	}, nil
 }
 
-func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
+func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[ResponseBody], error) {
 
 	// Access the request cookies
 	// req.Cookies
@@ -38,7 +38,7 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 	// Access the request headers
 	// req.Headers
 
-	return &simba.Response{
+	return &simba.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
 		},

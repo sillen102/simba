@@ -27,7 +27,7 @@ import (
 //
 // Define a handler function:
 //
-//	func(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response, error) {
+//	func(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response[map[string]string], error) {
 //		// Access the Multipart reader and params fields
 //		req.Params.Name
 //		req.Params.ID
@@ -36,7 +36,7 @@ import (
 //		req.Reader // Multipart reader
 //
 //		// Return a response
-//		return &simba.Response{
+//		return &simba.Response[map[string]string]{
 //			Headers: map[string][]string{"My-Header": {"header-value"}},
 //			Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 //			Body:    map[string]string{"message": "success"},
@@ -47,28 +47,28 @@ import (
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.MultipartHandler(handler))
-func MultipartHandler[Params any](h MultipartHandlerFunc[Params]) http.Handler {
+func MultipartHandler[Params any, ResponseBody any](h MultipartHandlerFunc[Params, ResponseBody]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
 }
 
 // MultipartHandlerFunc is a function type for handling routes with Request body and params
-type MultipartHandlerFunc[Params any] func(ctx context.Context, req *MultipartRequest[Params]) (*Response, error)
+type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params]) (*Response[ResponseBody], error)
 
 // ServeHTTP implements the http.Handler interface for JsonHandlerFunc
-func (h MultipartHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	req, err := handleMultipartRequest[Params](r)
 	if err != nil {
-		HandleError(w, r, err)
+		WriteError(w, r, err)
 		return
 	}
 
 	resp, err := h(ctx, req)
 	if err != nil {
-		HandleError(w, r, err)
+		WriteError(w, r, err)
 		return
 	}
 
@@ -101,7 +101,7 @@ func (h MultipartHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 //
 // Define a handler function:
 //
-//	func(ctx context.Context, req *simba.MultipartRequest[Params], authModel *AuthModel) (*simba.Response, error) {
+//	func(ctx context.Context, req *simba.MultipartRequest[Params], authModel *AuthModel) (*simba.Response[map[string]string], error) {
 //		// Access the Multipart reader and params fields
 //		req.Params.Name
 //		req.Params.ID
@@ -115,7 +115,7 @@ func (h MultipartHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 //		user.Role
 //
 //		// Return a response
-//		return &simba.Response{
+//		return &simba.Response[map[string]string]{
 //			Headers: map[string][]string{"My-Header": {"header-value"}},
 //			Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 //			Body:    map[string]string{"message": "success"},
@@ -126,39 +126,39 @@ func (h MultipartHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
-func AuthMultipartHandler[Params any, AuthModel any](h AuthenticatedMultipartHandlerFunc[Params, AuthModel]) http.Handler {
+func AuthMultipartHandler[Params any, AuthModel any, ResponseBody any](h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	})
 }
 
 // AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
-type AuthenticatedMultipartHandlerFunc[Params any, AuthModel any] func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response, error)
+type AuthenticatedMultipartHandlerFunc[Params any, AuthModel any, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	authFunc := r.Context().Value(simbaContext.AuthFuncKey).(AuthFunc[AuthModel])
 	if authFunc == nil {
-		HandleError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
+		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
 		return
 	}
 
 	authModel, err := authFunc(r)
 	if err != nil {
-		HandleError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
+		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
 	}
 
 	req, err := handleMultipartRequest[Params](r)
 	if err != nil {
-		HandleError(w, r, err)
+		WriteError(w, r, err)
 		return
 	}
 
 	resp, err := h(ctx, req, authModel)
 	if err != nil {
-		HandleError(w, r, err)
+		WriteError(w, r, err)
 		return
 	}
 

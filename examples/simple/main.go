@@ -17,7 +17,7 @@ type ResponseBody struct {
 	Message string `json:"message"`
 }
 
-func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response, error) {
+func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response[ResponseBody], error) {
 
 	// Access the request body fields
 	// req.Body.Age
@@ -29,7 +29,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams
 	// Access the request headers
 	// req.Headers
 
-	return &simba.Response{
+	return &simba.Response[ResponseBody]{
 		Headers: map[string][]string{"My-Header": {"header-value"}},
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Body: ResponseBody{
@@ -39,8 +39,8 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams
 	}, nil
 }
 
-func noBodyHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-	return &simba.Response{}, nil // Returns 204 since there is no body in the response
+func noBodyHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+	return &simba.Response[simba.NoBody]{}, nil // Returns 204 since there is no body in the response
 }
 
 func main() {

@@ -18,8 +18,8 @@ type Params struct {
 	MiddlewareHeader string `header:"X-Middleware"`
 }
 
-func handler(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response, error) {
-	return &simba.Response{
+func handler(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response[ResponseBody], error) {
+	return &simba.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: "Hello " + req.Params.MiddlewareHeader,
 		},
