@@ -2,6 +2,7 @@ package simba
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"reflect"
 
@@ -18,11 +19,18 @@ type Router struct {
 
 // RouteInfo stores type information about a route
 type RouteInfo struct {
-	Method     string
-	Path       string
-	BodyType   reflect.Type
-	ParamsType reflect.Type
-	AuthType   reflect.Type
+	Method       string
+	Path         string
+	BodyType     reflect.Type
+	ParamsType   reflect.Type
+	AuthType     reflect.Type
+	ResponseType reflect.Type
+}
+
+// Handler specifies the interface for a handler that can be registered with the [Router].
+type Handler interface {
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
+	getTypes() (reflect.Type, reflect.Type, reflect.Type)
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Config]
@@ -62,71 +70,90 @@ func (r *Router) applyMiddleware(handler http.Handler) http.Handler {
 }
 
 // POST registers a handler for POST requests to the given pattern
-func (r *Router) POST(path string, handler http.Handler) {
+func (r *Router) POST(path string, handler Handler) {
 	method := http.MethodPost
-	r.addRoute(method, path, handler)
+	r.Handle(method, path, handler)
 }
 
 // GET registers a handler for GET requests to the given pattern
-func (r *Router) GET(path string, handler http.Handler) {
+func (r *Router) GET(path string, handler Handler) {
 	method := http.MethodGet
-	r.addRoute(method, path, handler)
+	r.Handle(method, path, handler)
 }
 
 // PUT registers a handler for PUT requests to the given pattern
-func (r *Router) PUT(path string, handler http.Handler) {
+func (r *Router) PUT(path string, handler Handler) {
 	method := http.MethodPut
-	r.addRoute(method, path, handler)
+	r.Handle(method, path, handler)
 }
 
 // DELETE registers a handler for DELETE requests to the given pattern
-func (r *Router) DELETE(path string, handler http.Handler) {
+func (r *Router) DELETE(path string, handler Handler) {
 	method := http.MethodDelete
-	r.addRoute(method, path, handler)
+	r.Handle(method, path, handler)
 }
 
 // PATCH registers a handler for PATCH requests to the given pattern
-func (r *Router) PATCH(path string, handler http.Handler) {
+func (r *Router) PATCH(path string, handler Handler) {
 	method := http.MethodPatch
-	r.addRoute(method, path, handler)
+	r.Handle(method, path, handler)
 }
 
 // OPTIONS registers a handler for OPTIONS requests to the given pattern
-func (r *Router) OPTIONS(path string, handler http.Handler) {
+func (r *Router) OPTIONS(path string, handler Handler) {
 	method := http.MethodOptions
-	r.addRoute(method, path, handler)
+	r.Handle(method, path, handler)
 }
 
 // HEAD registers a handler for HEAD requests to the given pattern
-func (r *Router) HEAD(path string, handler http.Handler) {
+func (r *Router) HEAD(path string, handler Handler) {
 	method := http.MethodHead
+	r.Handle(method, path, handler)
+}
+
+func (r *Router) Handle(method, path string, handler Handler) {
+	var bodyType, paramsType, responseType reflect.Type
+	bodyType, paramsType, responseType = getHandlerTypes(handler)
+	r.routes[method+" "+path] = RouteInfo{
+		Method:       method,
+		Path:         path,
+		BodyType:     bodyType,
+		ParamsType:   paramsType,
+		ResponseType: responseType,
+	}
 	r.addRoute(method, path, handler)
 }
 
-func (r *Router) addRoute(method, path string, handler http.Handler) {
-	r.storeRouteInfo(method, path, handler)
-	r.Mux.Handle(fmt.Sprintf("%s %s", method, path), r.applyMiddleware(handler))
+func getHandlerTypes[H any](handler H) (bodyType, paramsType, responseType reflect.Type) {
+	t := reflect.TypeOf(handler)
+
+	// Check if handler implements Handler interface
+	if h, ok := any(handler).(Handler); ok {
+		return h.getTypes()
+	}
+
+	if t.Kind() != reflect.Func {
+		panic("handler must be a function")
+	}
+
+	// Get *Request[B, P] from second parameter
+	reqType := t.In(1).Elem()
+	bodyType = reqType.Field(1).Type   // Request body is the second field
+	paramsType = reqType.Field(2).Type // Params is the third field
+
+	// Get *Response[R] from first return value
+	respType := t.Out(0).Elem()
+	responseType = respType.Field(2).Type // Response body is the third field
+
+	slog.Debug("type information",
+		"bodyType", bodyType,
+		"paramsType", paramsType,
+		"responseType", responseType,
+	)
+
+	return
 }
 
-// storeRouteInfo stores type information for a route
-func (r *Router) storeRouteInfo(method, path string, handler any) {
-	key := method + " " + path
-	info := RouteInfo{
-		Method: method,
-		Path:   path,
-	}
-
-	t := reflect.TypeOf(handler)
-	if t.Kind() == reflect.Func && t.NumIn() == 2 {
-		reqType := t.In(1)
-		if reqType.Kind() == reflect.Ptr {
-			reqType = reqType.Elem()
-		}
-		if reqType.NumField() > 0 {
-			info.BodyType = reqType.Field(0).Type
-			info.ParamsType = reqType.Field(1).Type
-		}
-	}
-
-	r.routes[key] = info
+func (r *Router) addRoute(method, path string, handler http.Handler) {
+	r.Mux.Handle(fmt.Sprintf("%s %s", method, path), r.applyMiddleware(handler))
 }

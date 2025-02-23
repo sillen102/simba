@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/sillen102/simba"
 )
@@ -44,6 +46,10 @@ func noBodyHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.N
 }
 
 func main() {
+	// Set up logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(logger)
+
 	app := simba.Default()
 	app.Router.POST("/users", simba.JsonHandler(handler))
 	app.Router.GET("/no-body", simba.JsonHandler(noBodyHandler))

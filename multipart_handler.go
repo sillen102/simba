@@ -2,8 +2,11 @@ package simba
 
 import (
 	"context"
+	"log/slog"
 	"mime"
+	"mime/multipart"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/sillen102/simba/simbaContext"
@@ -47,10 +50,8 @@ import (
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.MultipartHandler(handler))
-func MultipartHandler[Params any, ResponseBody any](h MultipartHandlerFunc[Params, ResponseBody]) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-	})
+func MultipartHandler[Params any, ResponseBody any](h MultipartHandlerFunc[Params, ResponseBody]) Handler {
+	return h
 }
 
 // MultipartHandlerFunc is a function type for handling routes with Request body and params
@@ -73,6 +74,24 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWri
 	}
 
 	writeResponse(w, r, resp, nil)
+}
+
+func (h MultipartHandlerFunc[Params, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+	var file multipart.File
+	var p Params
+	var resb ResponseBody
+
+	bodyType := reflect.TypeOf(&file).Elem()
+	paramsType := reflect.TypeOf(p)
+	responseType := reflect.TypeOf(resb)
+
+	slog.Debug("type information",
+		"bodyType", bodyType,
+		"paramsType", paramsType,
+		"responseType", responseType,
+	)
+
+	return bodyType, paramsType, responseType
 }
 
 // AuthMultipartHandler handles a MultipartRequest with params and an authenticated model.
@@ -126,14 +145,12 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWri
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
-func AuthMultipartHandler[Params any, AuthModel any, ResponseBody any](h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-	})
+func AuthMultipartHandler[Params, AuthModel, ResponseBody any](h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Handler {
+	return h
 }
 
 // AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
-type AuthenticatedMultipartHandlerFunc[Params any, AuthModel any, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
+type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
 
 func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -163,6 +180,24 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 	}
 
 	writeResponse(w, r, resp, nil)
+}
+
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+	var file multipart.File
+	var p Params
+	var resb ResponseBody
+
+	bodyType := reflect.TypeOf(&file).Elem()
+	paramsType := reflect.TypeOf(p)
+	responseType := reflect.TypeOf(resb)
+
+	slog.Debug("type information",
+		"bodyType", bodyType,
+		"paramsType", paramsType,
+		"responseType", responseType,
+	)
+
+	return bodyType, paramsType, responseType
 }
 
 // handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request

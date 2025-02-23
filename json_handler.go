@@ -2,7 +2,9 @@ package simba
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"reflect"
 
 	"github.com/sillen102/simba/simbaContext"
 )
@@ -49,14 +51,12 @@ import (
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.JsonHandler(handler))
-func JsonHandler[RequestBody any, Params any, ResponseBody any](h JsonHandlerFunc[RequestBody, Params, ResponseBody]) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-	})
+func JsonHandler[RequestBody, Params, ResponseBody any](h JsonHandlerFunc[RequestBody, Params, ResponseBody]) Handler {
+	return h
 }
 
 // JsonHandlerFunc is a function type for handling routes with Request body and params
-type JsonHandlerFunc[RequestBody any, Params any, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response[ResponseBody], error)
+type JsonHandlerFunc[RequestBody, Params, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response[ResponseBody], error)
 
 // ServeHTTP implements the http.Handler interface for JsonHandlerFunc
 func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +75,24 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.Res
 	}
 
 	writeResponse(w, r, resp, nil)
+}
+
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+	var rb RequestBody
+	var p Params
+	var resb ResponseBody
+
+	bodyType := reflect.TypeOf(rb)
+	paramsType := reflect.TypeOf(p)
+	responseType := reflect.TypeOf(resb)
+
+	slog.Debug("type information",
+		"bodyType", bodyType,
+		"paramsType", paramsType,
+		"responseType", responseType,
+	)
+
+	return bodyType, paramsType, responseType
 }
 
 // AuthJsonHandler handles a Request with the Request body and params.
@@ -132,14 +150,12 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.Res
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthJsonHandler(handler))
-func AuthJsonHandler[RequestBody any, Params any, AuthModel any, ResponseBody any](h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-	})
+func AuthJsonHandler[RequestBody, Params, AuthModel, ResponseBody any](h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) Handler {
+	return h
 }
 
 // AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
-type AuthenticatedJsonHandlerFunc[RequestBody any, Params any, AuthModel any, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error)
+type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error)
 
 // ServeHTTP implements the http.Handler interface for AuthenticatedJsonHandlerFunc
 func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -170,6 +186,24 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 	}
 
 	writeResponse(w, r, resp, nil)
+}
+
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+	var rb RequestBody
+	var p Params
+	var resb ResponseBody
+
+	bodyType := reflect.TypeOf(rb)
+	paramsType := reflect.TypeOf(p)
+	responseType := reflect.TypeOf(resb)
+
+	slog.Debug("type information",
+		"bodyType", bodyType,
+		"paramsType", paramsType,
+		"responseType", responseType,
+	)
+
+	return bodyType, paramsType, responseType
 }
 
 // handleRequest handles extracting body and params from the Request

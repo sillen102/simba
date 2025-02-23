@@ -6,7 +6,7 @@ import (
 
 // addDefaultEndpoints adds the default endpoints to the Mux
 func (a *Application[AuthModel]) addDefaultEndpoints() {
-	a.Router.GET("/health", http.HandlerFunc(healthCheck))
+	a.Router.addRoute(http.MethodGet, "/health", http.HandlerFunc(healthCheck))
 }
 
 // healthCheck is a simple health check endpoint
