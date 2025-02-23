@@ -15,9 +15,9 @@ func TestDefaultApplication(t *testing.T) {
 	t.Parallel()
 
 	app := simba.Default()
-	app.Router.Handle("GET /test", func(w http.ResponseWriter, r *http.Request) {
+	app.Router.GET("/test", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	})
+	}))
 
 	t.Run("creates default application", func(t *testing.T) {
 		assert.Assert(t, app != nil)

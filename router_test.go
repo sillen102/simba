@@ -65,68 +65,6 @@ func TestEndpoints(t *testing.T) {
 	})
 }
 
-func TestRouter_Handle(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Handle registers a handler and serves requests", func(t *testing.T) {
-		router := simba.Default().Router
-
-		// Define a simple handler
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("handled"))
-		}
-
-		// Register the handler
-		router.Handle("GET /test", handler)
-
-		// Create a request to the registered path
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
-		w := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(w, req)
-
-		// Assert the response
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "handled", w.Body.String())
-	})
-
-	t.Run("Handle applies middleware to the handler", func(t *testing.T) {
-		router := simba.Default().Router
-
-		// Define a middleware that sets a header
-		middleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("X-Custom-Header", "middleware-applied")
-				next.ServeHTTP(w, r)
-			})
-		}
-
-		// Use the middleware
-		router.Use(middleware)
-
-		// Define a simple handler
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}
-
-		// Register the handler
-		router.Handle("/test-middleware", handler)
-
-		// Create a request to the registered path
-		req := httptest.NewRequest(http.MethodGet, "/test-middleware", nil)
-		w := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(w, req)
-
-		// Assert the response
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "middleware-applied", w.Header().Get("X-Custom-Header"))
-	})
-}
-
 func TestRouter_POST(t *testing.T) {
 	t.Parallel()
 

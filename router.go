@@ -1,15 +1,28 @@
 package simba
 
 import (
+	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/sillen102/simba/settings"
 )
 
 // Router is a simple Mux that wraps [http.ServeMux] and allows for middleware chaining
+// and type information storage for routes.
 type Router struct {
 	Mux        *http.ServeMux
 	middleware []func(http.Handler) http.Handler
+	routes     map[string]RouteInfo
+}
+
+// RouteInfo stores type information about a route
+type RouteInfo struct {
+	Method     string
+	Path       string
+	BodyType   reflect.Type
+	ParamsType reflect.Type
+	AuthType   reflect.Type
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Config]
@@ -22,6 +35,7 @@ func newRouter(requestSettings settings.Request) *Router {
 				return injectRequestSettings(next, &requestSettings)
 			},
 		},
+		routes: make(map[string]RouteInfo),
 	}
 }
 
@@ -47,42 +61,72 @@ func (r *Router) applyMiddleware(handler http.Handler) http.Handler {
 	return handler
 }
 
-// Handle registers a standard lib handler for the given pattern
-func (r *Router) Handle(pattern string, handler http.HandlerFunc) {
-	r.Mux.Handle(pattern, r.applyMiddleware(handler))
-}
-
 // POST registers a handler for POST requests to the given pattern
 func (r *Router) POST(path string, handler http.Handler) {
-	r.Mux.Handle("POST "+path, r.applyMiddleware(handler))
+	method := http.MethodPost
+	r.addRoute(method, path, handler)
 }
 
 // GET registers a handler for GET requests to the given pattern
 func (r *Router) GET(path string, handler http.Handler) {
-	r.Mux.Handle("GET "+path, r.applyMiddleware(handler))
+	method := http.MethodGet
+	r.addRoute(method, path, handler)
 }
 
 // PUT registers a handler for PUT requests to the given pattern
 func (r *Router) PUT(path string, handler http.Handler) {
-	r.Mux.Handle("PUT "+path, r.applyMiddleware(handler))
+	method := http.MethodPut
+	r.addRoute(method, path, handler)
 }
 
 // DELETE registers a handler for DELETE requests to the given pattern
 func (r *Router) DELETE(path string, handler http.Handler) {
-	r.Mux.Handle("DELETE "+path, r.applyMiddleware(handler))
+	method := http.MethodDelete
+	r.addRoute(method, path, handler)
 }
 
 // PATCH registers a handler for PATCH requests to the given pattern
 func (r *Router) PATCH(path string, handler http.Handler) {
-	r.Mux.Handle("PATCH "+path, r.applyMiddleware(handler))
+	method := http.MethodPatch
+	r.addRoute(method, path, handler)
 }
 
 // OPTIONS registers a handler for OPTIONS requests to the given pattern
 func (r *Router) OPTIONS(path string, handler http.Handler) {
-	r.Mux.Handle("OPTIONS "+path, r.applyMiddleware(handler))
+	method := http.MethodOptions
+	r.addRoute(method, path, handler)
 }
 
 // HEAD registers a handler for HEAD requests to the given pattern
 func (r *Router) HEAD(path string, handler http.Handler) {
-	r.Mux.Handle("HEAD "+path, r.applyMiddleware(handler))
+	method := http.MethodHead
+	r.addRoute(method, path, handler)
+}
+
+func (r *Router) addRoute(method, path string, handler http.Handler) {
+	r.storeRouteInfo(method, path, handler)
+	r.Mux.Handle(fmt.Sprintf("%s %s", method, path), r.applyMiddleware(handler))
+}
+
+// storeRouteInfo stores type information for a route
+func (r *Router) storeRouteInfo(method, path string, handler any) {
+	key := method + " " + path
+	info := RouteInfo{
+		Method: method,
+		Path:   path,
+	}
+
+	t := reflect.TypeOf(handler)
+	if t.Kind() == reflect.Func && t.NumIn() == 2 {
+		reqType := t.In(1)
+		if reqType.Kind() == reflect.Ptr {
+			reqType = reqType.Elem()
+		}
+		if reqType.NumField() > 0 {
+			info.BodyType = reqType.Field(0).Type
+			info.ParamsType = reqType.Field(1).Type
+		}
+	}
+
+	r.routes[key] = info
 }
