@@ -145,7 +145,7 @@ func TestMultipartHandlerErrors(t *testing.T) {
 		{
 			name:        "missing content type",
 			method:      http.MethodPost,
-			path:        "/test/1",
+			path:        "/test",
 			contentType: "",
 			body: func() *bytes.Buffer {
 				body := &bytes.Buffer{}
@@ -160,7 +160,7 @@ func TestMultipartHandlerErrors(t *testing.T) {
 		{
 			name:        "missing boundary",
 			method:      http.MethodPost,
-			path:        "/test/1",
+			path:        "/test",
 			contentType: "multipart/form-data",
 			body: func() *bytes.Buffer {
 				body := &bytes.Buffer{}
@@ -191,7 +191,7 @@ func TestMultipartHandlerErrors(t *testing.T) {
 			logBuffer := &bytes.Buffer{}
 			logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 			app := simba.New(settings.Config{Logger: logger})
-			app.Router.POST("/test/{id}", simba.MultipartHandler(handler))
+			app.Router.POST("/test", simba.MultipartHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)

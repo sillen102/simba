@@ -10,7 +10,8 @@ import (
 )
 
 type RequestBody struct {
-	Age int `json:"age"`
+	Age  int    `json:"age"`
+	Text string `json:"text"`
 }
 
 type Params struct {
@@ -32,10 +33,15 @@ type ResponseBody struct {
 	Score   float64   `json:"score"`
 }
 
+// handler
+// This is a description of what the handler does.
+//
+// It can span across multiple lines like this.
 func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response[ResponseBody], error) {
 
 	// Access the request body and params fields
 	// req.Body.Age
+	// req.Body.Text
 	// req.Params.Name
 	// req.Params.ID
 	// req.Params.Page

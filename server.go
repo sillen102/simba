@@ -14,6 +14,9 @@ func (a *Application) Start() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
+	// Generate API documentation
+	a.generateDocs()
+
 	// Run server in a goroutine
 	go func() {
 		a.Settings.Logger.Info("server listening on " + a.Server.Addr)

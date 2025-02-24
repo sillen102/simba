@@ -6,10 +6,16 @@ require (
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/google/uuid v1.6.0
 	github.com/iancoleman/strcase v0.3.0
+	github.com/swaggest/openapi-go v0.2.57
 	gotest.tools/v3 v3.5.2
 )
 
-require gopkg.in/yaml.v3 v3.0.1 // indirect
+require (
+	github.com/swaggest/jsonschema-go v0.3.73 // indirect
+	github.com/swaggest/refl v1.3.1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

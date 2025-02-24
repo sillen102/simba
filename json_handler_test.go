@@ -95,14 +95,14 @@ func TestJsonHandler(t *testing.T) {
 		}
 
 		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", body) // Params should be ignored
+		req := httptest.NewRequest(http.MethodPost, "/test?page=1&size=10&active=true", body) // Params should be ignored
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 		app := simba.New(settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
+		app.Router.POST("/test", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -173,7 +173,7 @@ func TestHandlerErrors(t *testing.T) {
 		{
 			name:           "missing content type",
 			method:         http.MethodPost,
-			path:           "/test/1",
+			path:           "/test",
 			contentType:    "",
 			body:           `{"test": "test"}`,
 			expectedStatus: http.StatusBadRequest,
@@ -183,7 +183,7 @@ func TestHandlerErrors(t *testing.T) {
 		{
 			name:           "invalid json body",
 			method:         http.MethodPost,
-			path:           "/test/1",
+			path:           "/test",
 			contentType:    "application/json",
 			body:           `{"test": invalid}`,
 			expectedStatus: http.StatusUnprocessableEntity,
@@ -193,7 +193,7 @@ func TestHandlerErrors(t *testing.T) {
 		{
 			name:           "missing required field",
 			method:         http.MethodPost,
-			path:           "/test/1",
+			path:           "/test",
 			contentType:    "application/json",
 			body:           `{}`,
 			expectedStatus: http.StatusBadRequest,
@@ -218,7 +218,7 @@ func TestHandlerErrors(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			app := simba.New()
-			app.Router.POST("/test/{id}", simba.JsonHandler(handler))
+			app.Router.POST("/test", simba.JsonHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)

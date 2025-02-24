@@ -317,6 +317,7 @@ func TestFloatParameters(t *testing.T) {
 	t.Parallel()
 
 	type FloatParams struct {
+		ID   int     `path:"id"`
 		Page float64 `query:"page"`
 	}
 
