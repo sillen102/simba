@@ -63,6 +63,6 @@ func (a *Application) defaultMiddleware() []func(http.Handler) http.Handler {
 	}
 }
 
-func (a *Application) generateDocs() {
+func (a *Application) GenerateDocs() {
 	a.Router.mountOpenApiEndpoint("/openapi.yml")
 }

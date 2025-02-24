@@ -15,7 +15,7 @@ func (a *Application) Start() {
 	signal.Notify(stop, os.Interrupt)
 
 	// Generate API documentation
-	a.generateDocs()
+	a.GenerateDocs()
 
 	// Run server in a goroutine
 	go func() {
