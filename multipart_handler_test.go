@@ -248,8 +248,8 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.NewAuthWith(authFunc, settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler))
+		app := simba.New(settings.Config{Logger: logger})
+		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, authFunc))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -266,8 +266,8 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.NewAuthWith(errorAuthFunc, settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler))
+		app := simba.New(settings.Config{Logger: logger})
+		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, errorAuthFunc))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)

@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
-
-	"github.com/sillen102/simba/simbaContext"
 )
 
 // MultipartHandler handles a MultipartRequest with params.
@@ -145,23 +143,26 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getTypes() (reflect.Type, re
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
-func AuthMultipartHandler[Params, AuthModel, ResponseBody any](h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Handler {
-	return h
+func AuthMultipartHandler[Params, AuthModel, ResponseBody any](
+	handler func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error),
+	authFunc AuthFunc[AuthModel],
+) Handler {
+	return AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]{
+		handler:  handler,
+		authFunc: authFunc,
+	}
 }
 
 // AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
-type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
+type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] struct {
+	handler  func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
+	authFunc AuthFunc[AuthModel]
+}
 
 func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authFunc := r.Context().Value(simbaContext.AuthFuncKey).(AuthFunc[AuthModel])
-	if authFunc == nil {
-		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
-		return
-	}
-
-	authModel, err := authFunc(r)
+	authModel, err := h.authFunc(r)
 	if err != nil {
 		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
@@ -173,7 +174,7 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 		return
 	}
 
-	resp, err := h(ctx, req, authModel)
+	resp, err := h.handler(ctx, req, authModel)
 	if err != nil {
 		WriteError(w, r, err)
 		return

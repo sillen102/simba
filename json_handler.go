@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
-
-	"github.com/sillen102/simba/simbaContext"
 )
 
 // JsonHandler handles a Request with the Request body and params.
@@ -150,24 +148,27 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getTypes() (reflect.
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthJsonHandler(handler))
-func AuthJsonHandler[RequestBody, Params, AuthModel, ResponseBody any](h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) Handler {
-	return h
+func AuthJsonHandler[RequestBody, Params, AuthModel, ResponseBody any](
+	handler func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error),
+	authFunc AuthFunc[AuthModel],
+) Handler {
+	return AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]{
+		handler:  handler,
+		authFunc: authFunc,
+	}
 }
 
 // AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
-type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error)
+type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody any] struct {
+	handler  func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error)
+	authFunc AuthFunc[AuthModel]
+}
 
 // ServeHTTP implements the http.Handler interface for AuthenticatedJsonHandlerFunc
 func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authFunc := r.Context().Value(simbaContext.AuthFuncKey).(AuthFunc[AuthModel])
-	if authFunc == nil {
-		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "auth function is not set", nil))
-		return
-	}
-
-	authModel, err := authFunc(r)
+	authModel, err := h.authFunc(r)
 	if err != nil {
 		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
@@ -179,7 +180,7 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 		return
 	}
 
-	resp, err := h(ctx, req, authModel)
+	resp, err := h.handler(ctx, req, authModel)
 	if err != nil {
 		WriteError(w, r, err)
 		return

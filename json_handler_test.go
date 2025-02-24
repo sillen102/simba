@@ -275,8 +275,8 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.NewAuthWith[test.User](authFunc, settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler))
+		app := simba.New(settings.Config{Logger: logger})
+		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler, authFunc))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -297,8 +297,8 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.NewAuthWith[test.User](errorAuthFunc, settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler))
+		app := simba.New(settings.Config{Logger: logger})
+		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler, errorAuthFunc))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
