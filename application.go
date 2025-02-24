@@ -64,10 +64,5 @@ func (a *Application) defaultMiddleware() []func(http.Handler) http.Handler {
 }
 
 func (a *Application) generateDocs() {
-	schema, err := a.Router.openApiReflector.Spec.MarshalYAML()
-	if err != nil {
-		panic(fmt.Errorf("failed to generate API docs: %w", err))
-	}
-
-	fmt.Println(string(schema))
+	a.Router.mountOpenApiEndpoint("/openapi.yml")
 }

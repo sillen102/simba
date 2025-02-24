@@ -2,16 +2,11 @@ package simba
 
 import (
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"reflect"
-	"runtime"
-	"strings"
 
+	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/settings"
 	"github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
@@ -175,7 +170,7 @@ func (r *Router) generateRouteDocumentation(routeInfo *RouteInfo, handler any) {
 	// Add request body if it exists
 	if routeInfo.BodyType != nil {
 		op.AddReqStructure(reflect.New(routeInfo.BodyType).Interface(), func(cu *openapi.ContentUnit) {
-			cu.ContentType = "application/json"
+			cu.ContentType = mimetypes.ApplicationJSON
 			cu.Description = getFunctionComment(handler)
 		})
 	}
@@ -196,63 +191,16 @@ func (r *Router) generateRouteDocumentation(routeInfo *RouteInfo, handler any) {
 	}
 }
 
-func getFunctionComment(handler interface{}) string {
-	handlerValue := reflect.ValueOf(handler)
-	handlerType := handlerValue.Type()
-
-	// Skip comment extraction for non-function types
-	if handlerType.Kind() != reflect.Func {
-		return ""
-	}
-
-	// Handle both direct functions and method values
-	var pc uintptr
-	if handlerValue.Kind() == reflect.Func {
-		if handlerValue.IsValid() && !handlerValue.IsNil() {
-			pc = handlerValue.Pointer()
-		} else {
-			return ""
+func (r *Router) mountOpenApiEndpoint(path string) {
+	r.Mux.Handle(fmt.Sprintf("GET %s", path), http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		schema, err := r.openApiReflector.Spec.MarshalYAML()
+		if err != nil {
+			slog.Error("failed to generate API docs", "error", err)
+			http.Error(w, "failed to generate API docs", http.StatusInternalServerError)
+			return
 		}
-	} else {
-		return ""
-	}
 
-	fn := runtime.FuncForPC(pc)
-	if fn == nil || strings.Contains(fn.Name(), ".func") {
-		return "" // Skip anonymous functions
-	}
-
-	fileName, _ := fn.FileLine(pc)
-	if fileName == "" {
-		return ""
-	}
-
-	// Parse the source file
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, fileName, nil, parser.ParseComments)
-	if err != nil {
-		return ""
-	}
-
-	// Get the function name
-	funcName := filepath.Base(fn.Name())
-	if idx := strings.LastIndex(funcName, "."); idx != -1 {
-		funcName = funcName[idx+1:]
-	}
-
-	// Find the function declaration and its comments
-	var comment string
-	ast.Inspect(node, func(n ast.Node) bool {
-		if funcDecl, ok := n.(*ast.FuncDecl); ok {
-			if funcDecl.Name.Name == funcName {
-				if funcDecl.Doc != nil {
-					comment = funcDecl.Doc.Text()
-				}
-				return false
-			}
-		}
-		return true
-	})
-
-	return strings.TrimSpace(comment)
+		w.Header().Set("Content-Type", mimetypes.ApplicationYAML)
+		_, _ = w.Write(schema)
+	}))
 }
