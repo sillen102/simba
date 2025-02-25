@@ -23,20 +23,20 @@ type params struct {
 type reqBody struct {
 	Name        string `json:"name" description:"Name of the user" example:"John Doe"`
 	Age         int    `json:"age" description:"Age of the user" example:"30"`
-	Description string `json:"description" description:"Description of the user" example:"A test user"`
+	Description string `json:"description" description:"description of the user" example:"A test user"`
 }
 
 type respBody struct {
 	ID          string `json:"id" description:"ID of the user" example:"1"`
 	Name        string `json:"name" description:"Name of the user" example:"John Doe"`
 	Age         int    `json:"age" description:"Age of the user" example:"30"`
-	Description string `json:"description" description:"Description of the user" example:"A test user"`
+	Description string `json:"description" description:"description of the user" example:"A test user"`
 }
 
-// @Description handler is a test handler for the POST /test/{id} route
-// It returns a response with the request body and params
+// @Description this is a multiline
 //
-// It also sets a custom header and cookie
+// description for the handler
+//
 // @Error 409 Resource already exists
 func handler(ctx context.Context, req *simba.Request[reqBody, params]) (*simba.Response[respBody], error) {
 	return &simba.Response[respBody]{
@@ -52,7 +52,7 @@ func handler(ctx context.Context, req *simba.Request[reqBody, params]) (*simba.R
 	}, nil
 }
 
-func TestOpenAPI(t *testing.T) {
+func TestOpenAPIDocsGen(t *testing.T) {
 	t.Parallel()
 
 	body, err := json.Marshal(&reqBody{
@@ -69,7 +69,6 @@ func TestOpenAPI(t *testing.T) {
 
 	app := simba.Default()
 	app.Router.POST("/test/{id}", simba.JsonHandler(handler))
-	app.GenerateDocs()
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -90,9 +89,166 @@ func TestOpenAPI(t *testing.T) {
 	require.Contains(t, yamlContent, "description: Name of the user")
 	require.Contains(t, yamlContent, "description: Age of the user")
 	require.Contains(t, yamlContent, "description: Gender of the user")
-	require.Contains(t, yamlContent, "description: Description of the user")
+	require.Contains(t, yamlContent, "description: description of the user")
 	require.Contains(t, yamlContent, "description: Request body contains invalid data")
 	require.Contains(t, yamlContent, "description: Request body could not be processed")
 	require.Contains(t, yamlContent, "description: Unexpected error")
 	require.Contains(t, yamlContent, "description: Resource already exists")
+	require.Contains(t, yamlContent, `
+        description: |
+          this is a multiline
+
+          description for the handler`,
+	)
+}
+
+type basicAuthModel struct {
+	Username string `header:"Authorization" description:"Basic auth username"`
+}
+
+type apiKeyAuthModel struct {
+	APIKey string `header:"Authorization" description:"API key"`
+}
+
+type bearerTokenAuthModel struct {
+	Token string `header:"Authorization" description:"Bearer token"`
+}
+
+// @BasicAuth "admin" "admin access only"
+func basicAuthFunc(r *http.Request) (*basicAuthModel, error) {
+	return &basicAuthModel{
+		Username: "admin",
+	}, nil
+}
+
+func basicAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *basicAuthModel) (*simba.Response[simba.NoBody], error) {
+	return &simba.Response[simba.NoBody]{
+		Status: http.StatusAccepted,
+	}, nil
+}
+
+func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	w := httptest.NewRecorder()
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.AuthJsonHandler(basicAuthHandler, basicAuthFunc))
+	app.Router.ServeHTTP(w, req)
+
+	// Fetch OpenAPI documentation
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	fmt.Println(getW.Body.String())
+
+	yamlContent := getW.Body.String()
+	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, `
+  securitySchemes:
+    admin:
+      description: admin access only
+      scheme: basic
+      type: http`,
+	)
+}
+
+// @APIKeyAuth "User" "sessionid" "cookie" "Session cookie"
+func apiKeyAuthFunc(r *http.Request) (*apiKeyAuthModel, error) {
+	return &apiKeyAuthModel{
+		APIKey: "token",
+	}, nil
+}
+
+func apiKeyAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *apiKeyAuthModel) (*simba.Response[simba.NoBody], error) {
+	return &simba.Response[simba.NoBody]{
+		Status: http.StatusAccepted,
+	}, nil
+}
+
+func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.Header.Set("Authorization", "APIKey token")
+	w := httptest.NewRecorder()
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.AuthJsonHandler(apiKeyAuthHandler, apiKeyAuthFunc))
+	app.Router.ServeHTTP(w, req)
+
+	// Fetch OpenAPI documentation
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	fmt.Println(getW.Body.String())
+
+	yamlContent := getW.Body.String()
+	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, `
+  securitySchemes:
+    User:
+      description: Session cookie
+      in: cookie
+      name: sessionid
+      type: apiKey`,
+	)
+}
+
+// @BearerAuth "admin" "jwt" "Bearer token"
+func bearerAuthFunc(r *http.Request) (*bearerTokenAuthModel, error) {
+	return &bearerTokenAuthModel{
+		Token: "token",
+	}, nil
+}
+
+func bearerTokenAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *bearerTokenAuthModel) (*simba.Response[simba.NoBody], error) {
+	return &simba.Response[simba.NoBody]{
+		Status: http.StatusAccepted,
+	}, nil
+}
+
+func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	w := httptest.NewRecorder()
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.AuthJsonHandler(bearerTokenAuthHandler, bearerAuthFunc))
+	app.Router.ServeHTTP(w, req)
+
+	// Fetch OpenAPI documentation
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	fmt.Println(getW.Body.String())
+
+	yamlContent := getW.Body.String()
+	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, `
+  securitySchemes:
+    admin:
+      bearerFormat: jwt
+      description: Bearer token
+      scheme: bearer
+      type: http`,
+	)
 }

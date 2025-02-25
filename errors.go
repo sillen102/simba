@@ -62,7 +62,7 @@ func NewHttpError(httpStatusCode int, publicMessage string, err error, validatio
 }
 
 // ErrorResponse defines the structure of an error message
-// @Description Represents the structure of an error message returned by the API
+// @description Represents the structure of an error message returned by the API
 type ErrorResponse struct {
 	// Timestamp of the error
 	Timestamp time.Time `json:"timestamp"`
@@ -118,7 +118,7 @@ func (p ParameterType) String() string {
 }
 
 // ValidationError defines the interface for a validation error
-// @Description Detailed information about a validation error
+// @description Detailed information about a validation error
 type ValidationError struct {
 	// Parameter or field that failed validation
 	Parameter string `json:"parameter"`

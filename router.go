@@ -63,7 +63,7 @@ func newRouter(requestSettings settings.Request) *Router {
 
 // ServeHTTP implements the [http.Handler] interface for the [Router] type
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.mountOpenApiEndpoint("/openapi")
+	r.mountOpenApiEndpoint("/openapi.yml")
 	r.Mux.ServeHTTP(w, req)
 }
 

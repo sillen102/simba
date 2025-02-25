@@ -62,7 +62,3 @@ func (a *Application) defaultMiddleware() []func(http.Handler) http.Handler {
 		middleware.LogRequests,
 	}
 }
-
-func (a *Application) GenerateDocs() {
-	a.Router.mountOpenApiEndpoint("/openapi.yml")
-}
