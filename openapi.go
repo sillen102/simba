@@ -127,6 +127,15 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 		}
 
 		operationContext.AddSecurity(sec.securityName)
+
+		operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+			cu.HTTPStatus = http.StatusUnauthorized
+			cu.Description = "Authorization failed"
+		})
+		operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+			cu.HTTPStatus = http.StatusForbidden
+			cu.Description = "Access denied"
+		})
 	}
 
 	err = reflector.AddOperation(operationContext)

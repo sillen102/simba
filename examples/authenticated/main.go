@@ -22,6 +22,8 @@ type User struct {
 
 // authFunc is a function that authenticates and returns a user
 // in this example we just return a hard-coded user
+//
+// @BasicAuth "admin" "admin access only"
 func authFunc(r *http.Request) (*User, error) {
 	return &User{
 		ID:   1,

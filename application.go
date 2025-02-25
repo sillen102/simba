@@ -6,7 +6,6 @@ import (
 
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/settings"
-	"github.com/swaggest/openapi-go/openapi31"
 )
 
 // Application is the main application struct that holds the Mux and other application Settings
@@ -20,9 +19,6 @@ type Application struct {
 
 	// Settings is the application Settings
 	Settings *settings.Config
-
-	// openApiReflector is the OpenAPI reflector for the application
-	openApiReflector openapi31.Reflector
 }
 
 // Default returns a new [Application] application with default Config
@@ -40,16 +36,15 @@ func New(provided ...settings.Config) *Application {
 		panic(err)
 	}
 
-	router := newRouter(cfg.Request)
+	router := newRouter(cfg.Request, cfg.Docs)
 	router.Use(func(next http.Handler) http.Handler {
 		return injectRequestSettings(next, &cfg.Request)
 	})
 
 	return &Application{
-		Server:           &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), Handler: router},
-		Router:           router,
-		Settings:         cfg,
-		openApiReflector: openapi31.Reflector{},
+		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), Handler: router},
+		Router:   router,
+		Settings: cfg,
 	}
 }
 

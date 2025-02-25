@@ -18,6 +18,9 @@ type Config struct {
 	// Request settings
 	Request
 
+	// Docs settings
+	Docs
+
 	// Logger settings
 	Logger *slog.Logger
 }
@@ -46,6 +49,21 @@ type Request struct {
 
 	// RequestIdMode determines how the Request ID will be handled
 	RequestIdMode enums.RequestIdMode `default:"AcceptFromHeader"`
+}
+
+type Docs struct {
+
+	// GenerateOpenAPIDocs will determine if the API documentation will be generated
+	GenerateOpenAPIDocs bool `default:"true"`
+
+	// MountDocsEndpoint will determine if the API documentation endpoint will be mounted
+	MountDocsEndpoint bool `default:"true"`
+
+	// DocsPath is the path to the API documentation
+	DocsPath string `default:"/docs"`
+
+	// ServiceName is the name of the service
+	ServiceName string `default:"Simba Application"`
 }
 
 func Load(st ...Config) (*Config, error) {
@@ -112,6 +130,12 @@ func setDefaults(ptr interface{}) error {
 			switch field.Kind() {
 			case reflect.String:
 				field.SetString(defaultTag)
+			case reflect.Bool:
+				boolValue, err := strconv.ParseBool(defaultTag)
+				if err != nil {
+					return err
+				}
+				field.SetBool(boolValue)
 			case reflect.Int, reflect.Int64:
 				switch field.Type() {
 				case reflect.TypeOf(enums.AllowOrNot(0)):

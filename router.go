@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/sillen102/simba/apiDocs"
 	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/settings"
 	"github.com/swaggest/openapi-go/openapi31"
@@ -27,6 +28,7 @@ type Handler interface {
 type Router struct {
 	Mux                 *http.ServeMux
 	middleware          []func(http.Handler) http.Handler
+	docsSettings        settings.Docs
 	routes              []routeInfo
 	openApiReflector    *openapi31.Reflector
 	schema              []byte
@@ -48,7 +50,7 @@ type routeInfo struct {
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Config]
-func newRouter(requestSettings settings.Request) *Router {
+func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Router {
 	return &Router{
 		Mux: http.NewServeMux(),
 		middleware: []func(http.Handler) http.Handler{
@@ -57,6 +59,7 @@ func newRouter(requestSettings settings.Request) *Router {
 				return injectRequestSettings(next, &requestSettings)
 			},
 		},
+		docsSettings:        docsSettings,
 		routes:              make([]routeInfo, 0),
 		openApiReflector:    &openapi31.Reflector{},
 		schema:              nil,
@@ -66,7 +69,7 @@ func newRouter(requestSettings settings.Request) *Router {
 
 // ServeHTTP implements the [http.Handler] interface for the [Router] type
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.mountOpenApiEndpoint("/openapi.yml")
+	r.mountDocs("/openapi.yml")
 	r.Mux.ServeHTTP(w, req)
 }
 
@@ -149,32 +152,44 @@ func (r *Router) applyMiddleware(handler http.Handler) http.Handler {
 	return handler
 }
 
-func (r *Router) mountOpenApiEndpoint(path string) {
-	if !r.docsEndpointMounted {
-		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, path), http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if r.schema == nil {
+func (r *Router) mountDocs(path string) {
+	if !r.docsEndpointMounted && r.docsSettings.GenerateOpenAPIDocs {
+		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, path), r.openAPIDocsHandler())
+	}
 
-				for _, route := range r.routes {
-					generateRouteDocumentation(r.openApiReflector, &route, route.handler)
-				}
+	if !r.docsEndpointMounted && r.docsSettings.MountDocsEndpoint {
+		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), apiDocs.ScalarDocsHandler(apiDocs.DocsParams{
+			DocsPath:    r.docsSettings.DocsPath,
+			ServiceName: r.docsSettings.ServiceName,
+		}))
+	}
 
-				var err error
-				r.schema, err = r.openApiReflector.Spec.MarshalYAML()
-				if err != nil {
-					errMessage := "failed to generate API docs"
-					slog.Error(errMessage, "error", err)
-					http.Error(w, errMessage, http.StatusInternalServerError)
-					return
-				}
+	r.docsEndpointMounted = true
+}
 
-				// Clean up routes and reflector to free up memory
-				r.routes = nil
-				r.openApiReflector = nil
+func (r *Router) openAPIDocsHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if r.schema == nil {
+
+			for _, route := range r.routes {
+				generateRouteDocumentation(r.openApiReflector, &route, route.handler)
 			}
 
-			w.Header().Set("Content-Type", mimetypes.ApplicationYAML)
-			_, _ = w.Write(r.schema)
-		}))
-		r.docsEndpointMounted = true
+			var err error
+			r.schema, err = r.openApiReflector.Spec.MarshalYAML()
+			if err != nil {
+				errMessage := "failed to generate API docs"
+				slog.Error(errMessage, "error", err)
+				http.Error(w, errMessage, http.StatusInternalServerError)
+				return
+			}
+
+			// Clean up routes and reflector to free up memory
+			r.routes = nil
+			r.openApiReflector = nil
+		}
+
+		w.Header().Set("Content-Type", mimetypes.ApplicationYAML)
+		_, _ = w.Write(r.schema)
 	}
 }

@@ -62,25 +62,24 @@ func NewHttpError(httpStatusCode int, publicMessage string, err error, validatio
 }
 
 // ErrorResponse defines the structure of an error message
-// @description Represents the structure of an error message returned by the API
 type ErrorResponse struct {
 	// Timestamp of the error
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time `json:"timestamp" example:"2021-01-01T12:00:00Z"`
 	// HTTP status code
-	Status int `json:"status"`
+	Status int `json:"status" example:"400"`
 	// HTTP error type
-	Error string `json:"error"`
+	Error string `json:"error" example:"Bad Request"`
 	// Path of the Request
-	Path string `json:"path"`
+	Path string `json:"path" example:"/api/v1/users"`
 	// Method of the Request
-	Method string `json:"method"`
+	Method string `json:"method" example:"GET"`
 	// Request ID
-	RequestID string `json:"requestId,omitempty"`
+	RequestID string `json:"requestId,omitempty" example:"123e4567-e89b-12d3-a456-426614174000" required:"false"`
 	// Error message
-	Message string `json:"message,omitempty"`
+	Message string `json:"message,omitempty" example:"Validation failed"`
 	// Validation errors
-	ValidationErrors []ValidationError `json:"validationErrors,omitempty"`
-} // @Name ErrorResponse
+	ValidationErrors []ValidationError `json:"validationErrors,omitempty" required:"false"`
+}
 
 // NewErrorResponse creates a new ErrorResponse instance with the given status and message
 func NewErrorResponse(r *http.Request, status int, message string, validationErrors ...ValidationError) *ErrorResponse {
@@ -118,15 +117,14 @@ func (p ParameterType) String() string {
 }
 
 // ValidationError defines the interface for a validation error
-// @description Detailed information about a validation error
 type ValidationError struct {
 	// Parameter or field that failed validation
-	Parameter string `json:"parameter"`
+	Parameter string `json:"parameter" example:"name"`
 	// Type indicates where the parameter was located (header, path, query, body)
-	Type ParameterType `json:"type"`
+	Type ParameterType `json:"type" example:"query"`
 	// Error message describing the validation error
-	Message string `json:"message"`
-} // @Name ValidationError
+	Message string `json:"message" example:"name is required"`
+}
 
 // ValidationErrors represents multiple validation errors
 type ValidationErrors []ValidationError
