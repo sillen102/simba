@@ -2,9 +2,9 @@ package simba
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
-	"reflect"
+
+	"github.com/sillen102/simba/mimetypes"
 )
 
 // JsonHandler handles a Request with the Request body and params.
@@ -75,22 +75,35 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.Res
 	writeResponse(w, r, resp, nil)
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getRequestBody() any {
 	var rb RequestBody
-	var p Params
+	return rb
+}
+
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getResponseBody() any {
 	var resb ResponseBody
+	return resb
+}
 
-	bodyType := reflect.TypeOf(rb)
-	paramsType := reflect.TypeOf(p)
-	responseType := reflect.TypeOf(resb)
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getParams() any {
+	var p Params
+	return p
+}
 
-	slog.Debug("type information",
-		"bodyType", bodyType,
-		"paramsType", paramsType,
-		"responseType", responseType,
-	)
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAccepts() string {
+	return mimetypes.ApplicationJSON
+}
 
-	return bodyType, paramsType, responseType
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getProduces() string {
+	return mimetypes.ApplicationJSON
+}
+
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthModel() any {
+	return nil
+}
+
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthFunc() any {
+	return nil
 }
 
 // AuthJsonHandler handles a Request with the Request body and params.
@@ -189,22 +202,36 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getRequestBody() any {
 	var rb RequestBody
+	return rb
+}
+
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getParams() any {
 	var p Params
+	return p
+}
+
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getResponseBody() any {
 	var resb ResponseBody
+	return resb
+}
 
-	bodyType := reflect.TypeOf(rb)
-	paramsType := reflect.TypeOf(p)
-	responseType := reflect.TypeOf(resb)
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAccepts() string {
+	return mimetypes.ApplicationJSON
+}
 
-	slog.Debug("type information",
-		"bodyType", bodyType,
-		"paramsType", paramsType,
-		"responseType", responseType,
-	)
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getProduces() string {
+	return mimetypes.ApplicationJSON
+}
 
-	return bodyType, paramsType, responseType
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAuthModel() any {
+	var am AuthModel
+	return am
+}
+
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAuthFunc() any {
+	return h.authFunc
 }
 
 // handleRequest handles extracting body and params from the Request

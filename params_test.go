@@ -22,7 +22,7 @@ type TestAllParamTypes struct {
 	HeaderBool   bool      `header:"X-Bool"`
 	HeaderUUID   uuid.UUID `header:"X-UUID"`
 
-	// Path parameters
+	// path parameters
 	PathID   int       `path:"id" validate:"required"`
 	PathSlug string    `path:"slug"`
 	PathUUID uuid.UUID `path:"uuid"`

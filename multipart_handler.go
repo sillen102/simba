@@ -2,12 +2,12 @@ package simba
 
 import (
 	"context"
-	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
-	"reflect"
 	"strings"
+
+	"github.com/sillen102/simba/mimetypes"
 )
 
 // MultipartHandler handles a MultipartRequest with params.
@@ -74,22 +74,35 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWri
 	writeResponse(w, r, resp, nil)
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+func (h MultipartHandlerFunc[Params, ResponseBody]) getRequestBody() any {
 	var file multipart.File
+	return &file
+}
+
+func (h MultipartHandlerFunc[Params, ResponseBody]) getParams() any {
 	var p Params
+	return p
+}
+
+func (h MultipartHandlerFunc[Params, ResponseBody]) getResponseBody() any {
 	var resb ResponseBody
+	return resb
+}
 
-	bodyType := reflect.TypeOf(&file).Elem()
-	paramsType := reflect.TypeOf(p)
-	responseType := reflect.TypeOf(resb)
+func (h MultipartHandlerFunc[Params, ResponseBody]) getAccepts() string {
+	return mimetypes.MultipartForm
+}
 
-	slog.Debug("type information",
-		"bodyType", bodyType,
-		"paramsType", paramsType,
-		"responseType", responseType,
-	)
+func (h MultipartHandlerFunc[Params, ResponseBody]) getProduces() string {
+	return mimetypes.ApplicationJSON
+}
 
-	return bodyType, paramsType, responseType
+func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthModel() any {
+	return nil
+}
+
+func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthFunc() any {
+	return nil
 }
 
 // AuthMultipartHandler handles a MultipartRequest with params and an authenticated model.
@@ -183,22 +196,36 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getTypes() (reflect.Type, reflect.Type, reflect.Type) {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getRequestBody() any {
 	var file multipart.File
-	var p Params
+	return &file
+}
+
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getResponseBody() any {
 	var resb ResponseBody
+	return resb
+}
 
-	bodyType := reflect.TypeOf(&file).Elem()
-	paramsType := reflect.TypeOf(p)
-	responseType := reflect.TypeOf(resb)
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getParams() any {
+	var p Params
+	return p
+}
 
-	slog.Debug("type information",
-		"bodyType", bodyType,
-		"paramsType", paramsType,
-		"responseType", responseType,
-	)
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAccepts() string {
+	return mimetypes.MultipartForm
+}
 
-	return bodyType, paramsType, responseType
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getProduces() string {
+	return mimetypes.ApplicationJSON
+}
+
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthModel() any {
+	var am AuthModel
+	return am
+}
+
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthFunc() any {
+	return h.authFunc
 }
 
 // handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request
