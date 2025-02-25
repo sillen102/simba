@@ -39,7 +39,6 @@ type respBody struct {
 // @Description this is a multiline
 //
 // description for the handler
-//
 // @Error 409 Resource already exists
 func handler(ctx context.Context, req *simba.Request[reqBody, params]) (*simba.Response[respBody], error) {
 	return &simba.Response[respBody]{
@@ -98,7 +97,7 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "description: Unexpected error")
 	require.Contains(t, yamlContent, "description: Resource already exists")
 	require.Contains(t, yamlContent, `
-      description: |
+      description: |-
         this is a multiline
 
         description for the handler`,
@@ -106,6 +105,7 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "operationId: testHandler")
 	require.Contains(t, yamlContent, "summary: test handler")
 	require.Contains(t, yamlContent, "deprecated: true")
+	require.Contains(t, yamlContent, "\"201\":")
 }
 
 type basicAuthModel struct {
@@ -183,6 +183,7 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	require.Contains(t, yamlContent, "operationId: basicAuthHandler")
 	require.Contains(t, yamlContent, "summary: basic auth handler")
 	require.NotContains(t, yamlContent, "deprecated: true")
+	require.Contains(t, yamlContent, "\"204\":")
 }
 
 func TestMultipleAuthHandlers(t *testing.T) {

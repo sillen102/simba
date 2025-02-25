@@ -19,6 +19,7 @@ type commentInfo struct {
 	id          string
 	summary     string
 	description string
+	statusCode  int
 	deprecated  bool
 	errors      []struct {
 		Code    int
@@ -50,6 +51,7 @@ const (
 	idTag          = "@ID"
 	summaryTag     = "@Summary"
 	descriptionTag = "@Description"
+	statusCodeTag  = "@StatusCode"
 	errorTag       = "@Error"
 	deprecatedTag  = "@Deprecated"
 	basicAuthTag   = "@BasicAuth"
@@ -96,9 +98,18 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 		operationContext.AddReqStructure(routeInfo.params)
 	}
 
-	// Add response with 200 status code
+	// Get response status code
+	if info.statusCode == 0 {
+		if routeInfo.respBody == (NoBody{}) {
+			info.statusCode = http.StatusNoContent
+		} else {
+			info.statusCode = getHandlerResponseStatus(handler)
+		}
+	}
+
+	// Add response with the status code
 	operationContext.AddRespStructure(routeInfo.respBody, func(cu *openapi.ContentUnit) {
-		cu.HTTPStatus = http.StatusOK
+		cu.HTTPStatus = info.statusCode
 		cu.ContentType = routeInfo.produces
 	})
 
@@ -249,6 +260,12 @@ func parseHandlerComment(comment string) commentInfo {
 			if text != "" {
 				descLines = append(descLines, text)
 			}
+		case strings.HasPrefix(line, statusCodeTag):
+			code, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, statusCodeTag)))
+			if err != nil {
+				continue
+			}
+			info.statusCode = code
 		case strings.HasPrefix(line, deprecatedTag):
 			info.deprecated = true
 		case strings.HasPrefix(line, errorTag):
@@ -318,4 +335,109 @@ func parseAuthFuncComment(comment string) security {
 	}
 
 	return sec
+}
+
+func getHandlerResponseStatus(function any) int {
+	handlerValue := reflect.ValueOf(function)
+	handlerType := handlerValue.Type()
+	if handlerType.Kind() != reflect.Func {
+		return 0
+	}
+
+	// Get the function pointer
+	var pc uintptr
+	if handlerValue.IsValid() && !handlerValue.IsNil() {
+		pc = handlerValue.Pointer()
+	} else {
+		return 0
+	}
+
+	fn := runtime.FuncForPC(pc)
+	if fn == nil {
+		return 0
+	}
+
+	fileName, _ := fn.FileLine(pc)
+	if fileName == "" {
+		return 0
+	}
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, fileName, nil, parser.ParseComments)
+	if err != nil {
+		return 0
+	}
+
+	// Extract just the function name from the full name.
+	funcName := fn.Name()
+	if idx := strings.LastIndex(funcName, "."); idx != -1 {
+		funcName = funcName[idx+1:]
+	}
+
+	var status int
+	ast.Inspect(node, func(n ast.Node) bool {
+		fd, ok := n.(*ast.FuncDecl)
+		if !ok || fd.Name.Name != funcName {
+			return true
+		}
+
+		// Iterate over statements in the function body.
+		for _, stmt := range fd.Body.List {
+			ret, ok := stmt.(*ast.ReturnStmt)
+			if !ok || len(ret.Results) == 0 {
+				continue
+			}
+
+			// Assume the returned composite literal is wrapped with a pointer operator.
+			unary, ok := ret.Results[0].(*ast.UnaryExpr)
+			if !ok {
+				continue
+			}
+
+			cl, ok := unary.X.(*ast.CompositeLit)
+			if !ok {
+				continue
+			}
+
+			// Look for the Status field in the composite literal.
+			for _, elt := range cl.Elts {
+				kv, ok := elt.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+
+				ident, ok := kv.Key.(*ast.Ident)
+				if !ok || ident.Name != "Status" {
+					continue
+				}
+
+				// Handle basic integer literal.
+				if basicLit, ok := kv.Value.(*ast.BasicLit); ok && basicLit.Kind == token.INT {
+					s, err := strconv.Atoi(basicLit.Value)
+					if err == nil {
+						status = s
+						return false // Stop inspecting further once found.
+					}
+				}
+
+				// Handle SelectorExpr for constants (e.g., http.StatusCreated).
+				if selExpr, ok := kv.Value.(*ast.SelectorExpr); ok {
+					if pkgIdent, ok := selExpr.X.(*ast.Ident); ok && pkgIdent.Name == "http" {
+						if code, ok := HTTPStatusMapping[selExpr.Sel.Name]; ok {
+							status = code
+							return false
+						}
+					}
+				}
+			}
+		}
+
+		return true
+	})
+
+	if status == 0 {
+		return http.StatusOK // Default status code
+	}
+
+	return status
 }
