@@ -33,9 +33,11 @@ type respBody struct {
 	Description string `json:"description" description:"Description of the user" example:"A test user"`
 }
 
-// handler is a test handler for the POST /test/{id} route
+// @Description handler is a test handler for the POST /test/{id} route
 // It returns a response with the request body and params
+//
 // It also sets a custom header and cookie
+// @Error 409 Resource already exists
 func handler(ctx context.Context, req *simba.Request[reqBody, params]) (*simba.Response[respBody], error) {
 	return &simba.Response[respBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
@@ -88,4 +90,9 @@ func TestOpenAPI(t *testing.T) {
 	require.Contains(t, yamlContent, "description: Name of the user")
 	require.Contains(t, yamlContent, "description: Age of the user")
 	require.Contains(t, yamlContent, "description: Gender of the user")
+	require.Contains(t, yamlContent, "description: Description of the user")
+	require.Contains(t, yamlContent, "description: Request body contains invalid data")
+	require.Contains(t, yamlContent, "description: Request body could not be processed")
+	require.Contains(t, yamlContent, "description: Unexpected error")
+	require.Contains(t, yamlContent, "description: Resource already exists")
 }

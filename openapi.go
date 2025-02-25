@@ -9,11 +9,20 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
 )
+
+type commentInfo struct {
+	Description string
+	Errors      []struct {
+		Code    int
+		Message string
+	}
+}
 
 func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *routeInfo, handler any) {
 	op, err := reflector.NewOperationContext(routeInfo.method, routeInfo.path)
@@ -21,11 +30,15 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 		panic(fmt.Errorf("failed to create operation context: %w", err))
 	}
 
+	// Parse function comments
+	comment := getFunctionComment(handler)
+	info := parseFunctionComment(comment)
+
 	// Add request body if it exists
 	if routeInfo.reqBody != nil {
 		op.AddReqStructure(routeInfo.reqBody, func(cu *openapi.ContentUnit) {
 			cu.ContentType = routeInfo.accepts
-			cu.Description = getFunctionComment(handler)
+			cu.Description = info.Description
 		})
 	}
 
@@ -39,6 +52,28 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 		cu.HTTPStatus = http.StatusOK
 		cu.ContentType = routeInfo.produces
 	})
+
+	// Add default error responses
+	op.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+		cu.HTTPStatus = http.StatusBadRequest
+		cu.Description = "Request body contains invalid data"
+	})
+	op.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+		cu.HTTPStatus = http.StatusUnprocessableEntity
+		cu.Description = "Request body could not be processed"
+	})
+	op.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+		cu.HTTPStatus = http.StatusInternalServerError
+		cu.Description = "Unexpected error"
+	})
+
+	// Add custom error responses
+	for _, e := range info.Errors {
+		op.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+			cu.HTTPStatus = e.Code
+			cu.Description = e.Message
+		})
+	}
 
 	err = reflector.AddOperation(op)
 	if err != nil {
@@ -105,4 +140,52 @@ func getFunctionComment(function any) string {
 	})
 
 	return strings.TrimSpace(comment)
+}
+
+func parseFunctionComment(comment string) commentInfo {
+	lines := strings.Split(strings.TrimSpace(comment), "\n")
+
+	info := commentInfo{
+		Errors: make([]struct {
+			Code    int
+			Message string
+		}, 0),
+	}
+
+	var descLines []string
+	insideDesc := false
+
+	for _, line := range lines {
+		switch {
+		case strings.HasPrefix(line, "@Description"):
+			insideDesc = true
+			text := strings.TrimSpace(strings.TrimPrefix(line, "@Description"))
+			if text != "" {
+				descLines = append(descLines, text)
+			}
+		case strings.HasPrefix(line, "@Error"):
+			insideDesc = false
+			errorLine := strings.TrimSpace(strings.TrimPrefix(line, "@Error"))
+			// Then split on @Error
+			parts := strings.SplitN(errorLine, " ", 2)
+			if len(parts) >= 2 {
+				code, err := strconv.Atoi(parts[0])
+				if err != nil {
+					continue
+				}
+				info.Errors = append(info.Errors, struct {
+					Code    int
+					Message string
+				}{Code: code, Message: parts[1]})
+			}
+		case insideDesc:
+			descLines = append(descLines, line)
+		case strings.HasPrefix(line, "@"):
+			insideDesc = false
+		}
+	}
+
+	info.Description = strings.Join(descLines, "\n")
+
+	return info
 }
