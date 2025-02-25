@@ -19,6 +19,7 @@ type commentInfo struct {
 	id          string
 	summary     string
 	description string
+	deprecated  bool
 	errors      []struct {
 		Code    int
 		Message string
@@ -50,6 +51,7 @@ const (
 	summaryTag     = "@Summary"
 	descriptionTag = "@Description"
 	errorTag       = "@Error"
+	deprecatedTag  = "@Deprecated"
 	basicAuthTag   = "@BasicAuth"
 	apiKeyAuthTag  = "@APIKeyAuth"
 	bearerAuthTag  = "@BearerAuth"
@@ -64,6 +66,8 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	// Parse function comments
 	comment := getFunctionComment(handler)
 	info := parseHandlerComment(comment)
+
+	operationContext.SetIsDeprecated(info.deprecated)
 
 	// Add ID
 	if info.id != "" {
@@ -245,6 +249,8 @@ func parseHandlerComment(comment string) commentInfo {
 			if text != "" {
 				descLines = append(descLines, text)
 			}
+		case strings.HasPrefix(line, deprecatedTag):
+			info.deprecated = true
 		case strings.HasPrefix(line, errorTag):
 			insideDesc = false
 			errorLine := strings.TrimSpace(strings.TrimPrefix(line, errorTag))

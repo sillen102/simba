@@ -34,6 +34,7 @@ type respBody struct {
 }
 
 // @ID testHandler
+// @Deprecated
 // @Summary test handler
 // @Description this is a multiline
 //
@@ -104,6 +105,7 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	)
 	require.Contains(t, yamlContent, "operationId: testHandler")
 	require.Contains(t, yamlContent, "summary: test handler")
+	require.Contains(t, yamlContent, "deprecated: true")
 }
 
 type basicAuthModel struct {
@@ -180,6 +182,7 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	)
 	require.Contains(t, yamlContent, "operationId: basicAuthHandler")
 	require.Contains(t, yamlContent, "summary: basic auth handler")
+	require.NotContains(t, yamlContent, "deprecated: true")
 }
 
 func TestMultipleAuthHandlers(t *testing.T) {

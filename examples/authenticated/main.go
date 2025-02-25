@@ -9,7 +9,7 @@ import (
 )
 
 type ResponseBody struct {
-	Message string `json:"message"`
+	Message string `json:"message" example:"Hello John Doe, you are an admin"`
 }
 
 // User represents a user
