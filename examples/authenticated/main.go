@@ -12,7 +12,7 @@ type ResponseBody struct {
 	Message string `json:"message"`
 }
 
-// User is a struct that represents a user
+// User represents a user
 // in this example we use a simple struct to represent a user
 type User struct {
 	ID   int
@@ -32,6 +32,9 @@ func authFunc(r *http.Request) (*User, error) {
 	}, nil
 }
 
+// @ID authenticatedHandler
+// @Summary authenticated handler
+// @Description this is a handler that requires authentication
 func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[ResponseBody], error) {
 
 	// Access the request cookies

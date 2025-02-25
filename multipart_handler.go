@@ -97,6 +97,10 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
+func (h MultipartHandlerFunc[Params, ResponseBody]) getHandler() any {
+	return h
+}
+
 func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthModel() any {
 	return nil
 }
@@ -217,6 +221,10 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getA
 
 func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getProduces() string {
 	return mimetypes.ApplicationJSON
+}
+
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getHandler() any {
+	return h.handler
 }
 
 func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthModel() any {

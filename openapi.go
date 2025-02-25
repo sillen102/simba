@@ -16,6 +16,8 @@ import (
 )
 
 type commentInfo struct {
+	id          string
+	summary     string
 	description string
 	errors      []struct {
 		Code    int
@@ -44,6 +46,8 @@ const (
 
 // Tags for parsing comments
 const (
+	idTag          = "@ID"
+	summaryTag     = "@Summary"
 	descriptionTag = "@Description"
 	errorTag       = "@Error"
 	basicAuthTag   = "@BasicAuth"
@@ -51,7 +55,7 @@ const (
 	bearerAuthTag  = "@BearerAuth"
 )
 
-func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *routeInfo, handler Handler) {
+func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *routeInfo, handler any) {
 	operationContext, err := reflector.NewOperationContext(routeInfo.method, routeInfo.path)
 	if err != nil {
 		panic(fmt.Errorf("failed to create operation context: %w", err))
@@ -61,11 +65,25 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	comment := getFunctionComment(handler)
 	info := parseHandlerComment(comment)
 
+	// Add ID
+	if info.id != "" {
+		operationContext.SetID(info.id)
+	}
+
+	// Add summary
+	if info.summary != "" {
+		operationContext.SetSummary(info.summary)
+	}
+
+	// Add description
+	if info.description != "" {
+		operationContext.SetDescription(info.description)
+	}
+
 	// Add request body if it exists
 	if routeInfo.reqBody != nil {
 		operationContext.AddReqStructure(routeInfo.reqBody, func(cu *openapi.ContentUnit) {
 			cu.ContentType = routeInfo.accepts
-			cu.Description = info.description
 		})
 	}
 
@@ -217,6 +235,10 @@ func parseHandlerComment(comment string) commentInfo {
 
 	for _, line := range lines {
 		switch {
+		case strings.HasPrefix(line, idTag):
+			info.id = strings.TrimSpace(strings.TrimPrefix(line, idTag))
+		case strings.HasPrefix(line, summaryTag):
+			info.summary = strings.TrimSpace(strings.TrimPrefix(line, summaryTag))
 		case strings.HasPrefix(line, descriptionTag):
 			insideDesc = true
 			text := strings.TrimSpace(strings.TrimPrefix(line, descriptionTag))

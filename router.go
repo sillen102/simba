@@ -19,6 +19,7 @@ type Handler interface {
 	getResponseBody() any
 	getAccepts() string
 	getProduces() string
+	getHandler() any
 	getAuthModel() any
 	getAuthFunc() any
 }
@@ -44,9 +45,9 @@ type routeInfo struct {
 	reqBody   any
 	params    any
 	respBody  any
+	handler   any
 	authModel any
 	authFunc  any
-	handler   Handler
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Config]
@@ -137,7 +138,7 @@ func (r *Router) Handle(method, path string, handler Handler) {
 		respBody:  handler.getResponseBody(),
 		authModel: handler.getAuthModel(),
 		authFunc:  handler.getAuthFunc(),
-		handler:   handler,
+		handler:   handler.getHandler(),
 	})
 }
 

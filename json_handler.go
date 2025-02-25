@@ -98,6 +98,10 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getProduces() string
 	return mimetypes.ApplicationJSON
 }
 
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getHandler() any {
+	return h
+}
+
 func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthModel() any {
 	return nil
 }
@@ -223,6 +227,10 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 
 func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getProduces() string {
 	return mimetypes.ApplicationJSON
+}
+
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getHandler() any {
+	return h.handler
 }
 
 func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAuthModel() any {

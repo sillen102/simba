@@ -33,6 +33,8 @@ type respBody struct {
 	Description string `json:"description" description:"description of the user" example:"A test user"`
 }
 
+// @ID testHandler
+// @Summary test handler
 // @Description this is a multiline
 //
 // description for the handler
@@ -95,11 +97,13 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "description: Unexpected error")
 	require.Contains(t, yamlContent, "description: Resource already exists")
 	require.Contains(t, yamlContent, `
-        description: |
-          this is a multiline
+      description: |
+        this is a multiline
 
-          description for the handler`,
+        description for the handler`,
 	)
+	require.Contains(t, yamlContent, "operationId: testHandler")
+	require.Contains(t, yamlContent, "summary: test handler")
 }
 
 type basicAuthModel struct {
@@ -121,6 +125,13 @@ func basicAuthFunc(r *http.Request) (*basicAuthModel, error) {
 	}, nil
 }
 
+// @ID basicAuthHandler
+// @Summary basic auth handler
+// @Description this is a multiline
+//
+// description for the handler
+//
+// @Error 409 Resource already exists
 func basicAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *basicAuthModel) (*simba.Response[simba.NoBody], error) {
 	return &simba.Response[simba.NoBody]{
 		Status: http.StatusAccepted,
@@ -151,6 +162,12 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
 	require.Contains(t, yamlContent, `
+      description: |
+        this is a multiline
+
+        description for the handler`,
+	)
+	require.Contains(t, yamlContent, `
   securitySchemes:
     admin:
       description: admin access only
@@ -161,6 +178,8 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
       security:
       - admin: []`,
 	)
+	require.Contains(t, yamlContent, "operationId: basicAuthHandler")
+	require.Contains(t, yamlContent, "summary: basic auth handler")
 }
 
 func TestMultipleAuthHandlers(t *testing.T) {
@@ -203,6 +222,7 @@ func TestMultipleAuthHandlers(t *testing.T) {
       security:
       - admin: []`,
 	)
+	require.Contains(t, yamlContent, "operationId: basicAuthHandler")
 }
 
 // @APIKeyAuth "User" "sessionid" "cookie" "Session cookie"
@@ -212,6 +232,13 @@ func apiKeyAuthFunc(r *http.Request) (*apiKeyAuthModel, error) {
 	}, nil
 }
 
+// @ID apiKeyAuthHandler
+// @Summary api key handler
+// @Description this is a multiline
+//
+// description for the handler
+//
+// @Error 409 Resource already exists
 func apiKeyAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *apiKeyAuthModel) (*simba.Response[simba.NoBody], error) {
 	return &simba.Response[simba.NoBody]{
 		Status: http.StatusAccepted,
@@ -243,6 +270,12 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
 	require.Contains(t, yamlContent, `
+      description: |
+        this is a multiline
+
+        description for the handler`,
+	)
+	require.Contains(t, yamlContent, `
   securitySchemes:
     User:
       description: Session cookie
@@ -254,6 +287,8 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
       security:
       - User: []`,
 	)
+	require.Contains(t, yamlContent, "operationId: apiKeyAuthHandler")
+	require.Contains(t, yamlContent, "summary: api key handler")
 }
 
 // @BearerAuth "admin" "jwt" "Bearer token"
@@ -263,6 +298,13 @@ func bearerAuthFunc(r *http.Request) (*bearerTokenAuthModel, error) {
 	}, nil
 }
 
+// @ID bearerTokenAuthHandler
+// @Summary bearer token handler
+// @Description this is a multiline
+//
+// description for the handler
+//
+// @Error 409 Resource already exists
 func bearerTokenAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *bearerTokenAuthModel) (*simba.Response[simba.NoBody], error) {
 	return &simba.Response[simba.NoBody]{
 		Status: http.StatusAccepted,
@@ -294,6 +336,12 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
 	require.Contains(t, yamlContent, `
+      description: |
+        this is a multiline
+
+        description for the handler`,
+	)
+	require.Contains(t, yamlContent, `
   securitySchemes:
     admin:
       bearerFormat: jwt
@@ -305,4 +353,6 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
       security:
       - admin: []`,
 	)
+	require.Contains(t, yamlContent, "operationId: bearerTokenAuthHandler")
+	require.Contains(t, yamlContent, "summary: bearer token handler")
 }
