@@ -27,6 +27,7 @@ type Handler interface {
 type Router struct {
 	Mux                 *http.ServeMux
 	middleware          []func(http.Handler) http.Handler
+	routes              []routeInfo
 	openApiReflector    *openapi31.Reflector
 	schema              []byte
 	docsEndpointMounted bool
@@ -43,6 +44,7 @@ type routeInfo struct {
 	respBody  any
 	authModel any
 	authFunc  any
+	handler   Handler
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Config]
@@ -55,6 +57,7 @@ func newRouter(requestSettings settings.Request) *Router {
 				return injectRequestSettings(next, &requestSettings)
 			},
 		},
+		routes:              make([]routeInfo, 0),
 		openApiReflector:    &openapi31.Reflector{},
 		schema:              nil,
 		docsEndpointMounted: false,
@@ -121,7 +124,7 @@ func (r *Router) HEAD(path string, handler Handler) {
 
 func (r *Router) Handle(method, path string, handler Handler) {
 	r.addRoute(method, path, handler)
-	generateRouteDocumentation(r.openApiReflector, &routeInfo{
+	r.routes = append(r.routes, routeInfo{
 		method:    method,
 		path:      path,
 		accepts:   handler.getAccepts(),
@@ -131,7 +134,8 @@ func (r *Router) Handle(method, path string, handler Handler) {
 		respBody:  handler.getResponseBody(),
 		authModel: handler.getAuthModel(),
 		authFunc:  handler.getAuthFunc(),
-	}, handler)
+		handler:   handler,
+	})
 }
 
 func (r *Router) addRoute(method, path string, handler http.Handler) {
@@ -147,8 +151,13 @@ func (r *Router) applyMiddleware(handler http.Handler) http.Handler {
 
 func (r *Router) mountOpenApiEndpoint(path string) {
 	if !r.docsEndpointMounted {
-		r.Mux.Handle(fmt.Sprintf("GET %s", path), http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, path), http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if r.schema == nil {
+
+				for _, route := range r.routes {
+					generateRouteDocumentation(r.openApiReflector, &route, route.handler)
+				}
+
 				var err error
 				r.schema, err = r.openApiReflector.Spec.MarshalYAML()
 				if err != nil {
@@ -157,6 +166,10 @@ func (r *Router) mountOpenApiEndpoint(path string) {
 					http.Error(w, errMessage, http.StatusInternalServerError)
 					return
 				}
+
+				// Clean up routes and reflector to free up memory
+				r.routes = nil
+				r.openApiReflector = nil
 			}
 
 			w.Header().Set("Content-Type", mimetypes.ApplicationYAML)

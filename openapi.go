@@ -125,6 +125,8 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 				sec.securityDescription,
 			)
 		}
+
+		operationContext.AddSecurity(sec.securityName)
 	}
 
 	err = reflector.AddOperation(operationContext)

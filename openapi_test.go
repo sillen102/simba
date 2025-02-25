@@ -157,6 +157,52 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
       scheme: basic
       type: http`,
 	)
+	require.Contains(t, yamlContent, `
+      security:
+      - admin: []`,
+	)
+}
+
+func TestMultipleAuthHandlers(t *testing.T) {
+	t.Parallel()
+
+	app := simba.Default()
+
+	req1 := httptest.NewRequest(http.MethodPost, "/test1", nil)
+	w1 := httptest.NewRecorder()
+	app.Router.POST("/test1", simba.AuthJsonHandler(basicAuthHandler, basicAuthFunc))
+	app.Router.ServeHTTP(w1, req1)
+
+	req2 := httptest.NewRequest(http.MethodPost, "/test2", nil)
+	w2 := httptest.NewRecorder()
+	app.Router.POST("/test2", simba.AuthJsonHandler(basicAuthHandler, basicAuthFunc))
+	app.Router.ServeHTTP(w2, req2)
+
+	// Fetch OpenAPI documentation
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	fmt.Println(getW.Body.String())
+
+	yamlContent := getW.Body.String()
+	require.Contains(t, yamlContent, "/test1")
+	require.Contains(t, yamlContent, "/test2")
+	require.Contains(t, yamlContent, `
+  securitySchemes:
+    admin:
+      description: admin access only
+      scheme: basic
+      type: http`,
+	)
+	require.Contains(t, yamlContent, `
+      security:
+      - admin: []`,
+	)
 }
 
 // @APIKeyAuth "User" "sessionid" "cookie" "Session cookie"
@@ -204,6 +250,10 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
       name: sessionid
       type: apiKey`,
 	)
+	require.Contains(t, yamlContent, `
+      security:
+      - User: []`,
+	)
 }
 
 // @BearerAuth "admin" "jwt" "Bearer token"
@@ -250,5 +300,9 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
       description: Bearer token
       scheme: bearer
       type: http`,
+	)
+	require.Contains(t, yamlContent, `
+      security:
+      - admin: []`,
 	)
 }
