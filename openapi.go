@@ -17,6 +17,7 @@ import (
 
 type commentInfo struct {
 	id          string
+	tags        []string
 	summary     string
 	description string
 	statusCode  int
@@ -49,6 +50,7 @@ const (
 // Tags for parsing comments
 const (
 	idTag          = "@ID"
+	tagTag         = "@Tag"
 	summaryTag     = "@Summary"
 	descriptionTag = "@Description"
 	statusCodeTag  = "@StatusCode"
@@ -74,6 +76,11 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	// Add ID
 	if info.id != "" {
 		operationContext.SetID(info.id)
+	}
+
+	// Add tags
+	if len(info.tags) > 0 {
+		operationContext.SetTags(info.tags...)
 	}
 
 	// Add summary
@@ -239,6 +246,7 @@ func parseHandlerComment(comment string) commentInfo {
 	lines := strings.Split(strings.TrimSpace(comment), "\n")
 
 	info := commentInfo{
+		tags: make([]string, 0),
 		errors: make([]struct {
 			Code    int
 			Message string
@@ -252,6 +260,9 @@ func parseHandlerComment(comment string) commentInfo {
 		switch {
 		case strings.HasPrefix(line, idTag):
 			info.id = strings.TrimSpace(strings.TrimPrefix(line, idTag))
+		case strings.HasPrefix(line, tagTag):
+			tag := strings.TrimSpace(strings.TrimPrefix(line, tagTag))
+			info.tags = append(info.tags, tag)
 		case strings.HasPrefix(line, summaryTag):
 			info.summary = strings.TrimSpace(strings.TrimPrefix(line, summaryTag))
 		case strings.HasPrefix(line, descriptionTag):

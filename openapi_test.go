@@ -35,6 +35,8 @@ type respBody struct {
 
 // @ID testHandler
 // @Deprecated
+// @Tag Test
+// @Tag User
 // @Summary test handler
 // @Description this is a multiline
 //
@@ -106,6 +108,7 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "summary: test handler")
 	require.Contains(t, yamlContent, "deprecated: true")
 	require.Contains(t, yamlContent, "\"201\":")
+	require.Contains(t, yamlContent, "tags:", "- Test", "- User")
 }
 
 type basicAuthModel struct {
