@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/iancoleman/strcase"
 	"github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
 )
@@ -67,8 +68,12 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 		panic(fmt.Errorf("failed to create operation context: %w", err))
 	}
 
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+	handlerName := getFunctionName(handler)
+
 	// Parse function comments
-	comment := getFunctionComment(handler)
+	comment := getFunctionComment(handlerValue, handlerType)
 	info := parseHandlerComment(comment)
 
 	operationContext.SetIsDeprecated(info.deprecated)
@@ -76,21 +81,29 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	// Add ID
 	if info.id != "" {
 		operationContext.SetID(info.id)
+	} else {
+		operationContext.SetID(strcase.ToKebab(handlerName))
 	}
 
 	// Add tags
 	if len(info.tags) > 0 {
 		operationContext.SetTags(info.tags...)
+	} else {
+		operationContext.SetTags(strcase.ToCamel(getPackageName(handlerType)))
 	}
 
 	// Add summary
 	if info.summary != "" {
 		operationContext.SetSummary(info.summary)
+	} else {
+		operationContext.SetSummary(camelToSpaced(strcase.ToCamel(handlerName)))
 	}
 
 	// Add description
 	if info.description != "" {
 		operationContext.SetDescription(info.description)
+	} else {
+		operationContext.SetDescription(getCommentStrippedFromTags(comment))
 	}
 
 	// Add request body if it exists
@@ -110,7 +123,7 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 		if routeInfo.respBody == (NoBody{}) {
 			info.statusCode = http.StatusNoContent
 		} else {
-			info.statusCode = getHandlerResponseStatus(handler)
+			info.statusCode = getHandlerResponseStatus(handlerValue, handlerType)
 		}
 	}
 
@@ -144,8 +157,11 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 
 	// Add security if authenticated route
 	if routeInfo.authFunc != nil {
-		secComment := getFunctionComment(routeInfo.authFunc)
+		authFuncType := reflect.TypeOf(routeInfo.authFunc)
+		authFuncValue := reflect.ValueOf(routeInfo.authFunc)
+		secComment := getFunctionComment(authFuncValue, authFuncType)
 		sec := parseAuthFuncComment(secComment)
+
 		switch sec.securityScheme {
 		case none:
 			// Do nothing
@@ -184,10 +200,7 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	}
 }
 
-func getFunctionComment(function any) string {
-	handlerValue := reflect.ValueOf(function)
-	handlerType := handlerValue.Type()
-
+func getFunctionComment(handlerValue reflect.Value, handlerType reflect.Type) string {
 	// Skip comment extraction for non-function types
 	if handlerType.Kind() != reflect.Func {
 		return ""
@@ -348,9 +361,7 @@ func parseAuthFuncComment(comment string) security {
 	return sec
 }
 
-func getHandlerResponseStatus(function any) int {
-	handlerValue := reflect.ValueOf(function)
-	handlerType := handlerValue.Type()
+func getHandlerResponseStatus(handlerValue reflect.Value, handlerType reflect.Type) int {
 	if handlerType.Kind() != reflect.Func {
 		return 0
 	}
@@ -451,4 +462,42 @@ func getHandlerResponseStatus(function any) int {
 	}
 
 	return status
+}
+
+func getPackageName(functionType reflect.Type) string {
+	pkgPath := functionType.PkgPath()
+	parts := strings.Split(pkgPath, "/")
+	return parts[len(parts)-1]
+}
+
+func getFunctionName(i any) string {
+	// Get the function value
+	function := runtime.FuncForPC(reflect.ValueOf(i).Pointer())
+	// Get the full function name (includes package path)
+	fullName := function.Name()
+	// Extract just the function name
+	if idx := strings.LastIndex(fullName, "."); idx != -1 {
+		return fullName[idx+1:]
+	}
+	return fullName
+}
+
+func getCommentStrippedFromTags(comment string) string {
+	lines := strings.Split(strings.TrimSpace(comment), "\n")
+	result := ""
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "@") {
+			continue
+		}
+		result += line + "\n"
+	}
+
+	return strings.TrimSpace(result)
+}
+
+func camelToSpaced(s string) string {
+	words := strcase.ToDelimited(s, ' ')
+	words = strings.ToLower(words)
+	return strings.ToUpper(words[:1]) + words[1:]
 }

@@ -305,13 +305,13 @@ func bearerAuthFunc(r *http.Request) (*bearerTokenAuthModel, error) {
 	}, nil
 }
 
-// @ID bearerTokenAuthHandler
-// @Summary bearer token handler
+// @ID  bearerTokenAuthHandler
+// @Summary  bearer token handler
 // @Description this is a multiline
 //
 // description for the handler
 //
-// @Error 409 Resource already exists
+// @Error  409 	Resource already exists
 func bearerTokenAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *bearerTokenAuthModel) (*simba.Response[simba.NoBody], error) {
 	return &simba.Response[simba.NoBody]{
 		Status: http.StatusAccepted,
@@ -362,4 +362,41 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	)
 	require.Contains(t, yamlContent, "operationId: bearerTokenAuthHandler")
 	require.Contains(t, yamlContent, "summary: bearer token handler")
+}
+
+// A dummy function to test the OpenAPI generation without any tags.
+func noTagsHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+	return &simba.Response[simba.NoBody]{
+		Status: http.StatusAccepted,
+	}, nil
+}
+
+func TestOpenAPIGenNoTags(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	w := httptest.NewRecorder()
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.JsonHandler(noTagsHandler))
+	app.Router.ServeHTTP(w, req)
+
+	// Fetch OpenAPI documentation
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	fmt.Println(getW.Body.String())
+
+	yamlContent := getW.Body.String()
+	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags.")
+	require.Contains(t, yamlContent, "operationId: no-tags-handler")
+	require.Contains(t, yamlContent, "summary: No tags handler")
+	require.Contains(t, yamlContent, "tags:", "- Simba")
 }
