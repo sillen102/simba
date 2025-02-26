@@ -89,7 +89,7 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	if len(info.tags) > 0 {
 		operationContext.SetTags(info.tags...)
 	} else {
-		operationContext.SetTags(strcase.ToCamel(getPackageName(handlerType)))
+		operationContext.SetTags(strcase.ToCamel(getPackageName(handler)))
 	}
 
 	// Add summary
@@ -464,10 +464,21 @@ func getHandlerResponseStatus(handlerValue reflect.Value, handlerType reflect.Ty
 	return status
 }
 
-func getPackageName(functionType reflect.Type) string {
-	pkgPath := functionType.PkgPath()
-	parts := strings.Split(pkgPath, "/")
-	return parts[len(parts)-1]
+func getPackageName(handler any) string {
+	pc := reflect.ValueOf(handler).Pointer()
+	fn := runtime.FuncForPC(pc)
+	fullPath := fn.Name()
+
+	// Split the full path into parts
+	parts := strings.Split(fullPath, "/")
+	// Get the last part which contains package.function
+	lastPart := parts[len(parts)-1]
+	// Split package.function and take the package name
+	pkgAndFunc := strings.Split(lastPart, ".")
+	if len(pkgAndFunc) > 1 {
+		return pkgAndFunc[0]
+	}
+	return lastPart
 }
 
 func getFunctionName(i any) string {

@@ -109,6 +109,8 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "deprecated: true")
 	require.Contains(t, yamlContent, "\"201\":")
 	require.Contains(t, yamlContent, "tags:", "- Test", "- User")
+	require.Contains(t, yamlContent, "- User")
+	require.Contains(t, yamlContent, "- Test")
 }
 
 type basicAuthModel struct {
@@ -398,5 +400,6 @@ func TestOpenAPIGenNoTags(t *testing.T) {
 	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags.")
 	require.Contains(t, yamlContent, "operationId: no-tags-handler")
 	require.Contains(t, yamlContent, "summary: No tags handler")
-	require.Contains(t, yamlContent, "tags:", "- Simba")
+	require.Contains(t, yamlContent, "tags:")
+	require.Contains(t, yamlContent, "- SimbaTest")
 }
