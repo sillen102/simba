@@ -473,6 +473,9 @@ func getPackageName(handler any) string {
 	// Split the full path into parts
 	parts := strings.Split(fullPath, "/")
 	// Get the last part which contains package.function
+	if len(parts) == 0 {
+		return ""
+	}
 	lastPart := parts[len(parts)-1]
 	// Split package.function and take the package name
 	pkgAndFunc := strings.Split(lastPart, ".")
