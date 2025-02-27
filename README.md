@@ -68,8 +68,8 @@ func main() {
     //
     // If you wish to build up your own router without any default middleware etc., use simba.New()
     app := simba.Default()
-	app.Router.POST("/users", simba.JsonHandler(handler))
-	app.Start()
+    app.Router.POST("/users", simba.JsonHandler(handler))
+    app.Start()
 }
 ```
 
@@ -100,7 +100,7 @@ app.GET("/users/{userId}", simba.JsonHandler(getUser))
 ## Logging
 
 Simba relies on slog to handle logging. If no logger is provided slog.Default will be used.
-If you use the Default or DefaultWithAuth constructors an slog logger will be injected into the request context for all requests.
+If you use the Default constructor an slog logger will be injected into the request context for all requests.
 To access the injected logger, use the `logging.From` function the logging package.
 
 Example:
@@ -115,7 +115,7 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
 
 ## Configuration
 
-Customize behavior with settings:
+Customize behavior with a settings struct:
 
 ```go
 app := simba.New(simba.Settings{
@@ -134,7 +134,13 @@ app := simba.New(simba.Settings{
         Output: os.Stdout,
     },
 })
+```
 
+Or use default and change a single one or few of the settings:
+
+```go
+app := simba.Default()
+app.Settings.Server.Port = 8080
 ```
 
 ## Error Handling
@@ -185,6 +191,7 @@ type User struct {
     Name string
 }
 
+// @BasicAuth "admin" "admin access only"
 func authFunc(r *http.Request) (*User, error) {
     // Your authentication logic here, either be it a database lookup or any other authentication method
     return &User{ID: "123", Name: "John"}, nil
@@ -198,6 +205,10 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
 app := simba.Default()
 app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authFunc))
 ```
+
+In this example the `authFunc` function is called for every request to authenticate the user.
+If the user is authenticated, the user is injected into the handler function.
+If the authFunc returns an error, a 401 Unauthorized response is returned.
 
 ## OpenAPI Documentation Generation
 
@@ -227,8 +238,8 @@ app.Settings.Docs.MountDocsEndpoint = false
 ```
 
 ### Customizing OpenAPI Documentation
-By default, Simba will generate OpenAPI documentation base on the handler you have registered. It will use the package name to group the endpoints,
-and the handler name to generate the operationId and summary for the endpoint and the comment you have on your handler to generate a description.
+By default, Simba will generate OpenAPI documentation based on the handler you have registered. It will use the package name to group the endpoints,
+and the handler name to generate the operation id, summary for the endpoint and the comment you have on your handler to generate a description.
 This makes it easy to generate OpenAPI documentation without any additional configuration.
 Just organize your handlers in packages, name them well and add descriptive comments.
 
@@ -236,6 +247,12 @@ If you want greater control over the generated API documentation you can customi
 Simba uses [openapi-go](https://github.com/swaggest/openapi-go) under the hood to generate the documentation.
 
 ```go
+// @BasicAuth "admin" "admin access only"
+func authFunc(r *http.Request) (*User, error) {
+    // Your authentication logic here, either be it a database lookup or any other authentication method
+    return &User{ID: "123", Name: "John"}, nil
+}
+
 type reqParams struct {
     ID     string `path:"id" example:"XXX-XXXXX"`
     Locale string `query:"locale" pattern:"^[a-z]{2}-[A-Z]{2}$"`
@@ -255,7 +272,7 @@ type reqBody struct {
 // @Summary Get user
 // @Description Get a user by ID (can span across multiple lines)
 // @Error 404 User not found
-func getUser(ctx context.Context, req *simba.Request[reqBody, reqParams]) (*simba.Response, error) {
+func getUser(ctx context.Context, req *simba.Request[reqBody, reqParams], user *User) (*simba.Response, error) {
     // ... handle the request
 }
 ```
