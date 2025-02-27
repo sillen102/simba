@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -84,8 +83,6 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Equal(t, http.StatusOK, getW.Code)
 	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
 
-	fmt.Println(getW.Body.String())
-
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test/{id}")
 	require.Contains(t, yamlContent, "X-Request-ID")
@@ -164,8 +161,6 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	require.Equal(t, http.StatusOK, getW.Code)
 	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
 
-	fmt.Println(getW.Body.String())
-
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
 	require.Contains(t, yamlContent, `
@@ -214,8 +209,6 @@ func TestMultipleAuthHandlers(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, getW.Code)
 	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
-
-	fmt.Println(getW.Body.String())
 
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test1")
@@ -273,8 +266,6 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, getW.Code)
 	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
-
-	fmt.Println(getW.Body.String())
 
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
@@ -340,8 +331,6 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	require.Equal(t, http.StatusOK, getW.Code)
 	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
 
-	fmt.Println(getW.Body.String())
-
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
 	require.Contains(t, yamlContent, `
@@ -392,8 +381,6 @@ func TestOpenAPIGenNoTags(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, getW.Code)
 	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
-
-	fmt.Println(getW.Body.String())
 
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
