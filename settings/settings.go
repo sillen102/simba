@@ -53,10 +53,10 @@ type Request struct {
 
 type Docs struct {
 
-	// GenerateOpenAPIDocs will determine if the API documentation will be generated
+	// GenerateOpenAPIDocs will determine if the API documentation (YAML or JSON) will be generated
 	GenerateOpenAPIDocs bool `default:"true"`
 
-	// MountDocsEndpoint will determine if the API documentation endpoint will be mounted
+	// MountDocsEndpoint will determine if the documentation UI will be mounted
 	MountDocsEndpoint bool `default:"true"`
 
 	// OpenAPIFileType is the type of the OpenAPI file (YAML or JSON)

@@ -27,13 +27,13 @@ type Handler interface {
 // Router is a simple Mux that wraps [http.ServeMux] and allows for middleware chaining
 // and type information storage for routes.
 type Router struct {
-	Mux                 *http.ServeMux
-	middleware          []func(http.Handler) http.Handler
-	docsSettings        settings.Docs
-	routes              []routeInfo
-	openApiReflector    *openapi31.Reflector
-	schema              []byte
-	docsEndpointMounted bool
+	Mux                  *http.ServeMux
+	middleware           []func(http.Handler) http.Handler
+	docsSettings         settings.Docs
+	routes               []routeInfo
+	openApiReflector     *openapi31.Reflector
+	schema               []byte
+	docsEndpointsMounted bool
 }
 
 // routeInfo stores type information about a route
@@ -60,17 +60,29 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 				return injectRequestSettings(next, &requestSettings)
 			},
 		},
-		docsSettings:        docsSettings,
-		routes:              make([]routeInfo, 0),
-		openApiReflector:    &openapi31.Reflector{},
-		schema:              nil,
-		docsEndpointMounted: false,
+		docsSettings: docsSettings,
+		routes: func() []routeInfo {
+			if docsSettings.GenerateOpenAPIDocs {
+				return make([]routeInfo, 0, 100)
+			}
+			return nil
+		}(),
+		openApiReflector: func() *openapi31.Reflector {
+			if docsSettings.GenerateOpenAPIDocs {
+				return openapi31.NewReflector()
+			}
+			return nil
+		}(),
+		schema:               nil,
+		docsEndpointsMounted: false,
 	}
 }
 
 // ServeHTTP implements the [http.Handler] interface for the [Router] type
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.mountDocs(r.docsSettings.OpenAPIPath)
+	if r.docsSettings.GenerateOpenAPIDocs && r.docsSettings.MountDocsEndpoint {
+		r.mountDocs(r.docsSettings.OpenAPIPath)
+	}
 	r.Mux.ServeHTTP(w, req)
 }
 
@@ -128,18 +140,20 @@ func (r *Router) HEAD(path string, handler Handler) {
 
 func (r *Router) Handle(method, path string, handler Handler) {
 	r.addRoute(method, path, handler)
-	r.routes = append(r.routes, routeInfo{
-		method:    method,
-		path:      path,
-		accepts:   handler.getAccepts(),
-		produces:  handler.getProduces(),
-		reqBody:   handler.getRequestBody(),
-		params:    handler.getParams(),
-		respBody:  handler.getResponseBody(),
-		authModel: handler.getAuthModel(),
-		authFunc:  handler.getAuthFunc(),
-		handler:   handler.getHandler(),
-	})
+	if r.docsSettings.GenerateOpenAPIDocs {
+		r.routes = append(r.routes, routeInfo{
+			method:    method,
+			path:      path,
+			accepts:   handler.getAccepts(),
+			produces:  handler.getProduces(),
+			reqBody:   handler.getRequestBody(),
+			params:    handler.getParams(),
+			respBody:  handler.getResponseBody(),
+			authModel: handler.getAuthModel(),
+			authFunc:  handler.getAuthFunc(),
+			handler:   handler.getHandler(),
+		})
+	}
 }
 
 func (r *Router) addRoute(method, path string, handler http.Handler) {
@@ -154,11 +168,13 @@ func (r *Router) applyMiddleware(handler http.Handler) http.Handler {
 }
 
 func (r *Router) mountDocs(path string) {
-	if !r.docsEndpointMounted && r.docsSettings.GenerateOpenAPIDocs {
-		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, path), r.openAPIDocsHandler())
+	if r.docsEndpointsMounted || !r.docsSettings.GenerateOpenAPIDocs {
+		return
 	}
 
-	if !r.docsEndpointMounted && r.docsSettings.MountDocsEndpoint {
+	r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, path), r.openAPIDocsHandler())
+
+	if r.docsSettings.MountDocsEndpoint {
 		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), apiDocs.ScalarDocsHandler(apiDocs.DocsParams{
 			OpenAPIFileType: r.docsSettings.OpenAPIFileType,
 			OpenAPIPath:     r.docsSettings.OpenAPIPath,
@@ -167,7 +183,7 @@ func (r *Router) mountDocs(path string) {
 		}))
 	}
 
-	r.docsEndpointMounted = true
+	r.docsEndpointsMounted = true
 }
 
 func (r *Router) openAPIDocsHandler() http.HandlerFunc {
