@@ -195,7 +195,11 @@ func (r *Router) openAPIDocsHandler() http.HandlerFunc {
 			}
 
 			var err error
-			r.schema, err = r.openApiReflector.Spec.MarshalYAML()
+			if r.docsSettings.OpenAPIFileType == mimetypes.ApplicationJSON {
+				r.schema, err = r.openApiReflector.Spec.MarshalJSON()
+			} else {
+				r.schema, err = r.openApiReflector.Spec.MarshalYAML()
+			}
 			if err != nil {
 				errMessage := "failed to generate API docs"
 				slog.Error(errMessage, "error", err)
