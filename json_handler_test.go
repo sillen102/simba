@@ -22,7 +22,7 @@ func TestJsonHandler(t *testing.T) {
 	t.Parallel()
 
 	t.Run("body and params", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params]) (*simba.Response, error) {
+		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params]) (*simba.Response[map[string]string], error) {
 			assert.Equal(t, "John", req.Params.Name)
 			assert.Equal(t, 1, req.Params.ID)
 			assert.Equal(t, true, req.Params.Active)
@@ -31,7 +31,7 @@ func TestJsonHandler(t *testing.T) {
 
 			assert.Equal(t, "test", req.Body.Test)
 
-			return &simba.Response{
+			return &simba.Response[map[string]string]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Body:    map[string]string{"message": "success"},
@@ -60,8 +60,8 @@ func TestJsonHandler(t *testing.T) {
 	})
 
 	t.Run("no body", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
-			return &simba.Response{
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response[simba.NoBody], error) {
+			return &simba.Response[simba.NoBody]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Status:  http.StatusNoContent,
@@ -86,8 +86,8 @@ func TestJsonHandler(t *testing.T) {
 	})
 
 	t.Run("no params", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, simba.NoParams]) (*simba.Response, error) {
-			return &simba.Response{
+		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+			return &simba.Response[simba.NoBody]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Status:  http.StatusNoContent,
@@ -95,14 +95,14 @@ func TestJsonHandler(t *testing.T) {
 		}
 
 		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", body) // Params should be ignored
+		req := httptest.NewRequest(http.MethodPost, "/test?page=1&size=10&active=true", body) // Params should be ignored
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 		app := simba.New(settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
+		app.Router.POST("/test", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -113,11 +113,11 @@ func TestJsonHandler(t *testing.T) {
 	})
 
 	t.Run("default values on params", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response[simba.NoBody], error) {
 			assert.Equal(t, 1, req.Params.Page)         // default value
 			assert.Equal(t, int64(10), req.Params.Size) // default value
 			assert.Equal(t, 10.0, req.Params.Score)
-			return &simba.Response{}, nil
+			return &simba.Response[simba.NoBody]{}, nil
 		}
 
 		body := strings.NewReader(`{"test": "test"}`)
@@ -135,11 +135,11 @@ func TestJsonHandler(t *testing.T) {
 	})
 
 	t.Run("override default values with query params", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response, error) {
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, test.Params]) (*simba.Response[simba.NoBody], error) {
 			assert.Equal(t, 5, req.Params.Page)         // overridden value
 			assert.Equal(t, int64(20), req.Params.Size) // overridden value
 			assert.Equal(t, 15.5, req.Params.Score)     // overridden value
-			return &simba.Response{}, nil
+			return &simba.Response[simba.NoBody]{}, nil
 		}
 
 		body := strings.NewReader(`{"test": "test"}`)
@@ -173,7 +173,7 @@ func TestHandlerErrors(t *testing.T) {
 		{
 			name:           "missing content type",
 			method:         http.MethodPost,
-			path:           "/test/1",
+			path:           "/test",
 			contentType:    "",
 			body:           `{"test": "test"}`,
 			expectedStatus: http.StatusBadRequest,
@@ -183,7 +183,7 @@ func TestHandlerErrors(t *testing.T) {
 		{
 			name:           "invalid json body",
 			method:         http.MethodPost,
-			path:           "/test/1",
+			path:           "/test",
 			contentType:    "application/json",
 			body:           `{"test": invalid}`,
 			expectedStatus: http.StatusUnprocessableEntity,
@@ -193,7 +193,7 @@ func TestHandlerErrors(t *testing.T) {
 		{
 			name:           "missing required field",
 			method:         http.MethodPost,
-			path:           "/test/1",
+			path:           "/test",
 			contentType:    "application/json",
 			body:           `{}`,
 			expectedStatus: http.StatusBadRequest,
@@ -206,8 +206,8 @@ func TestHandlerErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := func(ctx context.Context, req *simba.Request[test.RequestBody, simba.NoParams]) (*simba.Response, error) {
-				return &simba.Response{Status: http.StatusOK}, nil
+			handler := func(ctx context.Context, req *simba.Request[test.RequestBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+				return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
 			}
 
 			body := strings.NewReader(tt.body)
@@ -218,7 +218,7 @@ func TestHandlerErrors(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			app := simba.New()
-			app.Router.POST("/test/{id}", simba.JsonHandler(handler))
+			app.Router.POST("/test", simba.JsonHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
@@ -255,12 +255,12 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 	}
 
 	t.Run("authenticated handler", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params], user *test.User) (*simba.Response, error) {
+		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params], user *test.User) (*simba.Response[simba.NoBody], error) {
 			assert.Equal(t, 1, user.ID)
 			assert.Equal(t, "John Doe", user.Name)
 			assert.Equal(t, "admin", user.Role)
 
-			return &simba.Response{
+			return &simba.Response[simba.NoBody]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Status:  http.StatusNoContent,
@@ -275,8 +275,8 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.NewAuthWith[test.User](authFunc, settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler))
+		app := simba.New(settings.Config{Logger: logger})
+		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler, authFunc))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -287,8 +287,8 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 	})
 
 	t.Run("auth func error", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params], user *test.User) (*simba.Response, error) {
-			return &simba.Response{}, nil
+		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params], user *test.User) (*simba.Response[simba.NoBody], error) {
+			return &simba.Response[simba.NoBody]{}, nil
 		}
 
 		body := strings.NewReader(`{"test": "test"}`)
@@ -297,8 +297,8 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.NewAuthWith[test.User](errorAuthFunc, settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler))
+		app := simba.New(settings.Config{Logger: logger})
+		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler, errorAuthFunc))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -317,8 +317,8 @@ type TestRequestBody struct {
 func TestReadJson_DisallowUnknownFields(t *testing.T) {
 	t.Parallel()
 
-	handler := func(ctx context.Context, req *simba.Request[TestRequestBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{Status: http.StatusOK}, nil
+	handler := func(ctx context.Context, req *simba.Request[TestRequestBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	body := strings.NewReader(`{"test": "value", "unknown": "field"}`)

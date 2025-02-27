@@ -9,10 +9,10 @@ import (
 )
 
 type ResponseBody struct {
-	Message string `json:"message"`
+	Message string `json:"message" example:"Hello John Doe, you are an admin"`
 }
 
-// User is a struct that represents a user
+// User represents a user
 // in this example we use a simple struct to represent a user
 type User struct {
 	ID   int
@@ -22,6 +22,8 @@ type User struct {
 
 // authFunc is a function that authenticates and returns a user
 // in this example we just return a hard-coded user
+//
+// @BasicAuth "admin" "admin access only"
 func authFunc(r *http.Request) (*User, error) {
 	return &User{
 		ID:   1,
@@ -30,7 +32,10 @@ func authFunc(r *http.Request) (*User, error) {
 	}, nil
 }
 
-func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
+// @ID authenticatedHandler
+// @Summary authenticated handler
+// @Description this is a handler that requires authentication
+func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[ResponseBody], error) {
 
 	// Access the request cookies
 	// req.Cookies
@@ -38,7 +43,7 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 	// Access the request headers
 	// req.Headers
 
-	return &simba.Response{
+	return &simba.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
 		},
@@ -48,7 +53,7 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 func main() {
 	// the app will use the authFunc to authenticate and retrieve the user
 	// for each request that uses the AuthJsonHandler and pass it to the handler
-	app := simba.DefaultAuthWith(authFunc)
-	app.Router.GET("/user", simba.AuthJsonHandler(authenticatedHandler))
+	app := simba.Default()
+	app.Router.GET("/user", simba.AuthJsonHandler(authenticatedHandler, authFunc))
 	app.Start()
 }

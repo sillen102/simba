@@ -40,18 +40,6 @@ func injectRequestSettings(next http.Handler, settings *settings.Request) http.H
 	})
 }
 
-// injectAuthFunc injects the AuthFunc into the Request context
-func injectAuthFunc[User any](next http.Handler, authFunc AuthFunc[User]) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if authFunc == nil {
-			next.ServeHTTP(w, r)
-			return
-		}
-		ctx := context.WithValue(r.Context(), simbaContext.AuthFuncKey, authFunc)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // getConfigurationFromContext retrieves Request from the given context.
 // Returns the request Config stored in the context or zero value for Request if not found in the context.
 func getConfigurationFromContext(ctx context.Context) *settings.Request {

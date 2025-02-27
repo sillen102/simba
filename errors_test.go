@@ -29,7 +29,7 @@ func TestHandleError(t *testing.T) {
 		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
-		simba.HandleError(w, req, simba.WrapError(
+		simba.WriteError(w, req, simba.WrapError(
 			http.StatusInternalServerError,
 			fmt.Errorf("outermost error: %w", fmt.Errorf("wrapping error: %w", errors.New("original error"))),
 			"Internal server error"))
@@ -56,7 +56,7 @@ func TestHandleError(t *testing.T) {
 		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
-		simba.HandleError(w, req, simba.WrapError(http.StatusUnauthorized, errors.New("wrapped error"), "Internal server error"))
+		simba.WriteError(w, req, simba.WrapError(http.StatusUnauthorized, errors.New("wrapped error"), "Internal server error"))
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
