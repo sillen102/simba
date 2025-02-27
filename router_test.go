@@ -47,10 +47,10 @@ func TestEndpoints(t *testing.T) {
 			CustomHeader string `header:"X-Custom-Header"`
 		}
 
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestParams]) (*simba.Response, error) {
+		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestParams]) (*simba.Response[simba.NoBody], error) {
 			// Assert that the header was set by the middleware in the handler
 			assert.Equal(t, req.Params.CustomHeader, "middleware-applied")
-			return &simba.Response{}, nil
+			return &simba.Response[simba.NoBody]{}, nil
 		}
 
 		app := simba.New()
@@ -65,75 +65,13 @@ func TestEndpoints(t *testing.T) {
 	})
 }
 
-func TestRouter_Handle(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Handle registers a handler and serves requests", func(t *testing.T) {
-		router := simba.Default().Router
-
-		// Define a simple handler
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("handled"))
-		}
-
-		// Register the handler
-		router.Handle("GET /test", handler)
-
-		// Create a request to the registered path
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
-		w := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(w, req)
-
-		// Assert the response
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "handled", w.Body.String())
-	})
-
-	t.Run("Handle applies middleware to the handler", func(t *testing.T) {
-		router := simba.Default().Router
-
-		// Define a middleware that sets a header
-		middleware := func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("X-Custom-Header", "middleware-applied")
-				next.ServeHTTP(w, r)
-			})
-		}
-
-		// Use the middleware
-		router.Use(middleware)
-
-		// Define a simple handler
-		handler := func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}
-
-		// Register the handler
-		router.Handle("/test-middleware", handler)
-
-		// Create a request to the registered path
-		req := httptest.NewRequest(http.MethodGet, "/test-middleware", nil)
-		w := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(w, req)
-
-		// Assert the response
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "middleware-applied", w.Header().Get("X-Custom-Header"))
-	})
-}
-
 func TestRouter_POST(t *testing.T) {
 	t.Parallel()
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
+		return &simba.Response[map[string]string]{
 			Body:   map[string]string{"message": "post handled"},
 			Status: http.StatusCreated,
 		}, nil
@@ -166,8 +104,8 @@ func TestRouter_GET(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
+		return &simba.Response[map[string]string]{
 			Body: map[string]string{"message": "get handled"},
 		}, nil
 	}
@@ -199,8 +137,8 @@ func TestRouter_PUT(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
+		return &simba.Response[map[string]string]{
 			Body:   map[string]string{"message": "put handled"},
 			Status: http.StatusAccepted,
 		}, nil
@@ -233,8 +171,8 @@ func TestRouter_DELETE(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{}, nil
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+		return &simba.Response[simba.NoBody]{}, nil
 	}
 
 	router.DELETE("/test-delete", simba.JsonHandler(handler))
@@ -263,8 +201,8 @@ func TestRouter_PATCH(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
-		return &simba.Response{
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
+		return &simba.Response[map[string]string]{
 			Body:   map[string]string{"message": "patch handled"},
 			Status: http.StatusAccepted,
 		}, nil

@@ -1,6 +1,7 @@
 # Simba
 
-Simba is a lightweight, type-safe HTTP router framework for Go that makes building REST APIs simple and enjoyable. It provides strong type safety through generics and a clean, intuitive API for handling HTTP requests.
+Simba is a type-safe HTTP router framework for Go that makes building REST APIs simple and enjoyable. It provides strong type safety through generics and a clean, intuitive API for handling HTTP requests.
+It also automatically generates OpenAPI (v3.1) documentation for your API.
 
 ## Features
 
@@ -8,6 +9,7 @@ Simba is a lightweight, type-safe HTTP router framework for Go that makes buildi
 - **Built-in authentication** support
 - **Middleware support**
 - **Strong request/response typing**
+- **Automatic OpenAPI documentation generation**
 
 ## Installation
 
@@ -193,10 +195,70 @@ func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
     // ... handle the request
 }
 
-app := simba.DefaultAuthWith(authFunc)
-app.GET("/users/{userId}", simba.AuthJsonHandler(getUser))
+app := simba.Default()
+app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authFunc))
 ```
 
+## OpenAPI Documentation Generation
+
+Simba will automatically generate OpenAPI documentation for your APIs. By default, the OpenAPI documentation is available at `/openapi.yml`.
+And the Scalar UI is available at `/docs`. You can change these paths by providing a custom path in the application settings.
+
+```go
+app := simba.Default()
+app.Settings.Docs.OpenAPIFileType = mimetypes.ApplicationJSON
+app.Settings.Docs.OpenAPIPath = "/swagger.json"
+app.Settings.Docs.DocsPath = "/swagger-ui"
+```
+
+If you want to you can disable the OpenAPI documentation generation by setting the GenerateOpenAPIDocs to false in application settings.
+
+```go
+app := simba.Default()
+app.Settings.Docs.GenerateOpenAPIDocs = false
+```
+
+You can also generate the OpenAPI documentation yaml file but not serve any UI (in case you want to use a different or customized UI)
+by setting the MountDocsEndpoint to false in the application settings.
+
+```go
+app := simba.Default()
+app.Settings.Docs.MountDocsEndpoint = false
+```
+
+### Customizing OpenAPI Documentation
+By default, Simba will generate OpenAPI documentation base on the handler you have registered. It will use the package name to group the endpoints,
+and the handler name to generate the operationId and summary for the endpoint and the comment you have on your handler to generate a description.
+This makes it easy to generate OpenAPI documentation without any additional configuration.
+Just organize your handlers in packages, name them well and add descriptive comments.
+
+If you want greater control over the generated API documentation you can customize the OpenAPI documentation by providing tags in the comment of your handler.
+Simba uses [openapi-go](https://github.com/swaggest/openapi-go) under the hood to generate the documentation.
+
+```go
+type reqParams struct {
+    ID     string `path:"id" example:"XXX-XXXXX"`
+    Locale string `query:"locale" pattern:"^[a-z]{2}-[A-Z]{2}$"`
+}
+
+type reqBody struct {
+    Title  string `json:"string" example:"My Order"`
+    Amount int   `json:"amount" example:"100" required:"true"`
+    Items  []struct {
+        Count uint   `json:"count" example:"2"`
+        Name  string `json:"name" example:"Item 1"`
+    } `json:"items"`
+}
+
+// @ID get-user
+// @Tag Users
+// @Summary Get user
+// @Description Get a user by ID (can span across multiple lines)
+// @Error 404 User not found
+func getUser(ctx context.Context, req *simba.Request[reqBody, reqParams]) (*simba.Response, error) {
+    // ... handle the request
+}
+```
 
 ## Contributing
 

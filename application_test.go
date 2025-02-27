@@ -1,6 +1,7 @@
 package simba_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,10 +15,12 @@ import (
 func TestDefaultApplication(t *testing.T) {
 	t.Parallel()
 
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+	}
+
 	app := simba.Default()
-	app.Router.Handle("GET /test", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	app.Router.GET("/test", simba.JsonHandler(handler))
 
 	t.Run("creates default application", func(t *testing.T) {
 		assert.Assert(t, app != nil)

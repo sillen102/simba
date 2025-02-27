@@ -19,10 +19,10 @@ type MultipartRequest[RequestParams any] struct {
 }
 
 // Response represents a HTTP response
-type Response struct {
+type Response[ResponseBody any] struct {
 	Headers http.Header
 	Cookies []*http.Cookie
-	Body    any
+	Body    ResponseBody
 	Status  int
 }
 

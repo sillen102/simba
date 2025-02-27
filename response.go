@@ -14,9 +14,9 @@ import (
 //  4. Response specific test cases (such as 204 when body is nil and status is 0)
 
 // writeResponse writes the response to the client
-func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err error) {
+func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, resp *Response[ResponseBody], err error) {
 	if err != nil {
-		HandleError(w, r, err)
+		WriteError(w, r, err)
 		return
 	}
 
@@ -42,26 +42,16 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp *Response, err e
 		}
 	}
 
-	if resp.Body == nil && resp.Status == 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	if _, ok := resp.Body.(NoBody); ok {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
+	var status int
 	if resp.Status != 0 {
-		err = writeJSON(w, resp.Status, resp.Body)
-		if err != nil {
-			handleUnexpectedError(w)
-			return
-		}
-		return
+		status = resp.Status
+	} else if any(resp.Body) == (NoBody{}) {
+		status = http.StatusNoContent
+	} else {
+		status = http.StatusOK
 	}
 
-	err = writeJSON(w, http.StatusOK, resp.Body)
+	err = writeJSON(w, status, resp.Body)
 	if err != nil {
 		handleUnexpectedError(w)
 		return
