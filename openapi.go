@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/iancoleman/strcase"
+	simbaHttp "github.com/sillen102/simba/http"
 	"github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
 )
@@ -445,7 +446,7 @@ func getHandlerResponseStatus(handlerValue reflect.Value, handlerType reflect.Ty
 				// Handle SelectorExpr for constants (e.g., http.StatusCreated).
 				if selExpr, ok := kv.Value.(*ast.SelectorExpr); ok {
 					if pkgIdent, ok := selExpr.X.(*ast.Ident); ok && pkgIdent.Name == "http" {
-						if code, ok := HTTPStatusMapping[selExpr.Sel.Name]; ok {
+						if code, ok := simbaHttp.HTTPStatusMapping[selExpr.Sel.Name]; ok {
 							status = code
 							return false
 						}

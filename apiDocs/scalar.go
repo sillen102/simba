@@ -22,12 +22,12 @@ func ScalarDocsHandler(params DocsParams) http.HandlerFunc {
 			  <body>
 				<script
 				  id="api-reference"
-				  type="application/yaml"
-				  data-url="/openapi.yml"
+				  type="%s"
+				  data-url="%s"
 				  data-proxy-url="https://proxy.scalar.com"></script>
 				<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 			  </body>
-			</html>`, params.ServiceName)),
+			</html>`, params.ServiceName, params.OpenAPIFileType, params.OpenAPIPath)),
 		)
 	}
 }

@@ -1,6 +1,8 @@
 package apiDocs
 
 type DocsParams struct {
-	DocsPath    string
-	ServiceName string
+	OpenAPIFileType string
+	OpenAPIPath     string
+	DocsPath        string
+	ServiceName     string
 }

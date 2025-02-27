@@ -1,4 +1,4 @@
-package simba
+package http
 
 import "net/http"
 

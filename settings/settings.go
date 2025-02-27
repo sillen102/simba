@@ -59,6 +59,12 @@ type Docs struct {
 	// MountDocsEndpoint will determine if the API documentation endpoint will be mounted
 	MountDocsEndpoint bool `default:"true"`
 
+	// OpenAPIFileType is the type of the OpenAPI file (YAML or JSON)
+	OpenAPIFileType string `default:"application/yaml"`
+
+	// OpenAPIPath is the path to the OpenAPI YAML file
+	OpenAPIPath string `default:"/openapi.yml"`
+
 	// DocsPath is the path to the API documentation
 	DocsPath string `default:"/docs"`
 

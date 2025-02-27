@@ -70,7 +70,7 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 
 // ServeHTTP implements the [http.Handler] interface for the [Router] type
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.mountDocs("/openapi.yml")
+	r.mountDocs(r.docsSettings.OpenAPIPath)
 	r.Mux.ServeHTTP(w, req)
 }
 
@@ -160,8 +160,10 @@ func (r *Router) mountDocs(path string) {
 
 	if !r.docsEndpointMounted && r.docsSettings.MountDocsEndpoint {
 		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), apiDocs.ScalarDocsHandler(apiDocs.DocsParams{
-			DocsPath:    r.docsSettings.DocsPath,
-			ServiceName: r.docsSettings.ServiceName,
+			OpenAPIFileType: r.docsSettings.OpenAPIFileType,
+			OpenAPIPath:     r.docsSettings.OpenAPIPath,
+			DocsPath:        r.docsSettings.DocsPath,
+			ServiceName:     r.docsSettings.ServiceName,
 		}))
 	}
 
