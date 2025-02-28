@@ -7,6 +7,15 @@ import (
 	"github.com/sillen102/simba/mimetypes"
 )
 
+// JsonHandlerFunc is a function type for handling routes with Request body and params
+type JsonHandlerFunc[RequestBody, Params, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response[ResponseBody], error)
+
+// AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
+type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody any] struct {
+	handler     func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error)
+	authHandler AuthHandler[AuthParams, AuthModel]
+}
+
 // JsonHandler handles a Request with the Request body and params.
 //
 //	Example usage:
@@ -52,9 +61,6 @@ import (
 func JsonHandler[RequestBody, Params, ResponseBody any](h JsonHandlerFunc[RequestBody, Params, ResponseBody]) Handler {
 	return h
 }
-
-// JsonHandlerFunc is a function type for handling routes with Request body and params
-type JsonHandlerFunc[RequestBody, Params, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response[ResponseBody], error)
 
 // ServeHTTP implements the http.Handler interface for JsonHandlerFunc
 func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +112,7 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthModel() any {
 	return nil
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthFunc() any {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthHandler() any {
 	return nil
 }
 
@@ -165,27 +171,21 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthFunc() any {
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthJsonHandler(handler))
-func AuthJsonHandler[RequestBody, Params, AuthModel, ResponseBody any](
+func AuthJsonHandler[RequestBody, Params, AuthParams, AuthModel, ResponseBody any](
 	handler func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error),
-	authFunc AuthFunc[AuthModel],
+	authHandler AuthHandler[AuthParams, AuthModel],
 ) Handler {
-	return AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]{
-		handler:  handler,
-		authFunc: authFunc,
+	return AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]{
+		handler:     handler,
+		authHandler: authHandler,
 	}
 }
 
-// AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
-type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody any] struct {
-	handler  func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error)
-	authFunc AuthFunc[AuthModel]
-}
-
 // ServeHTTP implements the http.Handler interface for AuthenticatedJsonHandlerFunc
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := h.authFunc(r)
+	authModel, err := handleAuthRequest[AuthParams, AuthModel](h.authHandler, r)
 	if err != nil {
 		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
@@ -206,40 +206,40 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getRequestBody() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getRequestBody() any {
 	var rb RequestBody
 	return rb
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getParams() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getResponseBody() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAccepts() string {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getAccepts() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getProduces() string {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getHandler() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getHandler() any {
 	return h.handler
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAuthModel() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAuthFunc() any {
-	return h.authFunc
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]) getAuthHandler() any {
+	return h.authHandler
 }
 
 // handleRequest handles extracting body and params from the Request
@@ -256,8 +256,7 @@ func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[Reque
 	}
 
 	return &Request[RequestBody, Params]{
-		Cookies: r.Cookies(),
-		Body:    reqBody,
-		Params:  params,
+		Body:   reqBody,
+		Params: params,
 	}, nil
 }

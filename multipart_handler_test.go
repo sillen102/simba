@@ -215,7 +215,8 @@ func TestMultipartHandlerErrors(t *testing.T) {
 func TestAuthenticatedMultipartHandler(t *testing.T) {
 	t.Parallel()
 
-	authFunc := func(r *http.Request) (*test.User, error) {
+	authFunc := func(ctx context.Context, req *simba.AuthRequest[test.AuthParams]) (*test.User, error) {
+		assert.Equal(t, "token", req.Params.Token)
 		return &test.User{
 			ID:   1,
 			Name: "John Doe",
@@ -223,8 +224,16 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		}, nil
 	}
 
-	errorAuthFunc := func(r *http.Request) (*test.User, error) {
+	authHandler := simba.BasicAuthType[test.AuthParams, test.User]{
+		Handler: authFunc,
+	}
+
+	errorAuthFunc := func(ctx context.Context, req *simba.AuthRequest[test.AuthParams]) (*test.User, error) {
 		return nil, errors.New("user not found")
+	}
+
+	errorAuthHandler := simba.BasicAuthType[test.AuthParams, test.User]{
+		Handler: errorAuthFunc,
 	}
 
 	body := &bytes.Buffer{}
@@ -243,13 +252,14 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Authorization", "token")
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 		app := simba.New(settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, authFunc))
+		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, authHandler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -267,7 +277,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
 		app := simba.New(settings.Config{Logger: logger})
-		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, errorAuthFunc))
+		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, errorAuthHandler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)

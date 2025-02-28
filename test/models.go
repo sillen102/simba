@@ -21,3 +21,12 @@ type User struct {
 	Name string
 	Role string
 }
+
+// AuthRequestBody is a test struct for authenticated request body
+type AuthRequestBody struct {
+	Token string `json:"token" validate:"required"`
+}
+
+type AuthParams struct {
+	Token string `header:"Authorization" validate:"required"`
+}

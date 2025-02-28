@@ -10,6 +10,15 @@ import (
 	"github.com/sillen102/simba/mimetypes"
 )
 
+// MultipartHandlerFunc is a function type for handling routes with Request body and params
+type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params]) (*Response[ResponseBody], error)
+
+// AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
+type AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody any] struct {
+	handler     func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
+	authHandler AuthHandler[AuthParams, AuthModel]
+}
+
 // MultipartHandler handles a MultipartRequest with params.
 // // The MultipartRequest holds a MultipartReader and the parsed params.
 // // The reason to provide the reader is to allow the logic for processing the parts to be handled by the handler function.
@@ -51,9 +60,6 @@ import (
 func MultipartHandler[Params any, ResponseBody any](h MultipartHandlerFunc[Params, ResponseBody]) Handler {
 	return h
 }
-
-// MultipartHandlerFunc is a function type for handling routes with Request body and params
-type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params]) (*Response[ResponseBody], error)
 
 // ServeHTTP implements the http.Handler interface for JsonHandlerFunc
 func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +111,7 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthModel() any {
 	return nil
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthFunc() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
 	return nil
 }
 
@@ -160,26 +166,20 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthFunc() any {
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
-func AuthMultipartHandler[Params, AuthModel, ResponseBody any](
+func AuthMultipartHandler[Params, AuthParams, AuthModel, ResponseBody any](
 	handler func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error),
-	authFunc AuthFunc[AuthModel],
+	authHandler AuthHandler[AuthParams, AuthModel],
 ) Handler {
-	return AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]{
-		handler:  handler,
-		authFunc: authFunc,
+	return AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]{
+		handler:     handler,
+		authHandler: authHandler,
 	}
 }
 
-// AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
-type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] struct {
-	handler  func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
-	authFunc AuthFunc[AuthModel]
-}
-
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := h.authFunc(r)
+	authModel, err := handleAuthRequest[AuthParams, AuthModel](h.authHandler, r)
 	if err != nil {
 		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
@@ -200,40 +200,40 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getRequestBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getRequestBody() any {
 	var file multipart.File
 	return &file
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getResponseBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getParams() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAccepts() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getAccepts() string {
 	return mimetypes.MultipartForm
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getProduces() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getHandler() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getHandler() any {
 	return h.handler
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthModel() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthFunc() any {
-	return h.authFunc
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getAuthHandler() any {
+	return h.authHandler
 }
 
 // handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request
@@ -263,8 +263,7 @@ func handleMultipartRequest[Params any](r *http.Request) (*MultipartRequest[Para
 	}
 
 	return &MultipartRequest[Params]{
-		Cookies: r.Cookies(),
-		Reader:  multipartReader,
-		Params:  reqParams,
+		Reader: multipartReader,
+		Params: reqParams,
 	}, nil
 }

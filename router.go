@@ -21,7 +21,7 @@ type Handler interface {
 	getProduces() string
 	getHandler() any
 	getAuthModel() any
-	getAuthFunc() any
+	getAuthHandler() any
 }
 
 // Router is a simple Mux that wraps [http.ServeMux] and allows for middleware chaining
@@ -38,16 +38,16 @@ type Router struct {
 
 // routeInfo stores type information about a route
 type routeInfo struct {
-	method    string
-	path      string
-	accepts   string
-	produces  string
-	reqBody   any
-	params    any
-	respBody  any
-	handler   any
-	authModel any
-	authFunc  any
+	method      string
+	path        string
+	accepts     string
+	produces    string
+	reqBody     any
+	params      any
+	respBody    any
+	handler     any
+	authModel   any
+	authHandler any
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Config]
@@ -142,16 +142,16 @@ func (r *Router) Handle(method, path string, handler Handler) {
 	r.addRoute(method, path, handler)
 	if r.docsSettings.GenerateOpenAPIDocs {
 		r.routes = append(r.routes, routeInfo{
-			method:    method,
-			path:      path,
-			accepts:   handler.getAccepts(),
-			produces:  handler.getProduces(),
-			reqBody:   handler.getRequestBody(),
-			params:    handler.getParams(),
-			respBody:  handler.getResponseBody(),
-			authModel: handler.getAuthModel(),
-			authFunc:  handler.getAuthFunc(),
-			handler:   handler.getHandler(),
+			method:      method,
+			path:        path,
+			accepts:     handler.getAccepts(),
+			produces:    handler.getProduces(),
+			reqBody:     handler.getRequestBody(),
+			params:      handler.getParams(),
+			respBody:    handler.getResponseBody(),
+			authModel:   handler.getAuthModel(),
+			authHandler: handler.getAuthHandler(),
+			handler:     handler.getHandler(),
 		})
 	}
 }
