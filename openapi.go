@@ -30,25 +30,6 @@ type commentInfo struct {
 	}
 }
 
-type security struct {
-	securityScheme      authType
-	securityName        string
-	securityDescription string
-	format              string
-	fieldName           string
-	in                  openapi.In
-}
-
-type authType int
-
-// Auth types
-const (
-	none = iota
-	basicAuth
-	apiKey
-	bearerAuth
-)
-
 // Tags for parsing comments
 const (
 	idTag          = "@ID"
@@ -58,9 +39,6 @@ const (
 	statusCodeTag  = "@StatusCode"
 	errorTag       = "@Error"
 	deprecatedTag  = "@Deprecated"
-	basicAuthTag   = "@BasicAuth"
-	apiKeyAuthTag  = "@APIKeyAuth"
-	bearerAuthTag  = "@BearerAuth"
 )
 
 func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *routeInfo, handler any) {
@@ -157,42 +135,51 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	}
 
 	// Add security if authenticated route
-	if routeInfo.authFunc != nil {
-		authFuncType := reflect.TypeOf(routeInfo.authFunc)
-		authFuncValue := reflect.ValueOf(routeInfo.authFunc)
-		secComment := getFunctionComment(authFuncValue, authFuncType)
-		sec := parseAuthFuncComment(secComment)
+	if routeInfo.authHandler != nil {
 
-		switch sec.securityScheme {
-		case none:
-			// Do nothing
-		case basicAuth:
-			reflector.SpecEns().SetHTTPBasicSecurity(sec.securityName, sec.securityDescription)
-		case apiKey:
-			reflector.SpecEns().SetAPIKeySecurity(
-				sec.securityName,
-				sec.fieldName,
-				sec.in,
-				sec.securityDescription,
-			)
-		case bearerAuth:
-			reflector.SpecEns().SetHTTPBearerTokenSecurity(
-				sec.securityName,
-				sec.format,
-				sec.securityDescription,
-			)
+		authHandler, ok := routeInfo.authHandler.(interface {
+			GetType() AuthType
+			GetName() string
+			GetFieldName() string
+			GetFormat() string
+			GetDescription() string
+			GetIn() openapi.In
+		})
+
+		if ok {
+			switch authHandler.GetType() {
+			case AuthTypeBasic:
+				ah, _ := routeInfo.authHandler.(interface {
+					GetName() string
+					GetDescription() string
+				})
+				reflector.SpecEns().SetHTTPBasicSecurity(ah.GetName(), ah.GetDescription())
+			case AuthTypeAPIKey:
+				reflector.SpecEns().SetAPIKeySecurity(
+					authHandler.GetName(),
+					authHandler.GetFieldName(),
+					authHandler.GetIn(),
+					authHandler.GetDescription(),
+				)
+			case AuthTypeBearer:
+				reflector.SpecEns().SetHTTPBearerTokenSecurity(
+					authHandler.GetName(),
+					authHandler.GetFormat(),
+					authHandler.GetDescription(),
+				)
+			}
+
+			operationContext.AddSecurity(authHandler.GetName())
+
+			operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+				cu.HTTPStatus = http.StatusUnauthorized
+				cu.Description = "Authorization failed"
+			})
+			operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+				cu.HTTPStatus = http.StatusForbidden
+				cu.Description = "Access denied"
+			})
 		}
-
-		operationContext.AddSecurity(sec.securityName)
-
-		operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
-			cu.HTTPStatus = http.StatusUnauthorized
-			cu.Description = "Authorization failed"
-		})
-		operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
-			cu.HTTPStatus = http.StatusForbidden
-			cu.Description = "Access denied"
-		})
 	}
 
 	err = reflector.AddOperation(operationContext)
@@ -318,48 +305,6 @@ func parseHandlerComment(comment string) commentInfo {
 	info.description = strings.Join(descLines, "\n")
 
 	return info
-}
-
-func parseAuthFuncComment(comment string) security {
-	lines := strings.Split(strings.TrimSpace(comment), "\n")
-	sec := security{}
-
-	for _, line := range lines {
-		switch {
-		case strings.HasPrefix(line, basicAuthTag):
-			basicLine := strings.TrimSpace(strings.TrimPrefix(line, basicAuthTag))
-			parts := strings.SplitN(basicLine, " ", 2)
-
-			if len(parts) >= 2 {
-				sec.securityScheme = basicAuth
-				sec.securityName = strings.Replace(parts[0], "\"", "", -1)
-				sec.securityDescription = strings.Replace(parts[1], "\"", "", -1)
-			}
-		case strings.HasPrefix(line, apiKeyAuthTag):
-			apiKeyLine := strings.TrimSpace(strings.TrimPrefix(line, apiKeyAuthTag))
-			parts := strings.SplitN(apiKeyLine, " ", 4)
-
-			if len(parts) >= 4 {
-				sec.securityScheme = apiKey
-				sec.securityName = strings.Replace(parts[0], "\"", "", -1)
-				sec.fieldName = strings.Replace(parts[1], "\"", "", -1)
-				sec.in = openapi.In(strings.Replace(parts[2], "\"", "", -1))
-				sec.securityDescription = strings.Replace(parts[3], "\"", "", -1)
-			}
-		case strings.HasPrefix(line, bearerAuthTag):
-			bearerLine := strings.TrimSpace(strings.TrimPrefix(line, bearerAuthTag))
-			parts := strings.SplitN(bearerLine, " ", 3)
-
-			if len(parts) >= 3 {
-				sec.securityScheme = bearerAuth
-				sec.securityName = strings.Replace(parts[0], "\"", "", -1)
-				sec.format = strings.Replace(parts[1], "\"", "", -1)
-				sec.securityDescription = strings.Replace(parts[2], "\"", "", -1)
-			}
-		}
-	}
-
-	return sec
 }
 
 func getHandlerResponseStatus(handlerValue reflect.Value, handlerType reflect.Type) int {
