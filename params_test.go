@@ -474,3 +474,26 @@ func TestTimeParameters(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
+
+func TestCookieParams(t *testing.T) {
+	t.Parallel()
+
+	type cookieParams struct {
+		Toke string `cookie:"token"`
+	}
+
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, cookieParams]) (*simba.Response, error) {
+		assert.Equal(t, "test-token", req.Params.Toke)
+		return &simba.Response{Status: http.StatusOK}, nil
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.AddCookie(&http.Cookie{Name: "token", Value: "test-token"})
+	w := httptest.NewRecorder()
+
+	app := simba.New()
+	app.Router.GET("/test", simba.JsonHandler(handler))
+	app.Router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
