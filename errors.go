@@ -107,6 +107,7 @@ type ParameterType string
 
 const (
 	ParameterTypeHeader ParameterType = "header"
+	ParameterTypeCookie ParameterType = "cookie"
 	ParameterTypePath   ParameterType = "path"
 	ParameterTypeQuery  ParameterType = "query"
 	ParameterTypeBody   ParameterType = "body"
