@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -183,7 +184,7 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	require.Contains(t, yamlContent, "operationId: basicAuthHandler")
 	require.Contains(t, yamlContent, "summary: basic auth handler")
 	require.NotContains(t, yamlContent, "deprecated: true")
-	require.Contains(t, yamlContent, "\"204\":")
+	require.Contains(t, yamlContent, "\"202\":")
 }
 
 func TestMultipleAuthHandlers(t *testing.T) {
@@ -333,6 +334,7 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, "\"202\":")
 	require.Contains(t, yamlContent, `
       description: |
         this is a multiline
@@ -384,6 +386,50 @@ func TestOpenAPIGenNoTags(t *testing.T) {
 
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, "\"202\":")
+	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags.")
+	require.Contains(t, yamlContent, "operationId: no-tags-handler")
+	require.Contains(t, yamlContent, "summary: No tags handler")
+	require.Contains(t, yamlContent, "tags:")
+	require.Contains(t, yamlContent, "- SimbaTest")
+}
+
+type ReceiverStruct struct{}
+
+// A dummy function to test the OpenAPI generation without any tags.
+func (h *ReceiverStruct) NoTagsHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+	return &simba.Response[simba.NoBody]{
+		Status: http.StatusAccepted,
+	}, nil
+}
+
+func TestOpenAPIGenNoTagsReceiverFuncHandler(t *testing.T) {
+	t.Parallel()
+
+	receiver := ReceiverStruct{}
+
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	w := httptest.NewRecorder()
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.JsonHandler(receiver.NoTagsHandler))
+	app.Router.ServeHTTP(w, req)
+
+	// Fetch OpenAPI documentation
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	fmt.Println(getW.Body.String())
+
+	yamlContent := getW.Body.String()
+	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, "\"202\":")
 	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags.")
 	require.Contains(t, yamlContent, "operationId: no-tags-handler")
 	require.Contains(t, yamlContent, "summary: No tags handler")
