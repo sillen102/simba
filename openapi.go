@@ -33,25 +33,6 @@ type handlerInfo struct {
 	}
 }
 
-type securityHandlerInfo struct {
-	securityScheme      authType
-	securityName        string
-	securityDescription string
-	format              string
-	fieldName           string
-	in                  openapi.In
-}
-
-type authType int
-
-// Auth types
-const (
-	none = iota
-	basicAuth
-	apiKey
-	bearerAuth
-)
-
 // Tags for parsing comments
 const (
 	idTag          = "@ID"
@@ -61,9 +42,6 @@ const (
 	statusCodeTag  = "@StatusCode"
 	errorTag       = "@Error"
 	deprecatedTag  = "@Deprecated"
-	basicAuthTag   = "@BasicAuth"
-	apiKeyAuthTag  = "@APIKeyAuth"
-	bearerAuthTag  = "@BearerAuth"
 )
 
 func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *routeInfo, handler any) {
@@ -130,39 +108,50 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	}
 
 	// Add security if authenticated route
-	if routeInfo.authFunc != nil {
-		sec := getAuthHandlerInfo(routeInfo.authFunc)
+	if routeInfo.authHandler != nil {
+		authHandler, ok := routeInfo.authHandler.(interface {
+			GetType() AuthType
+			GetName() string
+			GetFieldName() string
+			GetFormat() string
+			GetDescription() string
+			GetIn() openapi.In
+		})
 
-		switch sec.securityScheme {
-		case none:
-			// Do nothing
-		case basicAuth:
-			reflector.SpecEns().SetHTTPBasicSecurity(sec.securityName, sec.securityDescription)
-		case apiKey:
-			reflector.SpecEns().SetAPIKeySecurity(
-				sec.securityName,
-				sec.fieldName,
-				sec.in,
-				sec.securityDescription,
-			)
-		case bearerAuth:
-			reflector.SpecEns().SetHTTPBearerTokenSecurity(
-				sec.securityName,
-				sec.format,
-				sec.securityDescription,
-			)
+		if ok {
+			switch authHandler.GetType() {
+			case AuthTypeBasic:
+				ah, _ := routeInfo.authHandler.(interface {
+					GetName() string
+					GetDescription() string
+				})
+				reflector.SpecEns().SetHTTPBasicSecurity(ah.GetName(), ah.GetDescription())
+			case AuthTypeAPIKey:
+				reflector.SpecEns().SetAPIKeySecurity(
+					authHandler.GetName(),
+					authHandler.GetFieldName(),
+					authHandler.GetIn(),
+					authHandler.GetDescription(),
+				)
+			case AuthTypeBearer:
+				reflector.SpecEns().SetHTTPBearerTokenSecurity(
+					authHandler.GetName(),
+					authHandler.GetFormat(),
+					authHandler.GetDescription(),
+				)
+			}
+
+			operationContext.AddSecurity(authHandler.GetName())
+
+			operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+				cu.HTTPStatus = http.StatusUnauthorized
+				cu.Description = "Authorization failed"
+			})
+			operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+				cu.HTTPStatus = http.StatusForbidden
+				cu.Description = "Access denied"
+			})
 		}
-
-		operationContext.AddSecurity(sec.securityName)
-
-		operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
-			cu.HTTPStatus = http.StatusUnauthorized
-			cu.Description = "Authorization failed"
-		})
-		operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
-			cu.HTTPStatus = http.StatusForbidden
-			cu.Description = "Access denied"
-		})
 	}
 
 	err = reflector.AddOperation(operationContext)
@@ -204,19 +193,6 @@ func getHandlerInfo(handler any) handlerInfo {
 	}
 
 	return info
-}
-
-// getAuthHandlerInfo extracts the authentication information from the authentication function
-func getAuthHandlerInfo(handler any) securityHandlerInfo {
-	functionPointer := getFunctionPointer(handler)
-	runTimeFunc := getFuncRuntime(functionPointer)
-	functionFullName := getFunctionFullName(runTimeFunc)
-	functionPackagePath := extractPackagePath(functionFullName)
-	functionFile := getFunctionASTFile(functionPackagePath)
-	methodName := extractMethodNameWithoutReceiver(functionFullName)
-	functionComment := extractCommentForFunction(functionFile, methodName)
-
-	return parseAuthFuncComment(functionComment)
 }
 
 // getFunctionPointer gets the function pointer for a handler
@@ -422,49 +398,6 @@ func parseHandlerCommentTags(comment string) handlerInfo {
 	info.description = strings.Join(descLines, "\n")
 
 	return info
-}
-
-// parseAuthFuncComment parses the comment for an authentication function and extracts information from comment tags
-func parseAuthFuncComment(comment string) securityHandlerInfo {
-	lines := strings.Split(strings.TrimSpace(comment), "\n")
-	sec := securityHandlerInfo{}
-
-	for _, line := range lines {
-		switch {
-		case strings.HasPrefix(line, basicAuthTag):
-			basicLine := strings.TrimSpace(strings.TrimPrefix(line, basicAuthTag))
-			parts := strings.SplitN(basicLine, " ", 2)
-
-			if len(parts) >= 2 {
-				sec.securityScheme = basicAuth
-				sec.securityName = strings.Replace(parts[0], "\"", "", -1)
-				sec.securityDescription = strings.Replace(parts[1], "\"", "", -1)
-			}
-		case strings.HasPrefix(line, apiKeyAuthTag):
-			apiKeyLine := strings.TrimSpace(strings.TrimPrefix(line, apiKeyAuthTag))
-			parts := strings.SplitN(apiKeyLine, " ", 4)
-
-			if len(parts) >= 4 {
-				sec.securityScheme = apiKey
-				sec.securityName = strings.Replace(parts[0], "\"", "", -1)
-				sec.fieldName = strings.Replace(parts[1], "\"", "", -1)
-				sec.in = openapi.In(strings.Replace(parts[2], "\"", "", -1))
-				sec.securityDescription = strings.Replace(parts[3], "\"", "", -1)
-			}
-		case strings.HasPrefix(line, bearerAuthTag):
-			bearerLine := strings.TrimSpace(strings.TrimPrefix(line, bearerAuthTag))
-			parts := strings.SplitN(bearerLine, " ", 3)
-
-			if len(parts) >= 3 {
-				sec.securityScheme = bearerAuth
-				sec.securityName = strings.Replace(parts[0], "\"", "", -1)
-				sec.format = strings.Replace(parts[1], "\"", "", -1)
-				sec.securityDescription = strings.Replace(parts[2], "\"", "", -1)
-			}
-		}
-	}
-
-	return sec
 }
 
 // findStatusInAST looks for status codes in the AST

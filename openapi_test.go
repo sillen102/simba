@@ -75,7 +75,7 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthFunc))
+	app.Router.POST("/test", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -119,12 +119,12 @@ func TestMultipleAuthHandlers(t *testing.T) {
 
 	req1 := httptest.NewRequest(http.MethodPost, "/test1", nil)
 	w1 := httptest.NewRecorder()
-	app.Router.POST("/test1", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthFunc))
+	app.Router.POST("/test1", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w1, req1)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/test2", nil)
 	w2 := httptest.NewRecorder()
-	app.Router.POST("/test2", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthFunc))
+	app.Router.POST("/test2", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w2, req2)
 
 	// Fetch OpenAPI documentation
@@ -161,7 +161,7 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.ApiKeyAuthHandler, test.ApiKeyAuthFunc))
+	app.Router.POST("/test", simba.AuthJsonHandler(test.ApiKeyAuthHandler, test.ApiKeyAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -205,7 +205,7 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.BearerTokenAuthHandler, test.BearerAuthFunc))
+	app.Router.POST("/test", simba.AuthJsonHandler(test.BearerTokenAuthHandler, test.BearerAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -293,7 +293,7 @@ func TestOpenAPIGenNoTagsReceiverFuncHandler(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, getW.Code)
 	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
-	
+
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
 	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags")
