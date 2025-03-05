@@ -32,7 +32,7 @@ type ResponseBody struct {
 }
 
 type BasicAuthParams struct {
-	Username string `header:"Authorization" description:"Basic auth username"`
+	Credentials string `header:"Authorization" description:"Basic auth username"`
 }
 
 type ApiKeyParams struct {

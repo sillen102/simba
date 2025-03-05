@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/simbaAuth"
 	"github.com/swaggest/openapi-go"
 )
 
@@ -76,6 +77,11 @@ func TagsHandler(ctx context.Context, req *simba.Request[RequestBody, Params]) (
 // BasicAuthFunc A dummy function to test the OpenAPI generation with basic auth.
 // @BasicAuth "admin" "admin access only"
 func BasicAuthFunc(ctx context.Context, req *simba.AuthRequest[BasicAuthParams]) (*User, error) {
+	username, password, ok := simbaAuth.BasicAuthDecode(req.Params.Credentials)
+	if !ok || username != "user" || password != "password" {
+		return nil, simba.NewHttpError(http.StatusUnauthorized, "invalid credentials", nil)
+	}
+
 	return &User{
 		ID:   1,
 		Name: "John Doe",
@@ -106,6 +112,10 @@ func BasicAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simb
 // ApiKeyAuthFunc A dummy function to test the OpenAPI generation with api key auth.
 // @APIKeyAuth "User" "sessionid" "cookie" "Session cookie"
 func ApiKeyAuthFunc(ctx context.Context, req *simba.AuthRequest[ApiKeyParams]) (*User, error) {
+	if req.Params.APIKey != "valid-key" {
+		return nil, simba.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
+	}
+
 	return &User{
 		ID:   1,
 		Name: "John Doe",
@@ -138,6 +148,10 @@ func ApiKeyAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, sim
 // BearerAuthFunc A dummy function to test the OpenAPI generation with bearer token auth.
 // @BearerAuth "admin" "jwt" "Bearer token"
 func BearerAuthFunc(ctx context.Context, req *simba.AuthRequest[BearerTokenParams]) (*User, error) {
+	if req.Params.Token != "Bearer token" {
+		return nil, simba.NewHttpError(http.StatusUnauthorized, "invalid token", nil)
+	}
+
 	return &User{
 		ID:   1,
 		Name: "John Doe",
