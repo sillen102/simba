@@ -1,25 +1,46 @@
 package test
 
-// RequestBody is a test struct for request body
-type RequestBody struct {
-	Test string `json:"test" validate:"required"`
-}
+import "github.com/google/uuid"
 
-// Params is a test struct for request params
-type Params struct {
-	Name   string  `header:"name" validate:"required"`
-	ID     int     `path:"id" validate:"required"`
-	Active bool    `query:"active" validate:"required"`
-	Page   int     `query:"page" validate:"omitempty,min=0" default:"1"`
-	Size   int64   `query:"size" validate:"omitempty,min=0" default:"10"`
-	Score  float64 `query:"score" default:"10.0"`
-}
-
-// User is a test struct for user entity for authenticated routes
 type User struct {
-	ID   int
-	Name string
-	Role string
+	ID   int    `json:"id" description:"ID of the user" example:"1"`
+	Name string `json:"name" description:"Name of the user" example:"John Doe"`
+	Role string `json:"role" description:"Role of the user" example:"admin"`
+}
+
+type Params struct {
+	ID        uuid.UUID `path:"id" description:"ID of the user" example:"1"`
+	Gender    string    `query:"gender" description:"Gender of the user" example:"male"`
+	RequestID string    `header:"X-Request-ID" description:"Request ID" example:"1234"`
+	Active    bool      `query:"active" description:"Active status of the user" example:"true"`
+	Page      int       `query:"page" description:"Page number" example:"1" default:"1"`
+	Size      int64     `query:"size" description:"Page size" example:"10" default:"10"`
+	Score     float64   `query:"score" description:"User score" example:"9.5" default:"10.0"`
+}
+
+type RequestBody struct {
+	Name        string `json:"name" description:"Name of the user" example:"John Doe" validate:"required"`
+	Age         int    `json:"age" description:"Age of the user" example:"30"`
+	Description string `json:"description" description:"description of the user" example:"A test user"`
+}
+
+type ResponseBody struct {
+	ID          uuid.UUID `json:"id" description:"ID of the user" example:"1"`
+	Name        string    `json:"name" description:"Name of the user" example:"John Doe"`
+	Age         int       `json:"age" description:"Age of the user" example:"30"`
+	Description string    `json:"description" description:"description of the user" example:"A test user"`
+}
+
+type BasicAuthParams struct {
+	Username string `header:"Authorization" description:"Basic auth username"`
+}
+
+type ApiKeyParams struct {
+	APIKey string `header:"Authorization" description:"API key"`
+}
+
+type BearerTokenParams struct {
+	Token string `header:"Authorization" description:"Bearer token"`
 }
 
 // AuthRequestBody is a test struct for authenticated request body

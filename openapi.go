@@ -6,6 +6,9 @@ import (
 	"go/parser"
 	"go/token"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -17,7 +20,7 @@ import (
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
-type commentInfo struct {
+type handlerInfo struct {
 	id          string
 	tags        []string
 	summary     string
@@ -47,43 +50,13 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 		panic(fmt.Errorf("failed to create operation context: %w", err))
 	}
 
-	handlerValue := reflect.ValueOf(handler)
-	handlerType := handlerValue.Type()
-	handlerName := getFunctionName(handler)
-
-	// Parse function comments
-	comment := getFunctionComment(handlerValue, handlerType)
-	info := parseHandlerComment(comment)
+	info := getHandlerInfo(handler)
 
 	operationContext.SetIsDeprecated(info.deprecated)
-
-	// Add ID
-	if info.id != "" {
-		operationContext.SetID(info.id)
-	} else {
-		operationContext.SetID(strcase.ToKebab(handlerName))
-	}
-
-	// Add tags
-	if len(info.tags) > 0 {
-		operationContext.SetTags(info.tags...)
-	} else {
-		operationContext.SetTags(strcase.ToCamel(getPackageName(handler)))
-	}
-
-	// Add summary
-	if info.summary != "" {
-		operationContext.SetSummary(info.summary)
-	} else {
-		operationContext.SetSummary(camelToSpaced(strcase.ToCamel(handlerName)))
-	}
-
-	// Add description
-	if info.description != "" {
-		operationContext.SetDescription(info.description)
-	} else {
-		operationContext.SetDescription(getCommentStrippedFromTags(comment))
-	}
+	operationContext.SetID(info.id)
+	operationContext.SetTags(info.tags...)
+	operationContext.SetSummary(info.summary)
+	operationContext.SetDescription(info.description)
 
 	// Add request body if it exists
 	if routeInfo.reqBody != nil {
@@ -100,9 +73,9 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	// Get response status code
 	if info.statusCode == 0 {
 		if routeInfo.respBody == (NoBody{}) {
-			info.statusCode = http.StatusNoContent
+			info.statusCode = http.StatusNoContent // Default for no response body
 		} else {
-			info.statusCode = getHandlerResponseStatus(handlerValue, handlerType)
+			info.statusCode = http.StatusOK // Default for response body
 		}
 	}
 
@@ -136,7 +109,6 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 
 	// Add security if authenticated route
 	if routeInfo.authHandler != nil {
-
 		authHandler, ok := routeInfo.authHandler.(interface {
 			GetType() AuthType
 			GetName() string
@@ -188,53 +160,173 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	}
 }
 
-func getFunctionComment(handlerValue reflect.Value, handlerType reflect.Type) string {
-	// Skip comment extraction for non-function types
-	if handlerType.Kind() != reflect.Func {
-		return ""
+// getHandlerInfo extracts the handler information from the handler function
+func getHandlerInfo(handler any) handlerInfo {
+	functionPointer := getFunctionPointer(handler)
+	runTimeFunc := getFuncRuntime(functionPointer)
+	functionFullName := getFunctionFullName(runTimeFunc)
+	functionPackagePath := extractPackagePath(functionFullName)
+	functionFile := getFunctionASTFile(functionPackagePath)
+	methodName := extractMethodNameWithoutReceiver(functionFullName)
+	functionComment := extractCommentForFunction(functionFile, methodName)
+
+	info := parseHandlerCommentTags(functionComment)
+
+	if info.id == "" {
+		info.id = strcase.ToKebab(methodName)
 	}
 
-	// Get the function pointer
-	var pc uintptr
-	if handlerValue.IsValid() && !handlerValue.IsNil() {
-		pc = handlerValue.Pointer()
-	} else {
-		return ""
+	if len(info.tags) == 0 {
+		info.tags = []string{strcase.ToCamel(getPackageName(functionFullName))}
 	}
 
-	fn := runtime.FuncForPC(pc)
-	if fn == nil {
-		return ""
+	if info.summary == "" {
+		info.summary = camelToSpaced(strcase.ToCamel(methodName))
 	}
 
-	fileName, _ := fn.FileLine(pc)
-	if fileName == "" {
-		return ""
+	if info.description == "" {
+		info.description = getCommentStrippedFromTags(functionComment, methodName)
 	}
 
-	// Parse the source file
+	if info.statusCode == 0 {
+		info.statusCode = findStatusInAST(functionFile, methodName)
+	}
+
+	return info
+}
+
+// getFunctionPointer gets the function pointer for a handler
+func getFunctionPointer(handler any) uintptr {
+	return reflect.ValueOf(handler).Pointer()
+}
+
+// getFuncRuntime gets the runtime function for a handler
+func getFuncRuntime(handlerPointer uintptr) *runtime.Func {
+	return runtime.FuncForPC(handlerPointer)
+}
+
+// getFunctionFullName gets the full name of a function using its pointer
+func getFunctionFullName(fn *runtime.Func) string {
+	return fn.Name()
+}
+
+// getFunctionASTFile finds the Go source file containing a handler function
+func getFunctionASTFile(packagePath string) *ast.File {
+	// For receiver methods, search in the correct package directory
+	if packagePath != "" {
+		// Get the physical path on disk for the package
+		pkgDir := findPackageDir(packagePath)
+		if pkgDir != "" {
+			// Search all Go files in this directory
+			files, err := filepath.Glob(filepath.Join(pkgDir, "*.go"))
+			if err == nil {
+				for _, file := range files {
+					node, err := parseFile(file)
+					if err != nil {
+						continue
+					}
+
+					return node
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// parseFile parses a file and returns its AST
+func parseFile(fileName string) (*ast.File, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, fileName, nil, parser.ParseComments)
 	if err != nil {
+		return nil, err
+	}
+
+	return node, nil
+}
+
+// extractPackagePath gets the package path from a full function name
+func extractPackagePath(fullName string) string {
+	lastDot := strings.LastIndex(fullName, ".")
+	if lastDot == -1 {
 		return ""
 	}
 
-	// Get the complete function name
-	funcName := fn.Name()
-	// Extract just the function name from the full path
-	if idx := strings.LastIndex(funcName, "."); idx != -1 {
-		funcName = funcName[idx+1:]
+	// For receiver methods, we need to find the second-to-last dot
+	// or the dot before the opening parenthesis
+	if idx := strings.Index(fullName, "("); idx != -1 && idx < lastDot {
+		return fullName[:idx-1] // -1 to remove the dot
 	}
 
-	// Find the function declaration and its comments
+	// For regular functions, package path is everything before the last dot
+	parts := strings.Split(fullName, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	return strings.Join(parts[:len(parts)-1], ".")
+}
+
+// findPackageDir converts a Go import path to a filesystem path
+func findPackageDir(importPath string) string {
+	// Try to use GOPATH first
+	gopath := os.Getenv("GOPATH")
+	if gopath != "" {
+		pkgDir := filepath.Join(gopath, "src", importPath)
+		if _, err := os.Stat(pkgDir); err == nil {
+			return pkgDir
+		}
+	}
+
+	// Try to use Go modules
+	cmd := exec.Command("go", "list", "-f", "{{.Dir}}", importPath)
+	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		return strings.TrimSpace(string(output))
+	}
+
+	return ""
+}
+
+// extractMethodNameWithoutReceiver gets just the method name from a full function name
+func extractMethodNameWithoutReceiver(fullName string) string {
+	// Handle methods with receivers (with potential "-fm" suffix)
+	// e.g., "github.com/package.(*Type).Method-fm" -> "Method"
+	if idx := strings.LastIndex(fullName, "."); idx != -1 {
+		name := fullName[idx+1:]
+		// Remove "-fm" suffix
+		name = strings.Replace(name, "-fm", "", 1)
+		return name
+	}
+	return fullName
+}
+
+// getSimpleMethodName extracts just the method name without any package or receiver info
+func getSimpleMethodName(fullName string) string {
+	// Get the part after the last dot, which should be the method name
+	if idx := strings.LastIndex(fullName, "."); idx >= 0 && idx < len(fullName)-1 {
+		name := fullName[idx+1:]
+		// Remove any "-fm" suffix that Go adds to method function values (e.g., "Method-fm") for methods with receivers
+		return strings.Replace(name, "-fm", "", 1)
+	}
+	return fullName
+}
+
+// extractCommentForFunction extracts comment for a specific function
+func extractCommentForFunction(node *ast.File, methodName string) string {
 	var comment string
+
+	// Clean the method name to get just the base name
+	simpleName := getSimpleMethodName(methodName)
+
 	ast.Inspect(node, func(n ast.Node) bool {
 		if funcDecl, ok := n.(*ast.FuncDecl); ok {
-			if funcDecl.Name.Name == funcName {
+			if funcDecl.Name.Name == simpleName {
 				if funcDecl.Doc != nil {
 					comment = funcDecl.Doc.Text()
+					return false
 				}
-				return false
 			}
 		}
 		return true
@@ -243,10 +335,11 @@ func getFunctionComment(handlerValue reflect.Value, handlerType reflect.Type) st
 	return strings.TrimSpace(comment)
 }
 
-func parseHandlerComment(comment string) commentInfo {
+// parseHandlerCommentTags parses the comment for a handler function and extracts information from comment tags
+func parseHandlerCommentTags(comment string) handlerInfo {
 	lines := strings.Split(strings.TrimSpace(comment), "\n")
 
-	info := commentInfo{
+	info := handlerInfo{
 		tags: make([]string, 0),
 		errors: make([]struct {
 			Code    int
@@ -307,116 +400,66 @@ func parseHandlerComment(comment string) commentInfo {
 	return info
 }
 
-func getHandlerResponseStatus(handlerValue reflect.Value, handlerType reflect.Type) int {
-	if handlerType.Kind() != reflect.Func {
-		return 0
-	}
-
-	// Get the function pointer
-	var pc uintptr
-	if handlerValue.IsValid() && !handlerValue.IsNil() {
-		pc = handlerValue.Pointer()
-	} else {
-		return 0
-	}
-
-	fn := runtime.FuncForPC(pc)
-	if fn == nil {
-		return 0
-	}
-
-	fileName, _ := fn.FileLine(pc)
-	if fileName == "" {
-		return 0
-	}
-
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, fileName, nil, parser.ParseComments)
-	if err != nil {
-		return 0
-	}
-
-	// Extract just the function name from the full name.
-	funcName := fn.Name()
-	if idx := strings.LastIndex(funcName, "."); idx != -1 {
-		funcName = funcName[idx+1:]
-	}
-
+// findStatusInAST looks for status codes in the AST
+func findStatusInAST(node *ast.File, methodName string) int {
 	var status int
+
 	ast.Inspect(node, func(n ast.Node) bool {
-		fd, ok := n.(*ast.FuncDecl)
-		if !ok || fd.Name.Name != funcName {
+		funcDecl, ok := n.(*ast.FuncDecl)
+		if !ok || funcDecl.Name.Name != methodName {
 			return true
 		}
 
-		// Iterate over statements in the function body.
-		for _, stmt := range fd.Body.List {
-			ret, ok := stmt.(*ast.ReturnStmt)
+		// We found the function, now look for return statements
+		ast.Inspect(funcDecl, func(n ast.Node) bool {
+			// Look for return statements
+			ret, ok := n.(*ast.ReturnStmt)
 			if !ok || len(ret.Results) == 0 {
-				continue
+				return true
 			}
 
-			// Assume the returned composite literal is wrapped with a pointer operator.
-			unary, ok := ret.Results[0].(*ast.UnaryExpr)
-			if !ok {
-				continue
-			}
+			// Check if we're returning a response object
+			for _, result := range ret.Results {
+				// Try to find Status field in composite literals
+				if unary, ok := result.(*ast.UnaryExpr); ok {
+					if cl, ok := unary.X.(*ast.CompositeLit); ok {
+						for _, elt := range cl.Elts {
+							if kv, ok := elt.(*ast.KeyValueExpr); ok {
+								if ident, ok := kv.Key.(*ast.Ident); ok && ident.Name == "Status" {
+									if basicLit, ok := kv.Value.(*ast.BasicLit); ok && basicLit.Kind == token.INT {
+										if s, err := strconv.Atoi(basicLit.Value); err == nil {
+											status = s
+											return false
+										}
+									}
 
-			cl, ok := unary.X.(*ast.CompositeLit)
-			if !ok {
-				continue
-			}
-
-			// Look for the Status field in the composite literal.
-			for _, elt := range cl.Elts {
-				kv, ok := elt.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-
-				ident, ok := kv.Key.(*ast.Ident)
-				if !ok || ident.Name != "Status" {
-					continue
-				}
-
-				// Handle basic integer literal.
-				if basicLit, ok := kv.Value.(*ast.BasicLit); ok && basicLit.Kind == token.INT {
-					s, err := strconv.Atoi(basicLit.Value)
-					if err == nil {
-						status = s
-						return false // Stop inspecting further once found.
-					}
-				}
-
-				// Handle SelectorExpr for constants (e.g., http.StatusCreated).
-				if selExpr, ok := kv.Value.(*ast.SelectorExpr); ok {
-					if pkgIdent, ok := selExpr.X.(*ast.Ident); ok && pkgIdent.Name == "http" {
-						if code, ok := simbaHttp.HTTPStatusMapping[selExpr.Sel.Name]; ok {
-							status = code
-							return false
+									// Handle HTTP constant (e.g., http.StatusOK)
+									if selExpr, ok := kv.Value.(*ast.SelectorExpr); ok {
+										if pkgIdent, ok := selExpr.X.(*ast.Ident); ok && pkgIdent.Name == "http" {
+											if code, ok := simbaHttp.HTTPStatusMapping[selExpr.Sel.Name]; ok {
+												status = code
+												return false
+											}
+										}
+									}
+								}
+							}
 						}
 					}
 				}
 			}
-		}
-
-		return true
+			return true
+		})
+		return false // Stop searching after finding the function
 	})
-
-	if status == 0 {
-		return http.StatusOK // Default status code
-	}
 
 	return status
 }
 
-func getPackageName(handler any) string {
-	pc := reflect.ValueOf(handler).Pointer()
-	fn := runtime.FuncForPC(pc)
-	fullPath := fn.Name()
-
+// getPackageName extracts the package name for a handler function given its full name
+func getPackageName(fullName string) string {
 	// Split the full path into parts
-	parts := strings.Split(fullPath, "/")
+	parts := strings.Split(fullName, "/")
 	// Get the last part which contains package.function
 	if len(parts) == 0 {
 		return ""
@@ -430,19 +473,8 @@ func getPackageName(handler any) string {
 	return lastPart
 }
 
-func getFunctionName(i any) string {
-	// Get the function value
-	function := runtime.FuncForPC(reflect.ValueOf(i).Pointer())
-	// Get the full function name (includes package path)
-	fullName := function.Name()
-	// Extract just the function name
-	if idx := strings.LastIndex(fullName, "."); idx != -1 {
-		return fullName[idx+1:]
-	}
-	return fullName
-}
-
-func getCommentStrippedFromTags(comment string) string {
+// getCommentStrippedFromTags removes tags from a comment so that only the description remains
+func getCommentStrippedFromTags(comment string, methodName string) string {
 	lines := strings.Split(strings.TrimSpace(comment), "\n")
 	result := ""
 
@@ -453,9 +485,15 @@ func getCommentStrippedFromTags(comment string) string {
 		result += line + "\n"
 	}
 
-	return strings.TrimSpace(result)
+	comment = strings.TrimSpace(result)
+	if strings.HasPrefix(comment, methodName) {
+		comment = strings.TrimSpace(strings.TrimPrefix(comment, methodName))
+	}
+
+	return comment
 }
 
+// camelToSpaced converts a camel case string to a spaced string
 func camelToSpaced(s string) string {
 	words := strcase.ToDelimited(s, ' ')
 	words = strings.ToLower(words)

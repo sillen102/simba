@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/test"
@@ -26,10 +28,11 @@ func TestMultipartHandler(t *testing.T) {
 	writer.WriteField("alive", "true")
 	writer.Close()
 
+	id := uuid.NewString()
+
 	t.Run("multipart file and params", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.MultipartRequest[test.Params]) (*simba.Response[map[string]string], error) {
-			assert.Equal(t, "John", req.Params.Name)
-			assert.Equal(t, 1, req.Params.ID)
+			assert.Equal(t, id, req.Params.ID.String())
 			assert.Equal(t, true, req.Params.Active)
 			assert.Equal(t, 0, req.Params.Page)
 			assert.Equal(t, int64(10), req.Params.Size)
@@ -42,9 +45,8 @@ func TestMultipartHandler(t *testing.T) {
 			}, nil
 		}
 
-		req := httptest.NewRequest(http.MethodPost, "/multipart-test/1?page=0&size=10&active=true", body)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/multipart-test/%s?page=0&size=10&active=true", id), body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
-		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
@@ -92,7 +94,7 @@ func TestMultipartHandler(t *testing.T) {
 			return &simba.Response[simba.NoBody]{}, nil
 		}
 
-		req := httptest.NewRequest(http.MethodPost, "/multipart-test/1?active=true", body)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/multipart-test/%s?active=true", id), body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
@@ -114,7 +116,7 @@ func TestMultipartHandler(t *testing.T) {
 			return &simba.Response[simba.NoBody]{}, nil
 		}
 
-		req := httptest.NewRequest(http.MethodPost, "/multipart-test/1?active=true&page=5&size=20&score=15.5", body)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/multipart-test/%s?active=true&page=5&size=20&score=15.5", id), body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
@@ -242,6 +244,8 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 	writer.WriteField("alive", "true")
 	writer.Close()
 
+	id := uuid.NewString()
+
 	t.Run("authenticated multipart handler", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.MultipartRequest[test.Params], authModel *test.User) (*simba.Response[simba.NoBody], error) {
 			assert.Equal(t, 1, authModel.ID)
@@ -250,7 +254,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 			return &simba.Response[simba.NoBody]{}, nil
 		}
 
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", body)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/test/%s?page=1&size=10&active=true", id), body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		req.Header.Set("Authorization", "token")
 		req.Header.Set("name", "John")

@@ -361,6 +361,7 @@ func TestInvalidParameterTypes(t *testing.T) {
 		ID      int       `path:"id"`
 		Header  string    `header:"Header"`
 		Header2 uuid.UUID `header:"Header2"`
+		Cookie  string    `cookie:"Cookie"`
 	}
 
 	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response[simba.NoBody], error) {
@@ -471,7 +472,63 @@ func TestTimeParameters(t *testing.T) {
 	app.Router.GET("/test", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
 
-	println(w.Body.String())
-
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCookieParams(t *testing.T) {
+	t.Parallel()
+
+	type cookieParams struct {
+		Toke string `cookie:"token" validate:"required"`
+	}
+
+	validToken := "test-token"
+
+	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, cookieParams]) (*simba.Response[simba.NoBody], error) {
+		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+	}
+
+	app := simba.New()
+	app.Router.GET("/test", simba.JsonHandler(handler))
+
+	testCases := []struct {
+		name           string
+		cookie         *http.Cookie
+		expectedStatus int
+	}{
+		{
+			name:           "valid cookie",
+			cookie:         &http.Cookie{Name: "token", Value: validToken},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing cookie",
+			cookie:         nil,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "empty cookie",
+			cookie:         &http.Cookie{Name: "token", Value: ""},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "not present cookie",
+			cookie:         &http.Cookie{Name: "not-present", Value: "test"},
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			if tt.cookie != nil {
+				req.AddCookie(tt.cookie)
+			}
+
+			w := httptest.NewRecorder()
+			app.Router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
 }

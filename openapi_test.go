@@ -2,7 +2,6 @@ package simba_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,73 +9,14 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/test"
 	"github.com/stretchr/testify/require"
-	"github.com/swaggest/openapi-go"
 )
-
-type params struct {
-	ID        string `path:"id" description:"ID of the user" example:"1"`
-	Gender    string `query:"gender" description:"Gender of the user" example:"male"`
-	RequestID string `header:"X-Request-ID" description:"Request ID" example:"1234"`
-}
-
-type reqBody struct {
-	Name        string `json:"name" description:"Name of the user" example:"John Doe"`
-	Age         int    `json:"age" description:"Age of the user" example:"30"`
-	Description string `json:"description" description:"description of the user" example:"A test user"`
-}
-
-type respBody struct {
-	ID          string `json:"id" description:"ID of the user" example:"1"`
-	Name        string `json:"name" description:"Name of the user" example:"John Doe"`
-	Age         int    `json:"age" description:"Age of the user" example:"30"`
-	Description string `json:"description" description:"description of the user" example:"A test user"`
-}
-
-type basicAuthParams struct {
-	Username string `header:"Authorization" description:"Basic auth username"`
-}
-
-type apiKeyAuthParams struct {
-	APIKey string `header:"Authorization" description:"API key"`
-}
-
-type bearerTokenAuthParams struct {
-	Token string `header:"Authorization" description:"Bearer token"`
-}
-
-type user struct {
-	ID   int
-	Name string
-}
-
-// @ID testHandler
-// @Deprecated
-// @Tag Test
-// @Tag User
-// @Summary test handler
-// @Description this is a multiline
-//
-// description for the handler
-// @Error 409 Resource already exists
-func handler(ctx context.Context, req *simba.Request[reqBody, params]) (*simba.Response[respBody], error) {
-	return &simba.Response[respBody]{
-		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
-		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
-		Body: respBody{
-			ID:          req.Params.ID,
-			Name:        req.Body.Name,
-			Age:         req.Body.Age,
-			Description: req.Body.Description,
-		},
-		Status: http.StatusCreated,
-	}, nil
-}
 
 func TestOpenAPIDocsGen(t *testing.T) {
 	t.Parallel()
 
-	body, err := json.Marshal(&reqBody{
+	body, err := json.Marshal(&test.RequestBody{
 		Name:        "John Doe",
 		Age:         30,
 		Description: "A test user",
@@ -89,7 +29,7 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test/{id}", simba.JsonHandler(handler))
+	app.Router.POST("/test/{id}", simba.JsonHandler(test.TagsHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -128,33 +68,6 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "- Test")
 }
 
-func basicAuthFunc(ctx context.Context, req *simba.AuthRequest[basicAuthParams]) (*user, error) {
-	return &user{
-		ID:   1,
-		Name: "John Doe",
-	}, nil
-}
-
-var basicAuthAuthenticationHandler = simba.BasicAuth[basicAuthParams, user](
-	basicAuthFunc,
-	simba.BasicAuthConfig{
-		Name:        "admin",
-		Description: "admin access only",
-	})
-
-// @ID basicAuthHandler
-// @Summary basic auth handler
-// @Description this is a multiline
-//
-// description for the handler
-//
-// @Error 409 Resource already exists
-func basicAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *user) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
-		Status: http.StatusAccepted,
-	}, nil
-}
-
 func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +75,7 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(basicAuthHandler, basicAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -196,7 +109,7 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	require.Contains(t, yamlContent, "operationId: basicAuthHandler")
 	require.Contains(t, yamlContent, "summary: basic auth handler")
 	require.NotContains(t, yamlContent, "deprecated: true")
-	require.Contains(t, yamlContent, "\"204\":")
+	require.Contains(t, yamlContent, "\"202\":")
 }
 
 func TestMultipleAuthHandlers(t *testing.T) {
@@ -206,12 +119,12 @@ func TestMultipleAuthHandlers(t *testing.T) {
 
 	req1 := httptest.NewRequest(http.MethodPost, "/test1", nil)
 	w1 := httptest.NewRecorder()
-	app.Router.POST("/test1", simba.AuthJsonHandler(basicAuthHandler, basicAuthAuthenticationHandler))
+	app.Router.POST("/test1", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w1, req1)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/test2", nil)
 	w2 := httptest.NewRecorder()
-	app.Router.POST("/test2", simba.AuthJsonHandler(basicAuthHandler, basicAuthAuthenticationHandler))
+	app.Router.POST("/test2", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w2, req2)
 
 	// Fetch OpenAPI documentation
@@ -240,35 +153,6 @@ func TestMultipleAuthHandlers(t *testing.T) {
 	require.Contains(t, yamlContent, "operationId: basicAuthHandler")
 }
 
-func apiKeyAuthFunc(ctx context.Context, req *simba.AuthRequest[apiKeyAuthParams]) (*user, error) {
-	return &user{
-		ID:   1,
-		Name: "John Doe",
-	}, nil
-}
-
-var apiKeyAuthAuthenticationHandler = simba.APIKeyAuth[apiKeyAuthParams, user](
-	apiKeyAuthFunc,
-	simba.APIKeyAuthConfig{
-		Name:        "User",
-		FieldName:   "sessionid",
-		In:          openapi.InCookie,
-		Description: "Session cookie",
-	})
-
-// @ID apiKeyAuthHandler
-// @Summary api key handler
-// @Description this is a multiline
-//
-// description for the handler
-//
-// @Error 409 Resource already exists
-func apiKeyAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *user) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
-		Status: http.StatusAccepted,
-	}, nil
-}
-
 func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
 	t.Parallel()
 
@@ -277,7 +161,7 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(apiKeyAuthHandler, apiKeyAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(test.ApiKeyAuthHandler, test.ApiKeyAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -313,34 +197,6 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
 	require.Contains(t, yamlContent, "summary: api key handler")
 }
 
-func bearerAuthFunc(ctx context.Context, req *simba.AuthRequest[bearerTokenAuthParams]) (*user, error) {
-	return &user{
-		ID:   1,
-		Name: "John Doe",
-	}, nil
-}
-
-var bearerAuthAuthenticationHandler = simba.BearerAuth[bearerTokenAuthParams, user](
-	bearerAuthFunc,
-	simba.BearerAuthConfig{
-		Name:        "admin",
-		Format:      "jwt",
-		Description: "Bearer token",
-	})
-
-// @ID  bearerTokenAuthHandler
-// @Summary  bearer token handler
-// @Description this is a multiline
-//
-// description for the handler
-//
-// @Error  409 	Resource already exists
-func bearerTokenAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *user) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
-		Status: http.StatusAccepted,
-	}, nil
-}
-
 func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	t.Parallel()
 
@@ -349,7 +205,7 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(bearerTokenAuthHandler, bearerAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(test.BearerTokenAuthHandler, test.BearerAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -363,6 +219,7 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, "\"202\":")
 	require.Contains(t, yamlContent, `
       description: |
         this is a multiline
@@ -385,13 +242,6 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	require.Contains(t, yamlContent, "summary: bearer token handler")
 }
 
-// A dummy function to test the OpenAPI generation without any tags.
-func noTagsHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
-		Status: http.StatusAccepted,
-	}, nil
-}
-
 func TestOpenAPIGenNoTags(t *testing.T) {
 	t.Parallel()
 
@@ -400,7 +250,7 @@ func TestOpenAPIGenNoTags(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.JsonHandler(noTagsHandler))
+	app.Router.POST("/test", simba.JsonHandler(test.NoTagsHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -414,9 +264,42 @@ func TestOpenAPIGenNoTags(t *testing.T) {
 
 	yamlContent := getW.Body.String()
 	require.Contains(t, yamlContent, "/test")
-	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags.")
+	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags")
 	require.Contains(t, yamlContent, "operationId: no-tags-handler")
 	require.Contains(t, yamlContent, "summary: No tags handler")
 	require.Contains(t, yamlContent, "tags:")
-	require.Contains(t, yamlContent, "- SimbaTest")
+	require.Contains(t, yamlContent, "- Test")
+	require.Contains(t, yamlContent, "\"202\":")
+}
+
+func TestOpenAPIGenNoTagsReceiverFuncHandler(t *testing.T) {
+	t.Parallel()
+
+	receiver := test.Receiver{}
+
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.Header.Set("Authorization", "Bearer token")
+	w := httptest.NewRecorder()
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.JsonHandler(receiver.NoTagsHandler))
+	app.Router.ServeHTTP(w, req)
+
+	// Fetch OpenAPI documentation
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	yamlContent := getW.Body.String()
+	require.Contains(t, yamlContent, "/test")
+	require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags")
+	require.Contains(t, yamlContent, "operationId: no-tags-handler")
+	require.Contains(t, yamlContent, "summary: No tags handler")
+	require.Contains(t, yamlContent, "tags:")
+	require.Contains(t, yamlContent, "- Test")
+	require.Contains(t, yamlContent, "\"202\":")
 }

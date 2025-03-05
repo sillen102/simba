@@ -83,6 +83,12 @@ func getParamValues(r *http.Request, field reflect.StructField) []string {
 	switch {
 	case field.Tag.Get("header") != "":
 		return []string{r.Header.Get(field.Tag.Get("header"))}
+	case field.Tag.Get("cookie") != "":
+		cookie, err := r.Cookie(field.Tag.Get("cookie"))
+		if err != nil {
+			return nil
+		}
+		return []string{cookie.Value}
 	case field.Tag.Get("path") != "":
 		paramName := field.Tag.Get("path")
 		return []string{r.PathValue(paramName)}
@@ -106,6 +112,8 @@ func getParamType(field reflect.StructField) ParameterType {
 	switch {
 	case field.Tag.Get("header") != "":
 		return ParameterTypeHeader
+	case field.Tag.Get("cookie") != "":
+		return ParameterTypeCookie
 	case field.Tag.Get("path") != "":
 		return ParameterTypePath
 	case field.Tag.Get("query") != "":
@@ -120,6 +128,8 @@ func getParamName(field reflect.StructField) string {
 	switch {
 	case field.Tag.Get("header") != "":
 		return field.Tag.Get("header")
+	case field.Tag.Get("cookie") != "":
+		return field.Tag.Get("cookie")
 	case field.Tag.Get("path") != "":
 		return field.Tag.Get("path")
 	case field.Tag.Get("query") != "":
