@@ -7,15 +7,13 @@ import (
 
 // Request represents a HTTP Request
 type Request[RequestBody any, RequestParams any] struct {
-	Cookies []*http.Cookie
-	Body    RequestBody
-	Params  RequestParams
+	Params RequestParams
+	Body   RequestBody
 }
 
 type MultipartRequest[RequestParams any] struct {
-	Cookies []*http.Cookie
-	Reader  *multipart.Reader
-	Params  RequestParams
+	Params RequestParams
+	Reader *multipart.Reader
 }
 
 // Response represents a HTTP response

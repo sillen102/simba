@@ -31,14 +31,23 @@ type ResponseBody struct {
 	Description string    `json:"description" description:"description of the user" example:"A test user"`
 }
 
-type BasicAuthModel struct {
-	Username string `header:"Authorization" description:"Basic auth username"`
+type BasicAuthParams struct {
+	Credentials string `header:"Authorization" description:"Basic auth username"`
 }
 
-type ApiKeyAuthModel struct {
+type ApiKeyParams struct {
 	APIKey string `header:"Authorization" description:"API key"`
 }
 
-type BearerTokenAuthModel struct {
+type BearerTokenParams struct {
 	Token string `header:"Authorization" description:"Bearer token"`
+}
+
+// AuthRequestBody is a test struct for authenticated request body
+type AuthRequestBody struct {
+	Token string `json:"token" validate:"required"`
+}
+
+type AuthParams struct {
+	Token string `header:"Authorization" validate:"required"`
 }
