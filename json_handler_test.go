@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/enums"
 	"github.com/sillen102/simba/settings"
@@ -21,15 +23,15 @@ import (
 func TestJsonHandler(t *testing.T) {
 	t.Parallel()
 
+	id := uuid.NewString()
+
 	t.Run("body and params", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params]) (*simba.Response[map[string]string], error) {
-			assert.Equal(t, "John", req.Params.Name)
-			assert.Equal(t, 1, req.Params.ID)
+			assert.Equal(t, "John", req.Body.Name)
+			assert.Equal(t, id, req.Params.ID.String())
 			assert.Equal(t, true, req.Params.Active)
 			assert.Equal(t, 0, req.Params.Page)
 			assert.Equal(t, int64(10), req.Params.Size)
-
-			assert.Equal(t, "test", req.Body.Test)
 
 			return &simba.Response[map[string]string]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
@@ -39,8 +41,8 @@ func TestJsonHandler(t *testing.T) {
 			}, nil
 		}
 
-		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=0&size=10&active=true", body)
+		body := strings.NewReader(`{"name": "John"}`)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/test/%s?page=0&size=10&active=true", id), body)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
@@ -68,8 +70,7 @@ func TestJsonHandler(t *testing.T) {
 			}, nil
 		}
 
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", nil)
-		req.Header.Set("name", "John")
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/test/%s?page=1&size=10&active=true", id), nil)
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
@@ -94,7 +95,7 @@ func TestJsonHandler(t *testing.T) {
 			}, nil
 		}
 
-		body := strings.NewReader(`{"test": "test"}`)
+		body := strings.NewReader(`{"name": "John"}`)
 		req := httptest.NewRequest(http.MethodPost, "/test?page=1&size=10&active=true", body) // Params should be ignored
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -120,8 +121,8 @@ func TestJsonHandler(t *testing.T) {
 			return &simba.Response[simba.NoBody]{}, nil
 		}
 
-		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?active=true", body)
+		body := strings.NewReader(`{"name": "John"}`)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/test/%s?active=true", id), body)
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
 
@@ -142,8 +143,8 @@ func TestJsonHandler(t *testing.T) {
 			return &simba.Response[simba.NoBody]{}, nil
 		}
 
-		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?active=true&page=5&size=20&score=15.5", body)
+		body := strings.NewReader(`{"name": "John"}`)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/test/%s?active=true&page=5&size=20&score=15.5", id), body)
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
 
@@ -254,6 +255,8 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 		return nil, errors.New("user not found")
 	}
 
+	id := uuid.NewString()
+
 	t.Run("authenticated handler", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simba.Request[test.RequestBody, test.Params], user *test.User) (*simba.Response[simba.NoBody], error) {
 			assert.Equal(t, 1, user.ID)
@@ -267,8 +270,8 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 			}, nil
 		}
 
-		body := strings.NewReader(`{"test": "test"}`)
-		req := httptest.NewRequest(http.MethodPost, "/test/1?page=1&size=10&active=true", body)
+		body := strings.NewReader(`{"name": "John"}`)
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/test/%s?page=1&size=10&active=true", id), body)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
