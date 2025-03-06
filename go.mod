@@ -10,6 +10,8 @@ require (
 	gotest.tools/v3 v3.5.2
 )
 
+require github.com/hashicorp/go-envparse v0.1.0 // indirect
+
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
