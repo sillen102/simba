@@ -11,29 +11,27 @@ import (
 )
 
 type TestConfig struct {
-	TestString string  `env:"TEST_STRING" default:"test"`
-	TestInt    int     `env:"TEST_INT" default:"123"`
-	TestInt64  int64   `env:"TEST_INT64" default:"123456"`
-	TestBool   bool    `env:"TEST_BOOL" default:"true"`
-	TestFloat  float64 `env:"TEST_FLOAT" default:"1.23"`
-	Nested     NestedConfig
+	String string  `env:"TEST_STRING" default:"test"`
+	Int    int     `env:"TEST_INT" default:"123"`
+	Int64  int64   `env:"TEST_INT64" default:"123456"`
+	Bool   bool    `env:"TEST_BOOL" default:"true"`
+	Float  float64 `env:"TEST_FLOAT" default:"1.23"`
+	Nested NestedConfig
 }
 
 type NestedConfig struct {
-	TestString string `env:"NESTED_TEST_STRING" default:"test"`
+	String string `env:"NESTED_TEST_STRING" default:"test"`
 }
 
 func TestLoadYamlFile(t *testing.T) {
 	yamlContent := `
-test:
-  string: test2
-  int: 456
-  int64: 456789
-  bool: false
-  float: 1.45
+string: test2
+int: 456
+int64: 456789
+bool: false
+float: 1.45
 nested:
-  test:
-    string: nested_test
+  string: nested_test
 `
 
 	yamlFilePath, cleanup := createTempFile(t, yamlContent)
@@ -41,7 +39,7 @@ nested:
 
 	cfg := TestConfig{}
 	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
-		FilePath: yamlFilePath,
+		ConfigFilePath: yamlFilePath,
 	})
 
 	err := loader.Load(&cfg)
@@ -50,13 +48,13 @@ nested:
 	}
 
 	expected := TestConfig{
-		TestString: "test2",
-		TestInt:    456,
-		TestInt64:  456789,
-		TestBool:   false,
-		TestFloat:  1.45,
+		String: "test2",
+		Int:    456,
+		Int64:  456789,
+		Bool:   false,
+		Float:  1.45,
 		Nested: NestedConfig{
-			TestString: "nested_test",
+			String: "nested_test",
 		},
 	}
 
@@ -67,13 +65,11 @@ nested:
 
 func TestYamlFileWithEnvironmentOverride(t *testing.T) {
 	yamlContent := `
-test:
-  string: from_yaml
-  int: 123
-  float: 1.23
+string: from_yaml
+int: 123
+float: 1.23
 nested:
-  test:
-    string: nested_from_yaml
+  string: nested_from_yaml
 `
 
 	yamlFilePath, cleanup := createTempFile(t, yamlContent)
@@ -87,7 +83,7 @@ nested:
 
 	cfg := TestConfig{}
 	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
-		FilePath: yamlFilePath,
+		ConfigFilePath: yamlFilePath,
 	})
 
 	err := loader.Load(&cfg)
@@ -96,21 +92,19 @@ nested:
 	}
 
 	// Environment variable should override YAML value
-	if cfg.TestString != "from_env" {
-		t.Errorf("Expected TestString to be 'from_env', got '%s'", cfg.TestString)
+	if cfg.String != "from_env" {
+		t.Errorf("Expected String to be 'from_env', got '%s'", cfg.String)
 	}
 
 	// YAML value should be used for non-overridden field
-	if cfg.Nested.TestString != "nested_from_yaml" {
-		t.Errorf("Expected Nested.TestString to be 'nested_from_yaml', got '%s'", cfg.Nested.TestString)
+	if cfg.Nested.String != "nested_from_yaml" {
+		t.Errorf("Expected Nested.String to be 'nested_from_yaml', got '%s'", cfg.Nested.String)
 	}
 }
 
 func TestFileExtensionPriority(t *testing.T) {
 	// Test with both YAML and ENV content in different files
-	yamlContent := `
-test:
-  string: from_yaml`
+	yamlContent := `string: from_yaml`
 	envContent := `TEST_STRING=from_env`
 
 	// Create both files
@@ -141,7 +135,7 @@ test:
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := TestConfig{}
 			loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
-				FilePath: tc.filePath,
+				ConfigFilePath: tc.filePath,
 			})
 
 			err := loader.Load(&cfg)
@@ -149,8 +143,8 @@ test:
 				t.Fatalf("Failed to load config: %v", err)
 			}
 
-			if cfg.TestString != tc.expected {
-				t.Errorf("Expected TestString to be '%s', got '%s'", tc.expected, cfg.TestString)
+			if cfg.String != tc.expected {
+				t.Errorf("Expected String to be '%s', got '%s'", tc.expected, cfg.String)
 			}
 		})
 	}
@@ -168,7 +162,7 @@ TEST_INT=456
 
 	cfg := TestConfig{}
 	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
-		FilePath: filePath,
+		ConfigFilePath: filePath,
 	})
 
 	err := loader.Load(&cfg)
@@ -176,16 +170,23 @@ TEST_INT=456
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	if cfg.TestString != "from_env" {
-		t.Errorf("Expected TestString to be 'from_env', got '%s'", cfg.TestString)
+	if cfg.String != "from_env" {
+		t.Errorf("Expected String to be 'from_env', got '%s'", cfg.String)
 	}
 
-	if cfg.TestInt != 456 {
-		t.Errorf("Expected TestInt to be 456, got %d", cfg.TestInt)
+	if cfg.Int != 456 {
+		t.Errorf("Expected Int to be 456, got %d", cfg.Int)
 	}
 }
 
 func TestLoadEnvVars(t *testing.T) {
+	// Clear all environment variables that might be set by other tests
+	_ = os.Unsetenv("TEST_STRING")
+	_ = os.Unsetenv("TEST_INT")
+	_ = os.Unsetenv("TEST_INT64")
+	_ = os.Unsetenv("TEST_BOOL")
+	_ = os.Unsetenv("TEST_FLOAT")
+	_ = os.Unsetenv("NESTED_TEST_STRING")
 
 	cfg := TestConfig{}
 	loader := config.NewConfigLoader(nil)
@@ -198,13 +199,13 @@ func TestLoadEnvVars(t *testing.T) {
 		{
 			name: "load default values",
 			expected: TestConfig{
-				TestString: "test",
-				TestInt:    123,
-				TestInt64:  123456,
-				TestBool:   true,
-				TestFloat:  1.23,
+				String: "test",
+				Int:    123,
+				Int64:  123456,
+				Bool:   true,
+				Float:  1.23,
 				Nested: NestedConfig{
-					TestString: "test",
+					String: "test",
 				},
 			},
 		},
@@ -219,13 +220,13 @@ func TestLoadEnvVars(t *testing.T) {
 				_ = os.Setenv("NESTED_TEST_STRING", "nested_test")
 			},
 			expected: TestConfig{
-				TestString: "test2",
-				TestInt:    456,
-				TestInt64:  456789,
-				TestBool:   false,
-				TestFloat:  1.45,
+				String: "test2",
+				Int:    456,
+				Int64:  456789,
+				Bool:   false,
+				Float:  1.45,
 				Nested: NestedConfig{
-					TestString: "nested_test",
+					String: "nested_test",
 				},
 			},
 		},
@@ -248,7 +249,7 @@ func TestLoadEnvVars(t *testing.T) {
 func TestLoadEnvFromDockerFile(t *testing.T) {
 
 	type testStruct struct {
-		TestString string `env:"FILE_TEST_STRING" default:"test"`
+		String string `env:"FILE_TEST_STRING" default:"test"`
 	}
 
 	dockerSecretContent := "fileTest123"
@@ -261,8 +262,8 @@ func TestLoadEnvFromDockerFile(t *testing.T) {
 	loader := config.NewConfigLoader(nil)
 	_ = loader.Load(&cfg)
 
-	if cfg.TestString != dockerSecretContent {
-		t.Errorf("Expected %s, got %s", dockerSecretContent, cfg.TestString)
+	if cfg.String != dockerSecretContent {
+		t.Errorf("Expected %s, got %s", dockerSecretContent, cfg.String)
 	}
 }
 
@@ -282,7 +283,7 @@ NESTED_TEST_STRING=nested_test
 
 	cfg := TestConfig{}
 	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
-		FilePath: envFilePath,
+		ConfigFilePath: envFilePath,
 	})
 
 	tests := []struct {
@@ -292,13 +293,13 @@ NESTED_TEST_STRING=nested_test
 		{
 			name: "load from env file",
 			expected: TestConfig{
-				TestString: "test2",
-				TestInt:    456,
-				TestInt64:  456789,
-				TestBool:   false,
-				TestFloat:  1.45,
+				String: "test2",
+				Int:    456,
+				Int64:  456789,
+				Bool:   false,
+				Float:  1.45,
 				Nested: NestedConfig{
-					TestString: "nested_test",
+					String: "nested_test",
 				},
 			},
 		},

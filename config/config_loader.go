@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
-	"strings"
 
 	"github.com/hashicorp/go-envparse"
 	"gopkg.in/yaml.v3"
@@ -13,11 +12,10 @@ import (
 
 type ConfigLoader struct {
 	filePath string
-	envVars  map[string]string
 }
 
 type ConfigLoaderOpts struct {
-	FilePath string
+	ConfigFilePath string
 }
 
 func NewConfigLoader(opts *ConfigLoaderOpts) *ConfigLoader {
@@ -26,14 +24,13 @@ func NewConfigLoader(opts *ConfigLoaderOpts) *ConfigLoader {
 	}
 
 	// If no file path is provided, try to find default config files
-	filePath := opts.FilePath
+	filePath := opts.ConfigFilePath
 	if filePath == "" {
 		filePath = findDefaultConfigFile()
 	}
 
 	return &ConfigLoader{
-		filePath: opts.FilePath,
-		envVars:  make(map[string]string),
+		filePath: filePath,
 	}
 }
 
@@ -57,46 +54,100 @@ func findDefaultConfigFile() string {
 	return ""
 }
 
+// Load loads configuration for the application.
+// It will use the following order of precedence:
+//  1. Environment variables
+//  2. Docker secrets (using _FILE suffix)
+//  3. application.yaml or application.yml file
+//  4. .env file
+//  5. Default values from struct tags
 func (c *ConfigLoader) Load(cfg any) error {
-	// Load file if found
+	// First, set default values from struct tags
+	if err := c.loadDefaults(reflect.ValueOf(cfg).Elem()); err != nil {
+		return fmt.Errorf("failed to load defaults: %w", err)
+	}
+
+	// Then, try to load from file if available
 	if c.filePath != "" {
 		file, err := c.openFile()
 		if err != nil {
-			return fmt.Errorf("failed to open file: %w", err)
-		}
-		defer func(file *os.File) {
-			err = file.Close()
-			if err != nil {
-				slog.Error(fmt.Sprintf("failed to close file: %s", c.filePath), "error", err)
-			}
-		}(file)
-
-		// Try YAML first
-		yamlOk, yamlErr := c.loadYamlFile(file)
-		if yamlOk {
-			slog.Info("Loaded configuration from YAML file")
+			slog.Warn(fmt.Sprintf("failed to open file: %s", c.filePath), "error", err)
 		} else {
-			// Fall back to ENV format
-			envOk, envErr := c.loadEnvFile(file)
-			if envOk {
-				slog.Info("Loaded configuration from ENV file")
+			defer func(file *os.File) {
+				err = file.Close()
+				if err != nil {
+					slog.Error(fmt.Sprintf("failed to close file: %s", c.filePath), "error", err)
+				}
+			}(file)
+
+			// Try YAML first
+			yamlOk, yamlErr := c.loadYamlFile(file, cfg)
+			if yamlOk {
+				slog.Info("Loaded configuration from YAML file")
 			} else {
-				slog.Info("Failed to load file as YAML or ENV format",
-					"yamlError", yamlErr,
-					"envError", envErr)
+				// Fall back to ENV format
+				envOk, envErr := c.loadEnvFile(file)
+				if envOk {
+					slog.Info("Loaded configuration from ENV file")
+					// Process ENV variables into struct
+					if err := c.processStruct(reflect.ValueOf(cfg).Elem()); err != nil {
+						return err
+					}
+				} else {
+					slog.Info("Failed to load file as YAML or ENV format",
+						"yamlError", yamlErr,
+						"envError", envErr)
+				}
 			}
 		}
 	}
 
-	// Process the loaded environment variables
-	return c.processStruct(reflect.ValueOf(cfg).Elem())
+	// Finally, override with environment variables
+	return c.loadEnvironmentVars(reflect.ValueOf(cfg).Elem())
 }
 
+// openFile opens the configuration file
 func (c *ConfigLoader) openFile() (*os.File, error) {
-	return os.Open(c.filePath)
+	file, err := os.Open(c.filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	return file, nil
 }
 
-func (c *ConfigLoader) loadYamlFile(file *os.File) (bool, error) {
+// loadDefaults sets default values from struct tags
+func (c *ConfigLoader) loadDefaults(v reflect.Value) error {
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		fieldValue := v.Field(i)
+
+		// Handle nested structs recursively
+		if field.Type.Kind() == reflect.Struct {
+			if err := c.loadDefaults(fieldValue); err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Get default value from tag
+		tag := field.Tag.Get("env")
+		if tag == "" {
+			continue
+		}
+
+		defaultValue := field.Tag.Get("default")
+		if defaultValue != "" {
+			if err := c.setField(fieldValue, defaultValue); err != nil {
+				return fmt.Errorf("failed to set default value for %s: %w", field.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
+// loadYamlFile loads YAML directly into the struct
+func (c *ConfigLoader) loadYamlFile(file *os.File, cfg any) (bool, error) {
 	if _, err := file.Seek(0, 0); err != nil {
 		return false, fmt.Errorf("failed to reset file position: %w", err)
 	}
@@ -106,58 +157,79 @@ func (c *ConfigLoader) loadYamlFile(file *os.File) (bool, error) {
 		return false, fmt.Errorf("failed to read YAML file: %w", err)
 	}
 
-	var yamlMap map[string]interface{}
-	if err = yaml.Unmarshal(data, &yamlMap); err != nil {
+	// Unmarshal directly into the struct
+	if err = yaml.Unmarshal(data, cfg); err != nil {
 		return false, fmt.Errorf("failed to parse YAML file: %w", err)
 	}
 
-	c.flattenYAML("", yamlMap)
 	return true, nil
 }
 
-// flattenYAML converts nested YAML structure to flat key-value pairs
-func (c *ConfigLoader) flattenYAML(prefix string, m map[string]interface{}) {
-	for k, v := range m {
-		var newPrefix string
-		if prefix == "" {
-			newPrefix = strings.ToUpper(k)
-		} else {
-			newPrefix = prefix + "_" + strings.ToUpper(k)
-		}
-
-		switch vt := v.(type) {
-		case map[string]interface{}:
-			c.flattenYAML(newPrefix, vt)
-		case []interface{}:
-			// Handle arrays by using index in the key
-			for i, item := range vt {
-				arrayKey := fmt.Sprintf("%s_%d", newPrefix, i)
-				if mapItem, ok := item.(map[string]interface{}); ok {
-					c.flattenYAML(arrayKey, mapItem)
-				} else {
-					c.envVars[arrayKey] = fmt.Sprintf("%v", item)
-				}
-			}
-		default:
-			c.envVars[newPrefix] = fmt.Sprintf("%v", vt)
-		}
-	}
-}
-
+// loadEnvFile loads environment variables from a .env file
 func (c *ConfigLoader) loadEnvFile(file *os.File) (bool, error) {
 	if _, err := file.Seek(0, 0); err != nil {
 		return false, fmt.Errorf("failed to reset file position: %w", err)
 	}
 
-	envVars, err := envparse.Parse(file)
+	vars, err := envparse.Parse(file)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to parse ENV file: %w", err)
 	}
 
-	c.envVars = envVars
+	// Set environment variables from the file
+	for k, v := range vars {
+		err = os.Setenv(k, v)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	return true, nil
 }
 
+// loadEnvironmentVars overrides values with environment variables
+func (c *ConfigLoader) loadEnvironmentVars(v reflect.Value) error {
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		fieldValue := v.Field(i)
+
+		// Handle nested structs recursively
+		if field.Type.Kind() == reflect.Struct {
+			if err := c.loadEnvironmentVars(fieldValue); err != nil {
+				return err
+			}
+			continue
+		}
+
+		tag := field.Tag.Get("env")
+		if tag == "" {
+			continue
+		}
+
+		// Check environment variables
+		if value := os.Getenv(tag); value != "" {
+			if err := c.setField(fieldValue, value); err != nil {
+				return fmt.Errorf("failed to set field %s from env: %w", field.Name, err)
+			}
+			continue
+		}
+
+		// Check for _FILE suffix (used for Docker secrets)
+		if filePath := os.Getenv(tag + "_FILE"); filePath != "" {
+			fileContent, err := os.ReadFile(filePath)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", filePath, err)
+			}
+			if err := c.setField(fieldValue, string(fileContent)); err != nil {
+				return fmt.Errorf("failed to set field %s from file: %w", field.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
+// processStruct sets values from environment variables into the struct
 func (c *ConfigLoader) processStruct(v reflect.Value) error {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
@@ -177,44 +249,29 @@ func (c *ConfigLoader) processStruct(v reflect.Value) error {
 			continue
 		}
 
-		defaultValue := field.Tag.Get("default")
-		value, err := c.resolveValue(tag, defaultValue)
-		if err != nil {
-			return err
+		// Check for _FILE suffix (used for Docker secrets)
+		if filePath := os.Getenv(tag + "_FILE"); filePath != "" {
+			fileContent, err := os.ReadFile(filePath)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", filePath, err)
+			}
+			if err := c.setField(fieldValue, string(fileContent)); err != nil {
+				return fmt.Errorf("failed to set field %s from file: %w", field.Name, err)
+			}
 		}
 
-		if err := c.setField(fieldValue, value); err != nil {
-			return fmt.Errorf("failed to set field %s: %w", field.Name, err)
+		// Look for environment variables
+		if value := os.Getenv(tag); value != "" {
+			if err := c.setField(fieldValue, value); err != nil {
+				return fmt.Errorf("failed to set field %s: %w", field.Name, err)
+			}
 		}
 	}
 
 	return nil
 }
 
-func (c *ConfigLoader) resolveValue(envName, defaultValue string) (string, error) {
-
-	// First: check if the environment variable is set
-	if value := os.Getenv(envName); value != "" {
-		return value, nil
-	}
-
-	// Second: check if the environment variable is set via file with _FILE suffix (used for docker secrets)
-	if filePath := os.Getenv(envName + "_FILE"); filePath != "" {
-		fileContent, err := os.ReadFile(filePath)
-		if err != nil {
-			return "", fmt.Errorf("failed to read file %s: %w", filePath, err)
-		}
-		return string(fileContent), nil
-	}
-
-	// Third: Check .env file variables
-	if value, ok := c.envVars[envName]; ok {
-		return value, nil
-	}
-
-	return defaultValue, nil
-}
-
+// setField sets the value of a field based on its type
 func (c *ConfigLoader) setField(field reflect.Value, value string) error {
 	switch field.Kind() {
 	case reflect.String:
