@@ -29,7 +29,7 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*si
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	app := simba.Default(settings.Config{Logger: logger})
+	app := simba.Default(settings.Simba{Logger: logger})
 	app.Router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.Header.Set("X-Middleware", "123")

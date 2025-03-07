@@ -15,8 +15,8 @@ type TestApplication struct {
 }
 
 // New creates a new test application with the given settings
-func New(settings ...settings.Config) *TestApplication {
-	app := simba.New(settings...)
+func New(opts ...settings.Option) *TestApplication {
+	app := simba.New(opts...)
 
 	return &TestApplication{
 		Application: app,
@@ -25,8 +25,8 @@ func New(settings ...settings.Config) *TestApplication {
 }
 
 // Default creates a new test application with default settings
-func Default(settings ...settings.Config) *TestApplication {
-	app := simba.Default(settings...)
+func Default(opts ...settings.Option) *TestApplication {
+	app := simba.Default(opts...)
 
 	return &TestApplication{
 		Application: app,

@@ -14,7 +14,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/enums"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/test"
 	"gotest.tools/v3/assert"
@@ -49,7 +48,7 @@ func TestJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.New(settings.Config{Logger: logger})
+		app := simba.New(settings.WithLogger(logger))
 		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -75,7 +74,7 @@ func TestJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.New(settings.Config{Logger: logger})
+		app := simba.New(settings.WithLogger(logger))
 		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -102,7 +101,7 @@ func TestJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.New(settings.Config{Logger: logger})
+		app := simba.New(settings.WithLogger(logger))
 		app.Router.POST("/test", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -128,7 +127,7 @@ func TestJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.New(settings.Config{Logger: logger})
+		app := simba.New(settings.WithLogger(logger))
 		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -150,7 +149,7 @@ func TestJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.New(settings.Config{Logger: logger})
+		app := simba.New(settings.WithLogger(logger))
 		app.Router.POST("/test/{id}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -288,7 +287,7 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.New(settings.Config{Logger: logger})
+		app := simba.New(settings.WithLogger(logger))
 		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler, authHandler))
 		app.Router.ServeHTTP(w, req)
 
@@ -310,7 +309,7 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		logBuffer := &bytes.Buffer{}
 		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-		app := simba.New(settings.Config{Logger: logger})
+		app := simba.New(settings.WithLogger(logger))
 		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler, errorAuthHandler))
 		app.Router.ServeHTTP(w, req)
 
@@ -341,12 +340,7 @@ func TestReadJson_DisallowUnknownFields(t *testing.T) {
 
 	logBuffer := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-	app := simba.New(settings.Config{
-		Logger: logger,
-		Request: settings.Request{
-			AllowUnknownFields: enums.Disallow,
-		},
-	})
+	app := simba.New(settings.WithLogger(logger), settings.WithAllowUnknownFields(false))
 	app.Router.POST("/test", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
 

@@ -7,7 +7,6 @@ import (
 	"mime"
 	"net/http"
 
-	"github.com/sillen102/simba/enums"
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
@@ -32,16 +31,16 @@ func closeRequestBody(next http.Handler) http.Handler {
 	})
 }
 
-// injectRequestSettings injects the application Config into the Request context
-func injectRequestSettings(next http.Handler, settings *settings.Request) http.Handler {
+// injectRequestSettings injects the application Simba into the Request context
+func injectRequestSettings(next http.Handler, requestSettings *settings.Request) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), simbaContext.RequestSettingsKey, settings)
+		ctx := context.WithValue(r.Context(), simbaContext.RequestSettingsKey, requestSettings)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 // getConfigurationFromContext retrieves Request from the given context.
-// Returns the request Config stored in the context or zero value for Request if not found in the context.
+// Returns the request Simba stored in the context or zero value for Request if not found in the context.
 func getConfigurationFromContext(ctx context.Context) *settings.Request {
 	requestSettings, ok := ctx.Value(simbaContext.RequestSettingsKey).(*settings.Request)
 	if !ok {
@@ -67,7 +66,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	}
 
 	requestSettings := getConfigurationFromContext(r.Context())
-	if requestSettings.LogRequestBody != enums.Disabled {
+	if requestSettings.LogRequestBody {
 		logging.From(r.Context()).Info("request body", "body", r.Body)
 	}
 
@@ -86,7 +85,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 // readJson reads the JSON body and unmarshalls it into the model
 func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) error {
 	decoder := json.NewDecoder(body)
-	if requestSettings.AllowUnknownFields == enums.Disallow {
+	if !requestSettings.AllowUnknownFields {
 		decoder.DisallowUnknownFields()
 	}
 	err := decoder.Decode(&model)

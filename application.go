@@ -18,20 +18,20 @@ type Application struct {
 	Router *Router
 
 	// Settings is the application Settings
-	Settings *settings.Config
+	Settings *settings.Simba
 }
 
-// Default returns a new [Application] application with default Config
-func Default(provided ...settings.Config) *Application {
-	app := New(provided...)
+// Default returns a new [Application] application with default Simba
+func Default(opts ...settings.Option) *Application {
+	app := New(opts...)
 	app.Router.Extend(app.defaultMiddleware())
 	app.addDefaultEndpoints()
 	return app
 }
 
 // New returns a new [Application] application
-func New(provided ...settings.Config) *Application {
-	cfg, err := settings.Load(provided...)
+func New(opts ...settings.Option) *Application {
+	cfg, err := settings.LoadWithOptions(opts...)
 	if err != nil {
 		panic(err)
 	}
