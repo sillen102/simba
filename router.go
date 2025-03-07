@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/sillen102/simba/apiDocs"
 	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/settings"
+	"github.com/swaggest/jsonschema-go"
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
@@ -69,7 +71,21 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 		}(),
 		openApiReflector: func() *openapi31.Reflector {
 			if docsSettings.GenerateOpenAPIDocs {
-				return openapi31.NewReflector()
+				r := openapi31.NewReflector()
+				r.DefaultOptions = append(r.DefaultOptions, jsonschema.InterceptProp(func(params jsonschema.InterceptPropParams) error {
+					if !params.Processed {
+						return nil
+					}
+
+					if v, ok := params.Field.Tag.Lookup("validate"); ok {
+						if strings.Contains(v, "required") {
+							params.ParentSchema.Required = append(params.ParentSchema.Required, params.Name)
+						}
+					}
+
+					return nil
+				}))
+				return r
 			}
 			return nil
 		}(),
