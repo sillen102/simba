@@ -50,7 +50,7 @@ type routeInfo struct {
 	authHandler any
 }
 
-// newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Config]
+// newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Simba]
 func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Router {
 	return &Router{
 		Mux: http.NewServeMux(),
@@ -81,7 +81,7 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 // ServeHTTP implements the [http.Handler] interface for the [Router] type
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if r.docsSettings.GenerateOpenAPIDocs && r.docsSettings.MountDocsEndpoint {
-		r.mountDocs(r.docsSettings.OpenAPIPath)
+		r.mountDocs(r.docsSettings.OpenAPIFilePath)
 	}
 	r.Mux.ServeHTTP(w, req)
 }
@@ -177,7 +177,7 @@ func (r *Router) mountDocs(path string) {
 	if r.docsSettings.MountDocsEndpoint {
 		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), apiDocs.ScalarDocsHandler(apiDocs.DocsParams{
 			OpenAPIFileType: r.docsSettings.OpenAPIFileType,
-			OpenAPIPath:     r.docsSettings.OpenAPIPath,
+			OpenAPIPath:     r.docsSettings.OpenAPIFilePath,
 			DocsPath:        r.docsSettings.DocsPath,
 			ServiceName:     r.docsSettings.ServiceName,
 		}))

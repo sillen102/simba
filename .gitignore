@@ -19,6 +19,7 @@
 # User-specific stuff
 .idea/
 .run/
+.vscode
 
 # AWS User-specific
 .idea/**/aws.xml

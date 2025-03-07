@@ -1,16 +1,14 @@
 package settings
 
 import (
-	"errors"
 	"log/slog"
-	"reflect"
-	"strconv"
 
+	"github.com/sillen102/simba/config"
 	"github.com/sillen102/simba/enums"
 )
 
-// Config is a struct that holds the application settings
-type Config struct {
+// Simba is a struct that holds the application settings
+type Simba struct {
 
 	// Server settings
 	Server
@@ -22,83 +20,111 @@ type Config struct {
 	Docs
 
 	// Logger settings
-	Logger *slog.Logger
+	Logger *slog.Logger `yaml:"-" env:"-"`
 }
 
-// Server holds the Config for the application server
+// Server holds the Simba for the application server
 type Server struct {
 
 	// Host is the host the server will listen on
-	Host string `default:"0.0.0.0"`
+	Host string `yaml:"host" env:"SIMBA_SERVER_HOST" default:"0.0.0.0"`
 
 	// Addr is the address the server will listen on
-	Port int `default:"9999"`
+	Port int `yaml:"port" env:"SIMBA_SERVER_PORT" default:"9999"`
 }
 
-// Request holds the Config for the Request processing
+// Request holds the Simba for the Request processing
 type Request struct {
 
 	// AllowUnknownFields will set the behavior for unknown fields in the Request body,
 	// resulting in a 400 Bad Request response if a field is present that cannot be
 	// mapped to the model struct.
-	AllowUnknownFields enums.AllowOrNot `default:"Disallow"`
+	AllowUnknownFields bool `yaml:"allow-unknown-fields" env:"SIMBA_REQUEST_ALLOW_UNKNOWN_FIELDS" default:"true"`
 
 	// LogRequestBody will determine if the Request body will be logged
 	// If set to "disabled", the Request body will not be logged, which is also the default
-	LogRequestBody enums.EnableDisable `default:"Disabled"`
+	LogRequestBody bool `yaml:"log-request-body" env:"SIMBA_REQUEST_LOG_REQUEST_BODY" default:"false"`
 
 	// RequestIdMode determines how the Request ID will be handled
-	RequestIdMode enums.RequestIdMode `default:"AcceptFromHeader"`
+	RequestIdMode enums.RequestIdMode `yaml:"request-id-mode" env:"SIMBA_REQUEST_ID_MODE" default:"AcceptFromHeader"`
 }
 
 type Docs struct {
 
 	// GenerateOpenAPIDocs will determine if the API documentation (YAML or JSON) will be generated
-	GenerateOpenAPIDocs bool `default:"true"`
+	GenerateOpenAPIDocs bool `yaml:"generate-docs" env:"SIMBA_DOCS_GENERATE" default:"true"`
 
 	// MountDocsEndpoint will determine if the documentation UI will be mounted
-	MountDocsEndpoint bool `default:"true"`
+	MountDocsEndpoint bool `yaml:"mount-docs-endpoint" env:"SIMBA_DOCS_MOUNT_ENDPOINT" default:"true"`
 
 	// OpenAPIFileType is the type of the OpenAPI file (YAML or JSON)
-	OpenAPIFileType string `default:"application/yaml"`
+	OpenAPIFileType string `yaml:"open-api-file-type" env:"SIMBA_DOCS_OPENAPI_FILE_TYPE" default:"application/yaml"`
 
-	// OpenAPIPath is the path to the OpenAPI YAML file
-	OpenAPIPath string `default:"/openapi.yml"`
+	// OpenAPIFilePath is the path to the OpenAPI YAML file
+	OpenAPIFilePath string `yaml:"open-api-file-path" env:"SIMBA_DOCS_OPENAPI_MOUNT_PATH" default:"/openapi.yml"`
 
 	// DocsPath is the path to the API documentation
-	DocsPath string `default:"/docs"`
+	DocsPath string `yaml:"docs-path" env:"SIMBA_DOCS_MOUNT_PATH" default:"/docs"`
 
 	// ServiceName is the name of the service
-	ServiceName string `default:"Simba Application"`
+	ServiceName string `yaml:"service-name" env:"SIMBA_DOCS_SERVICE_NAME" default:"Simba Application"`
 }
 
-func Load(st ...Config) (*Config, error) {
-	var settings Config
-	if err := setDefaults(&settings); err != nil {
+// Option is a function that configures a Simba application settings struct.
+type Option func(*Simba)
+
+// WithServerPort sets the server port
+func WithServerPort(port int) Option {
+	return func(s *Simba) {
+		s.Server.Port = port
+	}
+}
+
+// WithServerHost sets the server host
+func WithServerHost(host string) Option {
+	return func(s *Simba) {
+		s.Server.Host = host
+	}
+}
+
+// WithAllowUnknownFields sets whether to allow unknown fields
+func WithAllowUnknownFields(allow bool) Option {
+	return func(s *Simba) {
+		s.Request.AllowUnknownFields = allow
+	}
+}
+
+// WithLogRequestBody sets whether to log request bodies
+func WithLogRequestBody(log bool) Option {
+	return func(s *Simba) {
+		s.Request.LogRequestBody = log
+	}
+}
+
+// WithLogger sets the logger
+func WithLogger(logger *slog.Logger) Option {
+	return func(s *Simba) {
+		if logger != nil {
+			s.Logger = logger
+		}
+	}
+}
+
+// Load loads the application settings
+func Load(opts ...Option) (*Simba, error) {
+	var settings Simba
+
+	// Load defaults from config files/env vars
+	if err := config.NewLoader(nil).Load(&settings); err != nil {
 		return nil, err
 	}
 
-	if len(st) > 0 {
-		provided := st[0]
-		providedVal := reflect.ValueOf(provided)
-		settingsVal := reflect.ValueOf(&settings).Elem()
-		defaultVal := reflect.ValueOf(Config{})
-
-		for i := 0; i < providedVal.NumField(); i++ {
-			providedField := providedVal.Field(i)
-			settingsField := settingsVal.Field(i)
-			defaultField := defaultVal.Field(i)
-
-			if !providedField.IsZero() && !reflect.DeepEqual(providedField.Interface(), defaultField.Interface()) {
-				settingsField.Set(providedField)
-			}
-		}
-
-		if provided.Logger != nil {
-			settings.Logger = provided.Logger
-		}
+	// Apply options
+	for _, opt := range opts {
+		opt(&settings)
 	}
 
+	// Set default logger if none provided
 	if settings.Logger == nil {
 		settings.Logger = slog.Default()
 	}
@@ -106,77 +132,7 @@ func Load(st ...Config) (*Config, error) {
 	return &settings, nil
 }
 
-func setDefaults(ptr interface{}) error {
-	val := reflect.ValueOf(ptr)
-	if val.Kind() != reflect.Pointer || val.Elem().Kind() != reflect.Struct {
-		return errors.New("provided argument must be a pointer to a struct")
-	}
-
-	val = val.Elem()
-	typ := val.Type()
-
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-
-		if field.Kind() == reflect.Struct {
-			if err := setDefaults(field.Addr().Interface()); err != nil {
-				return err
-			}
-			continue
-		}
-
-		defaultTag := fieldType.Tag.Get("default")
-		if defaultTag == "" {
-			continue // Skip if no default tag is present
-		}
-
-		// If the field can be set, update it
-		if field.CanSet() {
-			switch field.Kind() {
-			case reflect.String:
-				field.SetString(defaultTag)
-			case reflect.Bool:
-				boolValue, err := strconv.ParseBool(defaultTag)
-				if err != nil {
-					return err
-				}
-				field.SetBool(boolValue)
-			case reflect.Int, reflect.Int64:
-				switch field.Type() {
-				case reflect.TypeOf(enums.AllowOrNot(0)):
-					// Handle AllowOrNot enum
-					if defaultTag == enums.Allow.String() {
-						field.SetInt(int64(enums.Allow))
-					} else {
-						field.SetInt(int64(enums.Disallow))
-					}
-				case reflect.TypeOf(enums.RequestIdMode(0)):
-					// Handle RequestIdMode enum
-					if defaultTag == enums.AcceptFromHeader.String() {
-						field.SetInt(int64(enums.AcceptFromHeader))
-					} else {
-						field.SetInt(int64(enums.AlwaysGenerate))
-					}
-				case reflect.TypeOf(enums.EnableDisable(0)):
-					// Handle EnableDisable enum
-					if defaultTag == enums.Enabled.String() {
-						field.SetInt(int64(enums.Enabled))
-					} else {
-						field.SetInt(int64(enums.Disabled))
-					}
-				default:
-					intValue, err := strconv.Atoi(defaultTag)
-					if err != nil {
-						return err
-					}
-					field.SetInt(int64(intValue))
-				}
-			default:
-				continue
-			}
-		}
-	}
-
-	return nil
+// LoadWithOptions loads settings using the options pattern
+func LoadWithOptions(opts ...Option) (*Simba, error) {
+	return Load(opts...)
 }
