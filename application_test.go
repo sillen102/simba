@@ -55,14 +55,12 @@ func TestDefaultApplication(t *testing.T) {
 func TestNewApplication(t *testing.T) {
 	t.Parallel()
 
-	t.Run("creates new application with provided Config", func(t *testing.T) {
-		cfg := settings.Config{
-			Server: settings.Server{
-				Host: "localhost",
-				Port: 8080,
-			},
+	t.Run("creates new application with provided Simba", func(t *testing.T) {
+		opts := []settings.Option{
+			settings.WithServerHost("localhost"),
+			settings.WithServerPort(8080),
 		}
-		app := simba.New(cfg)
+		app := simba.New(opts...)
 
 		assert.Assert(t, app != nil)
 		assert.Assert(t, app.Server != nil)

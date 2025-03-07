@@ -14,7 +14,7 @@ It also automatically generates OpenAPI (v3.1) documentation for your API.
 ## Installation
 
 ```bash
-go get github.com/sillen102/simba
+go get -u github.com/sillen102/simba
 ```
 
 ## Quick Start
@@ -40,7 +40,7 @@ type ResponseBody struct {
     Message string `json:"message"`
 }
 
-func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response, error) {
+func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response[ResponseBody], error) {
 
     // Access the request body fields
     // req.Body.Age
@@ -52,7 +52,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams
     // Access the request headers
     // req.Headers
 
-    return &simba.Response{
+    return &simba.Response[ResponseBody]{
         Headers: map[string][]string{"My-Header": {"header-value"}},
         Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
         Body: ResponseBody{
@@ -79,14 +79,15 @@ Handle parameters with type safety and validation support using go-playground va
 
 ```go
 type Params struct {
-    UserID string `path:"userId"`
-    Name   string `query:"name" validate:"required"`
-    Age    int    `header:"age" validate:"required"`
-    Page   int64  `query:"page" validate:"omitempty,min=0" default:"0"`
-    Size   int64  `query:"size" validate:"omitempty,min=0" default:"10"`
+    UserID    string `path:"userId"`
+    Name      string `query:"name" validate:"required"`
+    Age       int    `header:"age" validate:"required"`
+    SessionID string `cookie:"session_id" validate:"required"`
+    Page      int64  `query:"page" validate:"omitempty,min=0" default:"0"`
+    Size      int64  `query:"size" validate:"omitempty,min=0" default:"10"`
 }
 
-func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response, error) {
+func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response[respBody], error) {
     userID := req.Params.UserID
     name := req.Params.Name
     age := req.Params.Age
@@ -106,7 +107,7 @@ To access the injected logger, use the `logging.From` function the logging packa
 Example:
 
 ```go
-func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response, error) {
+func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[respBody], error) {
     logger := logging.From(ctx)
     logger.Info("handling request")
     // ... handle the request
@@ -115,24 +116,12 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
 
 ## Configuration
 
-Customize behavior with a settings struct:
+Customize behavior with options functions:
 
 ```go
-app := simba.New(simba.Settings{
-    Server: simba.ServerSettings{
-        Host: "localhost",
-        Port: 9999,
-    },
-    Request: simba.RequestSettings{
-        AllowUnknownFields: enums.Allow,
-        LogRequestBody: enums.Enabled,
-        RequestIdMode: enums.AcceptFromHeader,
-    },
-    Logging: logging.Config{
-        Level: slog.LevelInfo,
-        Format: logging.JsonFormat,
-        Output: os.Stdout,
-    },
+app := simba.New(
+    settings.WithServerHost("localhost"),
+    settings.WithServerPort(8080),
 })
 ```
 
@@ -198,7 +187,7 @@ func authFunc(r *http.Request) (*User, error) {
 }
 
 // This handler will only be called if the user is authenticated and the user is available as one of the function parameters
-func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response, error) {
+func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[respBody], error) {
     // ... handle the request
 }
 
@@ -254,13 +243,15 @@ func authFunc(r *http.Request) (*User, error) {
 }
 
 type reqParams struct {
-    ID     string `path:"id" example:"XXX-XXXXX"`
-    Locale string `query:"locale" pattern:"^[a-z]{2}-[A-Z]{2}$"`
+    ID       string `path:"id" example:"XXX-XXXXX"`
+    Locale   string `query:"locale" pattern:"^[a-z]{2}-[A-Z]{2}$"`
+    MyHeader string `header:"My-Header" required:"true"`
+    MyCookie string `cookie:"My-Cookie" required:"true"`
 }
 
 type reqBody struct {
     Title  string `json:"string" example:"My Order"`
-    Amount int   `json:"amount" example:"100" required:"true"`
+    Amount int    `json:"amount" example:"100" required:"true"`
     Items  []struct {
         Count uint   `json:"count" example:"2"`
         Name  string `json:"name" example:"Item 1"`
@@ -272,7 +263,7 @@ type reqBody struct {
 // @Summary Get user
 // @Description Get a user by ID (can span across multiple lines)
 // @Error 404 User not found
-func getUser(ctx context.Context, req *simba.Request[reqBody, reqParams], user *User) (*simba.Response, error) {
+func getUser(ctx context.Context, req *simba.Request[reqBody, reqParams], user *User) (*simba.Response[respBody], error) {
     // ... handle the request
 }
 ```

@@ -1,19 +1,12 @@
 package enums
 
-type RequestIdMode int
+type RequestIdMode string
 
 const (
-	AcceptFromHeader RequestIdMode = iota
-	AlwaysGenerate
+	AcceptFromHeader RequestIdMode = "AcceptFromHeader"
+	AlwaysGenerate   RequestIdMode = "AlwaysGenerate"
 )
 
 func (r RequestIdMode) String() string {
-	switch r {
-	case AcceptFromHeader:
-		return "AcceptFromHeader"
-	case AlwaysGenerate:
-		return "AlwaysGenerate"
-	default:
-		return "AcceptFromHeader"
-	}
+	return string(r)
 }
