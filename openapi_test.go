@@ -66,6 +66,10 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "tags:", "- Test", "- User")
 	require.Contains(t, yamlContent, "- User")
 	require.Contains(t, yamlContent, "- Test")
+
+	require.Contains(t, yamlContent, `
+      required:
+      - name`)
 }
 
 func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
