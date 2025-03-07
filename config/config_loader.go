@@ -10,17 +10,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type ConfigLoader struct {
+type Loader struct {
 	filePath string
 }
 
-type ConfigLoaderOpts struct {
+type LoaderOpts struct {
 	ConfigFilePath string
 }
 
-func NewConfigLoader(opts *ConfigLoaderOpts) *ConfigLoader {
+// NewLoader creates a new configuration loader
+func NewLoader(opts *LoaderOpts) *Loader {
 	if opts == nil {
-		opts = &ConfigLoaderOpts{}
+		opts = &LoaderOpts{}
 	}
 
 	// If no file path is provided, try to find default config files
@@ -29,7 +30,7 @@ func NewConfigLoader(opts *ConfigLoaderOpts) *ConfigLoader {
 		filePath = findDefaultConfigFile()
 	}
 
-	return &ConfigLoader{
+	return &Loader{
 		filePath: filePath,
 	}
 }
@@ -61,7 +62,7 @@ func findDefaultConfigFile() string {
 //  3. application.yaml or application.yml file
 //  4. .env file
 //  5. Default values from struct tags
-func (c *ConfigLoader) Load(cfg any) error {
+func (c *Loader) Load(cfg any) error {
 	// First, set default values from struct tags
 	if err := c.loadDefaults(reflect.ValueOf(cfg).Elem()); err != nil {
 		return fmt.Errorf("failed to load defaults: %w", err)
@@ -107,7 +108,7 @@ func (c *ConfigLoader) Load(cfg any) error {
 }
 
 // openFile opens the configuration file
-func (c *ConfigLoader) openFile() (*os.File, error) {
+func (c *Loader) openFile() (*os.File, error) {
 	file, err := os.Open(c.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
@@ -116,7 +117,7 @@ func (c *ConfigLoader) openFile() (*os.File, error) {
 }
 
 // loadDefaults sets default values from struct tags
-func (c *ConfigLoader) loadDefaults(v reflect.Value) error {
+func (c *Loader) loadDefaults(v reflect.Value) error {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -147,7 +148,7 @@ func (c *ConfigLoader) loadDefaults(v reflect.Value) error {
 }
 
 // loadYamlFile loads YAML directly into the struct
-func (c *ConfigLoader) loadYamlFile(file *os.File, cfg any) (bool, error) {
+func (c *Loader) loadYamlFile(file *os.File, cfg any) (bool, error) {
 	if _, err := file.Seek(0, 0); err != nil {
 		return false, fmt.Errorf("failed to reset file position: %w", err)
 	}
@@ -166,7 +167,7 @@ func (c *ConfigLoader) loadYamlFile(file *os.File, cfg any) (bool, error) {
 }
 
 // loadEnvFile loads environment variables from a .env file
-func (c *ConfigLoader) loadEnvFile(file *os.File) (bool, error) {
+func (c *Loader) loadEnvFile(file *os.File) (bool, error) {
 	if _, err := file.Seek(0, 0); err != nil {
 		return false, fmt.Errorf("failed to reset file position: %w", err)
 	}
@@ -188,7 +189,7 @@ func (c *ConfigLoader) loadEnvFile(file *os.File) (bool, error) {
 }
 
 // loadEnvironmentVars overrides values with environment variables
-func (c *ConfigLoader) loadEnvironmentVars(v reflect.Value) error {
+func (c *Loader) loadEnvironmentVars(v reflect.Value) error {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -230,7 +231,7 @@ func (c *ConfigLoader) loadEnvironmentVars(v reflect.Value) error {
 }
 
 // processStruct sets values from environment variables into the struct
-func (c *ConfigLoader) processStruct(v reflect.Value) error {
+func (c *Loader) processStruct(v reflect.Value) error {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -272,7 +273,7 @@ func (c *ConfigLoader) processStruct(v reflect.Value) error {
 }
 
 // setField sets the value of a field based on its type
-func (c *ConfigLoader) setField(field reflect.Value, value string) error {
+func (c *Loader) setField(field reflect.Value, value string) error {
 	switch field.Kind() {
 	case reflect.String:
 		field.SetString(value)

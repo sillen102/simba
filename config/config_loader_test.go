@@ -38,7 +38,7 @@ nested:
 	defer cleanup()
 
 	cfg := TestConfig{}
-	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
+	loader := config.NewLoader(&config.LoaderOpts{
 		ConfigFilePath: yamlFilePath,
 	})
 
@@ -82,7 +82,7 @@ nested:
 	}()
 
 	cfg := TestConfig{}
-	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
+	loader := config.NewLoader(&config.LoaderOpts{
 		ConfigFilePath: yamlFilePath,
 	})
 
@@ -134,7 +134,7 @@ func TestFileExtensionPriority(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := TestConfig{}
-			loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
+			loader := config.NewLoader(&config.LoaderOpts{
 				ConfigFilePath: tc.filePath,
 			})
 
@@ -161,7 +161,7 @@ TEST_INT=456
 	defer cleanup()
 
 	cfg := TestConfig{}
-	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
+	loader := config.NewLoader(&config.LoaderOpts{
 		ConfigFilePath: filePath,
 	})
 
@@ -189,7 +189,7 @@ func TestLoadEnvVars(t *testing.T) {
 	_ = os.Unsetenv("NESTED_TEST_STRING")
 
 	cfg := TestConfig{}
-	loader := config.NewConfigLoader(nil)
+	loader := config.NewLoader(nil)
 
 	tests := []struct {
 		name       string
@@ -259,7 +259,7 @@ func TestLoadEnvFromDockerFile(t *testing.T) {
 	_ = os.Setenv("FILE_TEST_STRING_FILE", dockerSecretPath)
 
 	cfg := testStruct{}
-	loader := config.NewConfigLoader(nil)
+	loader := config.NewLoader(nil)
 	_ = loader.Load(&cfg)
 
 	if cfg.String != dockerSecretContent {
@@ -282,7 +282,7 @@ NESTED_TEST_STRING=nested_test
 	defer cleanup()
 
 	cfg := TestConfig{}
-	loader := config.NewConfigLoader(&config.ConfigLoaderOpts{
+	loader := config.NewLoader(&config.LoaderOpts{
 		ConfigFilePath: envFilePath,
 	})
 
