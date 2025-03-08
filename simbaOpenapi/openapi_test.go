@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -120,8 +121,15 @@ func TestValidateMinField(t *testing.T) {
 		app.Router.ServeHTTP(w, req)
 
 		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
+		fmt.Println(yamlContent)
 
-		require.Contains(t, yamlContent, "minimum: 5")
+		require.Contains(t, yamlContent, `
+    SimbaOpenapiTestReqBody:
+      properties:
+        size:
+          minimum: 5
+          type: integer
+      type: object`)
 	})
 }
 
@@ -149,7 +157,13 @@ func TestValidateMaxField(t *testing.T) {
 
 		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
 
-		require.Contains(t, yamlContent, "maximum: 5")
+		require.Contains(t, yamlContent, `
+    SimbaOpenapiTestReqBody:
+      properties:
+        size:
+          maximum: 5
+          type: integer
+      type: object`)
 	})
 }
 
