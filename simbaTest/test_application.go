@@ -1,6 +1,7 @@
 package simbaTest
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 
@@ -36,7 +37,7 @@ func Default(opts ...settings.Option) *TestApplication {
 
 // Start starts the test server
 func (a *TestApplication) Start() {
-	a.Router.GenerateOpenAPIDocumentation()
+	_ = a.Router.GenerateOpenAPIDocumentation(context.Background())
 	a.Application.Server.Addr = a.Server.URL[7:]
 }
 

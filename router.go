@@ -1,6 +1,7 @@
 package simba
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -23,7 +24,7 @@ type Handler interface {
 }
 
 type openApiGenerator interface {
-	GenerateDocumentation(routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error)
+	GenerateDocumentation(ctx context.Context, routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error)
 }
 
 // Router is a simple Mux that wraps [http.ServeMux] and allows for middleware chaining
@@ -41,10 +42,10 @@ type Router struct {
 
 // GenerateOpenAPIDocumentation generates the OpenAPI documentation for the routes mounted in the router
 // if enabled in [settings.Docs]
-func (r *Router) GenerateOpenAPIDocumentation() error {
+func (r *Router) GenerateOpenAPIDocumentation(ctx context.Context) error {
 	if r.docsSettings.GenerateOpenAPIDocs {
 		var err error
-		r.schema, err = r.openAPIGenerator.GenerateDocumentation(r.routes, r.docsSettings.OpenAPIFileType)
+		r.schema, err = r.openAPIGenerator.GenerateDocumentation(ctx, r.routes, r.docsSettings.OpenAPIFileType)
 		if err != nil {
 			return fmt.Errorf("failed to generate OpenAPI documentation: %w", err)
 		}
