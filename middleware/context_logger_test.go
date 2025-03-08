@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/logger"
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
 	"gotest.tools/v3/assert"
@@ -19,11 +19,11 @@ func TestContextLogger(t *testing.T) {
 
 	t.Run("adds logger to context", func(t *testing.T) {
 		var buf bytes.Buffer
-		logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{}))
-		contextLogger := middleware.Logger{Logger: logger}
+		log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{}))
+		contextLogger := middleware.Logger{Logger: log}
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctxLogger := logging.From(r.Context())
+			ctxLogger := logger.From(r.Context())
 			assert.Assert(t, ctxLogger != nil)
 			w.WriteHeader(http.StatusOK)
 		})
@@ -38,11 +38,11 @@ func TestContextLogger(t *testing.T) {
 
 	t.Run("logs request details", func(t *testing.T) {
 		var buf bytes.Buffer
-		logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{}))
-		contextLogger := middleware.Logger{Logger: logger}
+		log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{}))
+		contextLogger := middleware.Logger{Logger: log}
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logging.From(r.Context()).Info("test log")
+			logger.From(r.Context()).Info("test log")
 			w.WriteHeader(http.StatusOK)
 		})
 
