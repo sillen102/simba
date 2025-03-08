@@ -5,14 +5,16 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba/mimetypes"
+	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/simbaModels"
 )
 
 // JsonHandlerFunc is a function type for handling routes with Request body and params
-type JsonHandlerFunc[RequestBody, Params, ResponseBody any] func(ctx context.Context, req *Request[RequestBody, Params]) (*Response[ResponseBody], error)
+type JsonHandlerFunc[RequestBody, Params, ResponseBody any] func(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error)
 
 // AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
 type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody any] struct {
-	handler     func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error)
+	handler     func(ctx context.Context, req *simbaModels.Request[RequestBody, Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error)
 	authHandler AuthHandler[AuthParams, AuthModel]
 }
 
@@ -68,13 +70,13 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.Res
 
 	req, err := handleRequest[RequestBody, Params](r)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
 	resp, err := h(ctx, req)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
@@ -172,7 +174,7 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthHandler() any
 //
 //	Mux.POST("/test/{id}", simba.AuthJsonHandler(handler))
 func AuthJsonHandler[RequestBody, Params, AuthParams, AuthModel, ResponseBody any](
-	handler func(ctx context.Context, req *Request[RequestBody, Params], authModel *AuthModel) (*Response[ResponseBody], error),
+	handler func(ctx context.Context, req *simbaModels.Request[RequestBody, Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error),
 	authHandler AuthHandler[AuthParams, AuthModel],
 ) Handler {
 	return AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel, ResponseBody]{
@@ -187,19 +189,19 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel,
 
 	authModel, err := handleAuthRequest[AuthParams, AuthModel](h.authHandler, r)
 	if err != nil {
-		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
+		simbaErrors.WriteError(w, r, simbaErrors.NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
 	}
 
 	req, err := handleRequest[RequestBody, Params](r)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
 	resp, err := h.handler(ctx, req, authModel)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
@@ -243,7 +245,7 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthParams, AuthModel,
 }
 
 // handleRequest handles extracting body and params from the Request
-func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[RequestBody, Params], error) {
+func handleRequest[RequestBody any, Params any](r *http.Request) (*simbaModels.Request[RequestBody, Params], error) {
 	params, err := parseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
@@ -255,7 +257,7 @@ func handleRequest[RequestBody any, Params any](r *http.Request) (*Request[Reque
 		return nil, err
 	}
 
-	return &Request[RequestBody, Params]{
+	return &simbaModels.Request[RequestBody, Params]{
 		Body:   reqBody,
 		Params: params,
 	}, nil

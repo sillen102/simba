@@ -1,4 +1,4 @@
-package simba_test
+package simbaErrors_test
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaContext"
+	"github.com/sillen102/simba/simbaErrors"
 	"gotest.tools/v3/assert"
 )
 
@@ -29,7 +29,7 @@ func TestHandleError(t *testing.T) {
 		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
-		simba.WriteError(w, req, simba.WrapError(
+		simbaErrors.WriteError(w, req, simbaErrors.WrapError(
 			http.StatusInternalServerError,
 			fmt.Errorf("outermost error: %w", fmt.Errorf("wrapping error: %w", errors.New("original error"))),
 			"Internal server error"))
@@ -37,7 +37,7 @@ func TestHandleError(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
-		var errorResponse simba.ErrorResponse
+		var errorResponse simbaErrors.ErrorResponse
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
 		assert.NilError(t, err)
 		assert.Equal(t, http.StatusInternalServerError, errorResponse.Status)
@@ -56,12 +56,12 @@ func TestHandleError(t *testing.T) {
 		ctx := context.WithValue(req.Context(), simbaContext.LoggerKey, logger)
 		req = req.WithContext(ctx)
 
-		simba.WriteError(w, req, simba.WrapError(http.StatusUnauthorized, errors.New("wrapped error"), "Internal server error"))
+		simbaErrors.WriteError(w, req, simbaErrors.WrapError(http.StatusUnauthorized, errors.New("wrapped error"), "Internal server error"))
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
-		var errorResponse simba.ErrorResponse
+		var errorResponse simbaErrors.ErrorResponse
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
 		assert.NilError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, errorResponse.Status)

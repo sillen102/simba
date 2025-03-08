@@ -10,6 +10,8 @@ import (
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
+	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/simbaModels"
 )
 
 // TODO: Request process testing
@@ -55,14 +57,14 @@ func getConfigurationFromContext(ctx context.Context) *settings.Request {
 // If the request body is of NoBody type, returns nil
 // If there are validation errors for the request body, returns an error
 func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
-	if _, isNoBody := any(*req).(NoBody); isNoBody {
+	if _, isNoBody := any(*req).(simbaModels.NoBody); isNoBody {
 		return nil
 	}
 
 	contentType := r.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil || mediaType != "application/json" {
-		return NewHttpError(http.StatusBadRequest, "invalid content type", nil)
+		return simbaErrors.NewHttpError(http.StatusBadRequest, "invalid content type", nil)
 	}
 
 	requestSettings := getConfigurationFromContext(r.Context())
@@ -75,8 +77,8 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 		return err
 	}
 
-	if validationErrors := ValidateStruct(req, ParameterTypeBody); len(validationErrors) > 0 {
-		return NewHttpError(http.StatusBadRequest, "invalid request body", nil, validationErrors...)
+	if validationErrors := ValidateStruct(req, simbaErrors.ParameterTypeBody); len(validationErrors) > 0 {
+		return simbaErrors.NewHttpError(http.StatusBadRequest, "invalid request body", nil, validationErrors...)
 	}
 
 	return nil
@@ -90,13 +92,13 @@ func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) 
 	}
 	err := decoder.Decode(&model)
 	if err != nil {
-		return NewHttpError(
+		return simbaErrors.NewHttpError(
 			http.StatusUnprocessableEntity,
 			"invalid request body",
 			err,
-			ValidationError{
+			simbaErrors.ValidationError{
 				Parameter: "body",
-				Type:      ParameterTypeBody,
+				Type:      simbaErrors.ParameterTypeBody,
 				Message:   err.Error(),
 			},
 		)

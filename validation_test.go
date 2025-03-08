@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/simbaErrors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +19,7 @@ func TestValidateStruct(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         interface{}
-		paramType     simba.ParameterType
+		paramType     simbaErrors.ParameterType
 		expectedError bool
 		errorCount    int
 		expectedMsgs  []string
@@ -31,7 +32,7 @@ func TestValidateStruct(t *testing.T) {
 				Email:    "john@example.com",
 				Password: "password123",
 			},
-			paramType:     simba.ParameterTypeBody,
+			paramType:     simbaErrors.ParameterTypeBody,
 			expectedError: false,
 		},
 		{
@@ -39,7 +40,7 @@ func TestValidateStruct(t *testing.T) {
 			input: TestStruct{
 				Age: 25,
 			},
-			paramType:     simba.ParameterTypeBody,
+			paramType:     simbaErrors.ParameterTypeBody,
 			expectedError: true,
 			errorCount:    3, // Name, Email, and Password are required
 			expectedMsgs:  []string{"name is required", "email is required", "password is required"},
@@ -52,7 +53,7 @@ func TestValidateStruct(t *testing.T) {
 				Email:    "invalid-email",
 				Password: "password123",
 			},
-			paramType:     simba.ParameterTypeBody,
+			paramType:     simbaErrors.ParameterTypeBody,
 			expectedError: true,
 			errorCount:    1,
 			expectedMsgs:  []string{"'invalid-email' is not a valid email address"},
@@ -65,7 +66,7 @@ func TestValidateStruct(t *testing.T) {
 				Email:    "john@example.com",
 				Password: "password123",
 			},
-			paramType:     simba.ParameterTypePath,
+			paramType:     simbaErrors.ParameterTypePath,
 			expectedError: true,
 			errorCount:    1,
 			expectedMsgs:  []string{"age must be less than or equal to 130"},

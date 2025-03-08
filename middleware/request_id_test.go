@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/sillen102/simba/enums"
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
+	"github.com/sillen102/simba/simbaModels"
 	"gotest.tools/v3/assert"
 )
 
@@ -47,7 +47,7 @@ func TestRequestID(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set(simbaContext.RequestIDHeader, "test-request-id")
 		req = req.WithContext(context.WithValue(req.Context(), simbaContext.RequestSettingsKey, &settings.Request{
-			RequestIdMode: enums.AcceptFromHeader,
+			RequestIdMode: simbaModels.AcceptFromHeader,
 		}))
 		w := httptest.NewRecorder()
 

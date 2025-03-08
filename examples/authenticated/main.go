@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/simbaModels"
 )
 
 type ResponseBody struct {
@@ -35,7 +36,7 @@ func authFunc(r *http.Request) (*User, error) {
 // @ID authenticatedHandler
 // @Summary authenticated handler
 // @Description this is a handler that requires authentication
-func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[ResponseBody], error) {
+func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
 
 	// Access the request cookies
 	// req.Cookies
@@ -43,7 +44,7 @@ func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, 
 	// Access the request headers
 	// req.Headers
 
-	return &simba.Response[ResponseBody]{
+	return &simbaModels.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
 		},

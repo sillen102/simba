@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/test"
+	"github.com/sillen102/simba/simbaTest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +14,7 @@ func TestBasicAuth(t *testing.T) {
 	t.Parallel()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.BasicAuthHandler, simbaTest.BasicAuthAuthenticationHandler))
 
 	testCases := []struct {
 		name           string
@@ -60,7 +60,7 @@ func TestApiKeyAuth(t *testing.T) {
 	t.Parallel()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.ApiKeyAuthHandler, test.ApiKeyAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.ApiKeyAuthHandler, simbaTest.ApiKeyAuthAuthenticationHandler))
 
 	testCases := []struct {
 		name           string
@@ -102,7 +102,7 @@ func TestBearerTokenAuthHandler(t *testing.T) {
 	t.Parallel()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.BearerTokenAuthHandler, test.BearerAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.BearerTokenAuthHandler, simbaTest.BearerAuthAuthenticationHandler))
 
 	testCases := []struct {
 		name           string

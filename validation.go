@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/iancoleman/strcase"
+	"github.com/sillen102/simba/simbaErrors"
 )
 
 // TODO: Validation testing
@@ -20,7 +21,7 @@ var validate = validator.New(validator.WithRequiredStructEnabled())
 // will return an empty slice of ValidationErrors. If the request is invalid, it
 // will return a slice of ValidationErrors containing the validation errors for
 // each field.
-func ValidateStruct(request any, paramType ParameterType) ValidationErrors {
+func ValidateStruct(request any, paramType simbaErrors.ParameterType) simbaErrors.ValidationErrors {
 	if request == nil {
 		return nil
 	}
@@ -32,7 +33,7 @@ func ValidateStruct(request any, paramType ParameterType) ValidationErrors {
 
 	var validationErrors validator.ValidationErrors
 	if !errors.As(err, &validationErrors) {
-		return ValidationErrors{
+		return simbaErrors.ValidationErrors{
 			{
 				Parameter: "unknown",
 				Type:      paramType,
@@ -42,7 +43,7 @@ func ValidateStruct(request any, paramType ParameterType) ValidationErrors {
 	}
 
 	if len(validationErrors) > 0 {
-		validationErrorsData := make(ValidationErrors, len(validationErrors))
+		validationErrorsData := make(simbaErrors.ValidationErrors, len(validationErrors))
 		for i, e := range validationErrors {
 			var valueStr string
 			if str, ok := e.Value().(string); ok {
@@ -52,7 +53,7 @@ func ValidateStruct(request any, paramType ParameterType) ValidationErrors {
 			}
 
 			message := MapValidationMessage(e, valueStr)
-			validationErrorsData[i] = ValidationError{
+			validationErrorsData[i] = simbaErrors.ValidationError{
 				Parameter: strcase.ToLowerCamel(e.Field()),
 				Type:      paramType,
 				Message:   message,

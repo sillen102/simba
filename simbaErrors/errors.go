@@ -1,4 +1,4 @@
-package simba
+package simbaErrors
 
 import (
 	"encoding/json"
@@ -202,9 +202,15 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	err = writeJSONError(w, errorResponse)
 	if err != nil {
 		logger.Error("failed to write error response", "error", err)
-		handleUnexpectedError(w)
+		HandleUnexpectedError(w)
 		return
 	}
+}
+
+// HandleUnexpectedError is a helper function for handling unexpected errors
+func HandleUnexpectedError(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Header().Set("Content-Type", "application/json")
 }
 
 // writeJSONError writes a JSON error response to the response writer
@@ -212,10 +218,4 @@ func writeJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(errorResponse.Status)
 	return json.NewEncoder(w).Encode(errorResponse)
-}
-
-// handleUnexpectedError is a helper function for handling unexpected errors
-func handleUnexpectedError(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusInternalServerError)
-	w.Header().Set("Content-Type", "application/json")
 }

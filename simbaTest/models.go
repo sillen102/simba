@@ -1,4 +1,4 @@
-package test
+package simbaTest
 
 import "github.com/google/uuid"
 

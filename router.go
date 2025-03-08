@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 
-	"github.com/sillen102/simba/apiDocs"
 	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/settings"
-	"github.com/swaggest/jsonschema-go"
+	"github.com/sillen102/simba/simbaOpenapi"
+	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
@@ -32,24 +31,10 @@ type Router struct {
 	Mux                  *http.ServeMux
 	middleware           []func(http.Handler) http.Handler
 	docsSettings         settings.Docs
-	routes               []routeInfo
+	routes               []openapiModels.RouteInfo
 	openApiReflector     *openapi31.Reflector
 	schema               []byte
 	docsEndpointsMounted bool
-}
-
-// routeInfo stores type information about a route
-type routeInfo struct {
-	method      string
-	path        string
-	accepts     string
-	produces    string
-	reqBody     any
-	params      any
-	respBody    any
-	handler     any
-	authModel   any
-	authHandler any
 }
 
 // newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Simba]
@@ -63,29 +48,20 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 			},
 		},
 		docsSettings: docsSettings,
-		routes: func() []routeInfo {
+		routes: func() []openapiModels.RouteInfo {
 			if docsSettings.GenerateOpenAPIDocs {
-				return make([]routeInfo, 0, 100)
+				return make([]openapiModels.RouteInfo, 0, 100)
 			}
 			return nil
 		}(),
 		openApiReflector: func() *openapi31.Reflector {
 			if docsSettings.GenerateOpenAPIDocs {
-				r := openapi31.NewReflector()
-				r.DefaultOptions = append(r.DefaultOptions, jsonschema.InterceptProp(func(params jsonschema.InterceptPropParams) error {
-					if !params.Processed {
-						return nil
-					}
-
-					if v, ok := params.Field.Tag.Lookup("validate"); ok {
-						if strings.Contains(v, "required") {
-							params.ParentSchema.Required = append(params.ParentSchema.Required, params.Name)
-						}
-					}
-
+				reflector, err := simbaOpenapi.GetReflector()
+				if err != nil {
+					slog.Error("failed to create OpenAPI reflector", "error", err)
 					return nil
-				}))
-				return r
+				}
+				return reflector
 			}
 			return nil
 		}(),
@@ -157,17 +133,17 @@ func (r *Router) HEAD(path string, handler Handler) {
 func (r *Router) Handle(method, path string, handler Handler) {
 	r.addRoute(method, path, handler)
 	if r.docsSettings.GenerateOpenAPIDocs {
-		r.routes = append(r.routes, routeInfo{
-			method:      method,
-			path:        path,
-			accepts:     handler.getAccepts(),
-			produces:    handler.getProduces(),
-			reqBody:     handler.getRequestBody(),
-			params:      handler.getParams(),
-			respBody:    handler.getResponseBody(),
-			authModel:   handler.getAuthModel(),
-			authHandler: handler.getAuthHandler(),
-			handler:     handler.getHandler(),
+		r.routes = append(r.routes, openapiModels.RouteInfo{
+			Method:      method,
+			Path:        path,
+			Accepts:     handler.getAccepts(),
+			Produces:    handler.getProduces(),
+			ReqBody:     handler.getRequestBody(),
+			Params:      handler.getParams(),
+			RespBody:    handler.getResponseBody(),
+			Handler:     handler.getHandler(),
+			AuthModel:   handler.getAuthModel(),
+			AuthHandler: handler.getAuthHandler(),
 		})
 	}
 }
@@ -191,7 +167,7 @@ func (r *Router) mountDocs(path string) {
 	r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, path), r.openAPIDocsHandler())
 
 	if r.docsSettings.MountDocsEndpoint {
-		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), apiDocs.ScalarDocsHandler(apiDocs.DocsParams{
+		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), simbaOpenapi.ScalarDocsHandler(simbaOpenapi.DocsParams{
 			OpenAPIFileType: r.docsSettings.OpenAPIFileType,
 			OpenAPIPath:     r.docsSettings.OpenAPIFilePath,
 			DocsPath:        r.docsSettings.DocsPath,
@@ -207,7 +183,7 @@ func (r *Router) openAPIDocsHandler() http.HandlerFunc {
 		if r.schema == nil {
 
 			for _, route := range r.routes {
-				generateRouteDocumentation(r.openApiReflector, &route, route.handler)
+				simbaOpenapi.GenerateRouteDocumentation(r.openApiReflector, &route, route.Handler)
 			}
 
 			var err error
