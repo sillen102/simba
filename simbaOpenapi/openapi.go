@@ -16,12 +16,16 @@ import (
 
 	"github.com/iancoleman/strcase"
 	simbaHttp "github.com/sillen102/simba/http"
+	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
 )
+
+type OpenAPIGenerator struct {
+}
 
 type handlerInfo struct {
 	id          string
@@ -47,14 +51,45 @@ const (
 	deprecatedTag  = "@Deprecated"
 )
 
-// GenerateRouteDocumentation generates OpenAPI documentation for a route
-func GenerateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *openapiModels.RouteInfo, handler any) {
-	operationContext, err := reflector.NewOperationContext(routeInfo.Method, routeInfo.Path)
+func NewOpenAPIGenerator() *OpenAPIGenerator {
+	return &OpenAPIGenerator{}
+}
+
+// GenerateDocumentation generates OpenAPI documentation for all routes
+func (g *OpenAPIGenerator) GenerateDocumentation(routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error) {
+	reflector, err := GetReflector()
 	if err != nil {
-		panic(fmt.Errorf("failed to create operation context: %w", err))
+		return nil, fmt.Errorf("failed to create OpenAPI reflector: %w", err)
 	}
 
-	info := getHandlerInfo(handler)
+	for _, routeInfo := range routeInfos {
+		err = generateRouteDocumentation(reflector, &routeInfo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate documentation for route: %w", err)
+		}
+	}
+
+	var schema []byte
+	if mimetype == mimetypes.ApplicationJSON {
+		schema, err = reflector.Spec.MarshalJSON()
+	} else {
+		schema, err = reflector.Spec.MarshalYAML()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal OpenAPI schema: %w", err)
+	}
+
+	return schema, nil
+}
+
+// generateRouteDocumentation generates OpenAPI documentation for a route
+func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *openapiModels.RouteInfo) error {
+	operationContext, err := reflector.NewOperationContext(routeInfo.Method, routeInfo.Path)
+	if err != nil {
+		return err
+	}
+
+	info := getHandlerInfo(routeInfo.Handler)
 
 	operationContext.SetIsDeprecated(info.deprecated)
 	operationContext.SetID(info.id)
@@ -160,8 +195,10 @@ func GenerateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *opena
 
 	err = reflector.AddOperation(operationContext)
 	if err != nil {
-		panic(fmt.Errorf("failed to add operation to openapi reflector: %w", err))
+		return err
 	}
+
+	return nil
 }
 
 // getHandlerInfo extracts the handler information from the handler function

@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaModels"
+	"github.com/swaggest/openapi-go"
 )
 
 type ResponseBody struct {
@@ -23,15 +23,23 @@ type User struct {
 
 // authFunc is a function that authenticates and returns a user
 // in this example we just return a hard-coded user
-//
-// @BasicAuth "admin" "admin access only"
-func authFunc(r *http.Request) (*User, error) {
+func authFunc(ctx context.Context, req *simba.AuthRequest[simbaModels.NoParams]) (*User, error) {
 	return &User{
 		ID:   1,
 		Name: "John Doe",
 		Role: "admin",
 	}, nil
 }
+
+var authHandler = simba.APIKeyAuth[simbaModels.NoParams, User](
+	authFunc,
+	simba.APIKeyAuthConfig{
+		Name:        "admin",
+		FieldName:   "sessionid",
+		In:          openapi.InHeader,
+		Description: "admin access only",
+	},
+)
 
 // @ID authenticatedHandler
 // @Summary authenticated handler
@@ -55,6 +63,6 @@ func main() {
 	// the app will use the authFunc to authenticate and retrieve the user
 	// for each request that uses the AuthJsonHandler and pass it to the handler
 	app := simba.Default()
-	app.Router.GET("/user", simba.AuthJsonHandler(authenticatedHandler, authFunc))
+	app.Router.GET("/user", simba.AuthJsonHandler(authenticatedHandler, authHandler))
 	app.Start()
 }
