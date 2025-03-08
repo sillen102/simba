@@ -14,6 +14,14 @@ func (a *Application) Start() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
+	// Generate OpenAPI documentation in a goroutine
+	go func() {
+		err := a.Router.GenerateOpenAPIDocumentation()
+		if err != nil {
+			a.Settings.Logger.Error("error generating OpenAPI documentation", "error", err)
+		}
+	}()
+
 	// Run server in a goroutine
 	go func() {
 		a.Settings.Logger.Info("server listening on " + a.Server.Addr)

@@ -2,14 +2,11 @@ package simba
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 
-	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaOpenapi"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
-	"github.com/swaggest/openapi-go/openapi31"
 )
 
 // Handler specifies the interface for a handler that can be registered with the [Router].
@@ -25,20 +22,41 @@ type Handler interface {
 	getAuthHandler() any
 }
 
+type openApiGenerator interface {
+	GenerateDocumentation(routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error)
+}
+
 // Router is a simple Mux that wraps [http.ServeMux] and allows for middleware chaining
 // and type information storage for routes.
 type Router struct {
-	Mux                  *http.ServeMux
-	middleware           []func(http.Handler) http.Handler
-	docsSettings         settings.Docs
-	routes               []openapiModels.RouteInfo
-	openApiReflector     *openapi31.Reflector
-	schema               []byte
-	docsEndpointsMounted bool
+	Mux                    *http.ServeMux
+	middleware             []func(http.Handler) http.Handler
+	docsSettings           settings.Docs
+	routes                 []openapiModels.RouteInfo
+	schema                 []byte
+	openAPIEndpointMounted bool
+	docsEndpointsMounted   bool
+	openAPIGenerator       openApiGenerator
 }
 
-// newRouter creates a new [Router] instance with the given logger (that is injected in each Request context) and [Simba]
-func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Router {
+// GenerateOpenAPIDocumentation generates the OpenAPI documentation for the routes mounted in the router
+// if enabled in [settings.Docs]
+func (r *Router) GenerateOpenAPIDocumentation() error {
+	if r.docsSettings.GenerateOpenAPIDocs {
+		var err error
+		r.schema, err = r.openAPIGenerator.GenerateDocumentation(r.routes, r.docsSettings.OpenAPIFileType)
+		if err != nil {
+			return fmt.Errorf("failed to generate OpenAPI documentation: %w", err)
+		}
+
+		// Clear routes after generating OpenAPI documentation to free up memory
+		r.routes = nil
+	}
+
+	return nil
+}
+
+func newRouter(requestSettings settings.Request, docsSettings settings.Docs, generator openApiGenerator) *Router {
 	return &Router{
 		Mux: http.NewServeMux(),
 		middleware: []func(http.Handler) http.Handler{
@@ -54,27 +72,23 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 			}
 			return nil
 		}(),
-		openApiReflector: func() *openapi31.Reflector {
-			if docsSettings.GenerateOpenAPIDocs {
-				reflector, err := simbaOpenapi.GetReflector()
-				if err != nil {
-					slog.Error("failed to create OpenAPI reflector", "error", err)
-					return nil
-				}
-				return reflector
-			}
-			return nil
-		}(),
-		schema:               nil,
-		docsEndpointsMounted: false,
+		schema:                 nil,
+		openAPIEndpointMounted: false,
+		docsEndpointsMounted:   false,
+		openAPIGenerator:       generator,
 	}
 }
 
 // ServeHTTP implements the [http.Handler] interface for the [Router] type
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if r.docsSettings.GenerateOpenAPIDocs && r.docsSettings.MountDocsEndpoint {
-		r.mountDocs(r.docsSettings.OpenAPIFilePath)
+	if r.docsSettings.GenerateOpenAPIDocs {
+		r.mountOpenAPIEndpoint()
 	}
+
+	if r.docsSettings.MountDocsEndpoint {
+		r.mountDocsUIEndpoint()
+	}
+
 	r.Mux.ServeHTTP(w, req)
 }
 
@@ -159,12 +173,10 @@ func (r *Router) applyMiddleware(handler http.Handler) http.Handler {
 	return handler
 }
 
-func (r *Router) mountDocs(path string) {
-	if r.docsEndpointsMounted || !r.docsSettings.GenerateOpenAPIDocs {
+func (r *Router) mountDocsUIEndpoint() {
+	if r.docsEndpointsMounted {
 		return
 	}
-
-	r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, path), r.openAPIDocsHandler())
 
 	if r.docsSettings.MountDocsEndpoint {
 		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), simbaOpenapi.ScalarDocsHandler(simbaOpenapi.DocsParams{
@@ -178,33 +190,19 @@ func (r *Router) mountDocs(path string) {
 	r.docsEndpointsMounted = true
 }
 
+func (r *Router) mountOpenAPIEndpoint() {
+	if r.openAPIEndpointMounted {
+		return
+	}
+
+	r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.OpenAPIFilePath), r.openAPIDocsHandler())
+
+	r.openAPIEndpointMounted = true
+}
+
 func (r *Router) openAPIDocsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if r.schema == nil {
-
-			for _, route := range r.routes {
-				simbaOpenapi.GenerateRouteDocumentation(r.openApiReflector, &route, route.Handler)
-			}
-
-			var err error
-			if r.docsSettings.OpenAPIFileType == mimetypes.ApplicationJSON {
-				r.schema, err = r.openApiReflector.Spec.MarshalJSON()
-			} else {
-				r.schema, err = r.openApiReflector.Spec.MarshalYAML()
-			}
-			if err != nil {
-				errMessage := "failed to generate API docs"
-				slog.Error(errMessage, "error", err)
-				http.Error(w, errMessage, http.StatusInternalServerError)
-				return
-			}
-
-			// Clean up routes and reflector to free up memory
-			r.routes = nil
-			r.openApiReflector = nil
-		}
-
-		w.Header().Set("Content-Type", mimetypes.ApplicationYAML)
+		w.Header().Set("Content-Type", r.docsSettings.OpenAPIFileType)
 		_, _ = w.Write(r.schema)
 	}
 }

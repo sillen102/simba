@@ -6,6 +6,7 @@ import (
 
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/settings"
+	"github.com/sillen102/simba/simbaOpenapi"
 )
 
 // Application is the main application struct that holds the Mux and other application Settings
@@ -36,7 +37,7 @@ func New(opts ...settings.Option) *Application {
 		panic(err)
 	}
 
-	router := newRouter(cfg.Request, cfg.Docs)
+	router := newRouter(cfg.Request, cfg.Docs, simbaOpenapi.NewOpenAPIGenerator())
 	router.Use(func(next http.Handler) http.Handler {
 		return injectRequestSettings(next, &cfg.Request)
 	})
