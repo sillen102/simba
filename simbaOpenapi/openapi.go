@@ -1,6 +1,7 @@
 package simbaOpenapi
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 	simbaHttp "github.com/sillen102/simba/http"
+	"github.com/sillen102/simba/logger"
 	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
@@ -56,7 +58,9 @@ func NewOpenAPIGenerator() *OpenAPIGenerator {
 }
 
 // GenerateDocumentation generates OpenAPI documentation for all routes
-func (g *OpenAPIGenerator) GenerateDocumentation(routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error) {
+func (g *OpenAPIGenerator) GenerateDocumentation(ctx context.Context, routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error) {
+	log := logger.From(ctx)
+
 	reflector, err := GetReflector()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OpenAPI reflector: %w", err)
@@ -71,8 +75,10 @@ func (g *OpenAPIGenerator) GenerateDocumentation(routeInfos []openapiModels.Rout
 
 	var schema []byte
 	if mimetype == mimetypes.ApplicationJSON {
+		log.Debug("generating OpenAPI schema in JSON format")
 		schema, err = reflector.Spec.MarshalJSON()
 	} else {
+		log.Debug("generating OpenAPI schema in YAML format")
 		schema, err = reflector.Spec.MarshalYAML()
 	}
 	if err != nil {

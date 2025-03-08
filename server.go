@@ -14,28 +14,49 @@ func (a *Application) Start() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
+	log := a.Settings.Logger
+
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start a goroutine to watch for the stop signal and cancel the context
+	go func() {
+		<-stop
+		cancel()
+	}()
+
 	// Generate OpenAPI documentation in a goroutine
 	go func() {
-		err := a.Router.GenerateOpenAPIDocumentation()
+		log.Debug("generating OpenAPI documentation...")
+		err := a.Router.GenerateOpenAPIDocumentation(ctx)
 		if err != nil {
-			a.Settings.Logger.Error("error generating OpenAPI documentation", "error", err)
+			if errors.Is(err, context.Canceled) {
+				log.Debug("OpenAPI documentation generation cancelled")
+			} else {
+				log.Error("error generating OpenAPI documentation", "error", err)
+			}
+			return
 		}
+		log.Debug("OpenAPI documentation generated")
 	}()
 
 	// Run server in a goroutine
 	go func() {
-		a.Settings.Logger.Info("server listening on " + a.Server.Addr)
+		log.Info("server listening on " + a.Server.Addr)
 		if err := a.Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			a.Settings.Logger.Error("error starting server", "error", err)
+			log.Error("error starting server", "error", err)
 			panic(err)
 		}
 	}()
-	<-stop
+
+	// Wait for context cancellation (triggered by the stop signal)
+	<-ctx.Done()
 
 	// Gracefully shutdown the server
-	a.Settings.Logger.Info("shutting down server...")
+	log.Info("shutting down server...")
 	if err := a.Stop(); err != nil {
-		a.Settings.Logger.Error("error shutting down server", "error", err)
+		log.Error("error shutting down server", "error", err)
 		panic(err)
 	}
 }
