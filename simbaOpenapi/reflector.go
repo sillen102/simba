@@ -47,29 +47,27 @@ func setIsRequired(params jsonschema.InterceptPropParams) {
 }
 
 func setMinProperty(params jsonschema.InterceptPropParams, v string) error {
-	val, err := getPropertyValue[float64](v, "min")
+	val, err := getFloatPropertyValue(v, "min")
 	if err != nil {
 		return err
 	}
-	params.ParentSchema.Minimum = &val
+	params.PropertySchema.Minimum = &val
 	return nil
 }
 
 func setMaxProperty(params jsonschema.InterceptPropParams, v string) error {
-	val, err := getPropertyValue[float64](v, "max")
+	val, err := getFloatPropertyValue(v, "max")
 	if err != nil {
 		return err
 	}
-	params.ParentSchema.Maximum = &val
+	params.PropertySchema.Maximum = &val
 	return nil
 }
 
-func getPropertyValue[T any](v string, propertyName string) (T, error) {
-	var zero T
-
+func getFloatPropertyValue(v string, propertyName string) (float64, error) {
 	parts := strings.Split(v, propertyName+"=")
 	if len(parts) <= 1 {
-		return zero, fmt.Errorf("property %s not found", propertyName)
+		return 0.0, fmt.Errorf("property %s not found", propertyName)
 	}
 
 	valStr := parts[1]
@@ -77,31 +75,10 @@ func getPropertyValue[T any](v string, propertyName string) (T, error) {
 		valStr = valStr[:commaIdx]
 	}
 
-	var result T
-	switch any(zero).(type) {
-	case int, int8, int16, int32, int64:
-		v, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return zero, err
-		}
-		result = any(v).(T)
-	case float32, float64:
-		v, err := strconv.ParseFloat(valStr, 64)
-		if err != nil {
-			return zero, err
-		}
-		result = any(v).(T)
-	case string:
-		result = any(valStr).(T)
-	case bool:
-		v, err := strconv.ParseBool(valStr)
-		if err != nil {
-			return zero, err
-		}
-		result = any(v).(T)
-	default:
-		return zero, fmt.Errorf("unsupported type for property %s", propertyName)
+	value, err := strconv.ParseFloat(valStr, 64)
+	if err != nil {
+		return 0.0, err
 	}
 
-	return result, nil
+	return value, nil
 }
