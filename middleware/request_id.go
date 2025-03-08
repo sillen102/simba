@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/sillen102/simba/enums"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
+	"github.com/sillen102/simba/simbaModels"
 )
 
 func RequestID(next http.Handler) http.Handler {
@@ -15,7 +15,7 @@ func RequestID(next http.Handler) http.Handler {
 		var requestID string
 
 		requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.Request)
-		if ok && requestSettings.RequestIdMode == enums.AcceptFromHeader {
+		if ok && requestSettings.RequestIdMode == simbaModels.AcceptFromHeader {
 			requestID = r.Header.Get(simbaContext.RequestIDHeader)
 		}
 

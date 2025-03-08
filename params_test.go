@@ -12,6 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/simbaModels"
 	"gotest.tools/v3/assert"
 )
 
@@ -44,7 +46,7 @@ func TestParamParsing(t *testing.T) {
 		testUUID := uuid.New()
 		testDate := time.Now().UTC().Truncate(time.Second)
 
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestAllParamTypes]) (*simba.Response[simba.NoBody], error) {
+		handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TestAllParamTypes]) (*simbaModels.Response[simbaModels.NoBody], error) {
 			// Verify header parameters
 			assert.Equal(t, "test-string", req.Params.HeaderString)
 			assert.Equal(t, 42, req.Params.HeaderInt)
@@ -67,7 +69,7 @@ func TestParamParsing(t *testing.T) {
 			assert.DeepEqual(t, []string{"one", "two"}, req.Params.QuerySlice1)
 			assert.DeepEqual(t, []string{"three", "four"}, req.Params.QuerySlice2)
 
-			return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+			return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 		}
 
 		// Create request with all parameter types
@@ -99,11 +101,11 @@ func TestParamParsing(t *testing.T) {
 	})
 
 	t.Run("default values", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestAllParamTypes]) (*simba.Response[simba.NoBody], error) {
+		handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TestAllParamTypes]) (*simbaModels.Response[simbaModels.NoBody], error) {
 			assert.Equal(t, 1, req.Params.QueryPage)
 			assert.Equal(t, 10, req.Params.QuerySize)
 			assert.Equal(t, true, req.Params.QueryEnabled)
-			return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+			return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 		}
 
 		req := httptest.NewRequest(http.MethodGet, "/test/"+uuid.New().String()+"/123/test", nil)
@@ -134,7 +136,7 @@ type ValidationTestParams struct {
 func TestValidationRules(t *testing.T) {
 	t.Parallel()
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, ValidationTestParams]) (*simba.Response[simba.NoBody], error) {
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, ValidationTestParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
 		t.Fatal("handler should not be called")
 		return nil, nil
 	}
@@ -196,7 +198,7 @@ func TestValidationRules(t *testing.T) {
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 
-			var errorResponse simba.ErrorResponse
+			var errorResponse simbaErrors.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
 			assert.NilError(t, err)
 			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
@@ -204,7 +206,7 @@ func TestValidationRules(t *testing.T) {
 
 			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
 			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
-			assert.Equal(t, simba.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
+			assert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
 			assert.Equal(t, tt.expectedError, errorResponse.ValidationErrors[0].Message)
 		})
 	}
@@ -213,11 +215,11 @@ func TestValidationRules(t *testing.T) {
 func TestDefaultValues(t *testing.T) {
 	t.Parallel()
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, ValidationTestParams]) (*simba.Response[simba.NoBody], error) {
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, ValidationTestParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
 		assert.Equal(t, 1, req.Params.Page)
 		assert.Equal(t, 10, req.Params.Size)
 		assert.Equal(t, "asc", req.Params.SortOrder)
-		return &simba.Response[simba.NoBody]{Status: http.StatusNoContent}, nil
+		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusNoContent}, nil
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -239,14 +241,14 @@ func TestUUIDParameters(t *testing.T) {
 		QueryID  uuid.UUID `query:"queryId"`
 	}
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, UUIDParams]) (*simba.Response[simba.NoBody], error) {
-		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, UUIDParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	tests := []struct {
 		name      string
 		path      string
-		paramType simba.ParameterType
+		paramType simbaErrors.ParameterType
 		parameter string
 		headerID  string
 		wantMsg   string
@@ -254,14 +256,14 @@ func TestUUIDParameters(t *testing.T) {
 		{
 			name:      "invalid uuid in path",
 			path:      "/test/invalid-uuid",
-			paramType: simba.ParameterTypePath,
+			paramType: simbaErrors.ParameterTypePath,
 			parameter: "id",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
 		{
 			name:      "invalid uuid in header",
 			path:      "/test/123e4567-e89b-12d3-a456-426655440000",
-			paramType: simba.ParameterTypeHeader,
+			paramType: simbaErrors.ParameterTypeHeader,
 			parameter: "Header-ID",
 			headerID:  "invalid-uuid",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
@@ -269,7 +271,7 @@ func TestUUIDParameters(t *testing.T) {
 		{
 			name:      "invalid uuid in query",
 			path:      "/test/123e4567-e89b-12d3-a456-426655440000?queryId=invalid-uuid",
-			paramType: simba.ParameterTypeQuery,
+			paramType: simbaErrors.ParameterTypeQuery,
 			parameter: "queryId",
 			headerID:  "248ccd0e-4bdf-4c41-a125-92ef3a416251",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
@@ -292,7 +294,7 @@ func TestUUIDParameters(t *testing.T) {
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 
-			var errorResponse simba.ErrorResponse
+			var errorResponse simbaErrors.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
 			assert.NilError(t, err)
 
@@ -321,8 +323,8 @@ func TestFloatParameters(t *testing.T) {
 		Page float64 `query:"page"`
 	}
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, FloatParams]) (*simba.Response[simba.NoBody], error) {
-		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, FloatParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/test/1?page=invalid", nil)
@@ -335,7 +337,7 @@ func TestFloatParameters(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
-	var errorResponse simba.ErrorResponse
+	var errorResponse simbaErrors.ErrorResponse
 	err := json.NewDecoder(w.Body).Decode(&errorResponse)
 	assert.NilError(t, err)
 
@@ -346,7 +348,7 @@ func TestFloatParameters(t *testing.T) {
 	assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
 	assert.Equal(t, 1, len(errorResponse.ValidationErrors))
 	assert.Equal(t, "page", errorResponse.ValidationErrors[0].Parameter)
-	assert.Equal(t, simba.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
+	assert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
 	assert.Equal(t, "invalid float parameter value: invalid", errorResponse.ValidationErrors[0].Message)
 }
 
@@ -364,50 +366,50 @@ func TestInvalidParameterTypes(t *testing.T) {
 		Cookie  string    `cookie:"Cookie"`
 	}
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response[simba.NoBody], error) {
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, Params]) (*simbaModels.Response[simbaModels.NoBody], error) {
 		t.Error("handler should not be called")
-		return &simba.Response[simba.NoBody]{}, nil
+		return &simbaModels.Response[simbaModels.NoBody]{}, nil
 	}
 
 	tests := []struct {
 		name         string
 		path         string
-		paramType    simba.ParameterType
+		paramType    simbaErrors.ParameterType
 		paramName    string
 		errorMessage string
 	}{
 		{
 			name:         "invalid page parameter",
 			path:         "/test/1?active=true&page=invalid",
-			paramType:    simba.ParameterTypeQuery,
+			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "page",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid size parameter",
 			path:         "/test/1?active=true&size=invalid",
-			paramType:    simba.ParameterTypeQuery,
+			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "size",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid score parameter",
 			path:         "/test/1?active=true&score=invalid",
-			paramType:    simba.ParameterTypeQuery,
+			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "score",
 			errorMessage: "invalid float parameter value: invalid",
 		},
 		{
 			name:         "invalid active parameter",
 			path:         "/test/1?active=notbool",
-			paramType:    simba.ParameterTypeQuery,
+			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "active",
 			errorMessage: "invalid bool parameter value: notbool",
 		},
 		{
 			name:         "invalid id parameter",
 			path:         "/test/notint?active=true",
-			paramType:    simba.ParameterTypePath,
+			paramType:    simbaErrors.ParameterTypePath,
 			paramName:    "id",
 			errorMessage: "invalid int parameter value: notint",
 		},
@@ -427,7 +429,7 @@ func TestInvalidParameterTypes(t *testing.T) {
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
-			var errorResponse simba.ErrorResponse
+			var errorResponse simbaErrors.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
 			assert.NilError(t, err)
 
@@ -456,13 +458,13 @@ func TestTimeParameters(t *testing.T) {
 		DefaultTime time.Time `query:"defaultTime"`
 	}
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TimeParams]) (*simba.Response[simba.NoBody], error) {
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TimeParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
 		expectedDefaultTime, _ := time.Parse(time.RFC3339, "2023-10-15T14:00:00Z")
 		expectedCustomTime, _ := time.Parse("2006-01-02", "2023-10-15")
 
 		assert.Equal(t, expectedDefaultTime, req.Params.DefaultTime)
 		assert.Equal(t, expectedCustomTime, req.Params.CustomTime)
-		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/test?defaultTime=2023-10-15T14:00:00Z&customTime=2023-10-15", nil)
@@ -484,8 +486,8 @@ func TestCookieParams(t *testing.T) {
 
 	validToken := "test-token"
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, cookieParams]) (*simba.Response[simba.NoBody], error) {
-		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, cookieParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	app := simba.New()

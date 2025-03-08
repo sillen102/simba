@@ -1,4 +1,4 @@
-package apiDocs
+package simbaOpenapi
 
 import (
 	"fmt"

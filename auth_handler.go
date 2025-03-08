@@ -4,24 +4,17 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/swaggest/openapi-go"
-)
-
-type AuthType int
-
-const (
-	AuthTypeBasic AuthType = iota
-	AuthTypeAPIKey
-	AuthTypeBearer
+	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
+	oapi "github.com/swaggest/openapi-go"
 )
 
 type AuthHandler[AuthParams, AuthModel any] interface {
-	GetType() AuthType
+	GetType() openapiModels.AuthType
 	GetName() string
 	GetFieldName() string
 	GetFormat() string
 	GetDescription() string
-	GetIn() openapi.In
+	GetIn() oapi.In
 	GetHandler() AuthHandlerFunc[AuthParams, AuthModel]
 }
 
@@ -48,8 +41,8 @@ type BasicAuthType[AuthParams, AuthModel any] struct {
 	Handler     AuthHandlerFunc[AuthParams, AuthModel]
 }
 
-func (t BasicAuthType[AuthParams, AuthModel]) GetType() AuthType {
-	return AuthTypeBasic
+func (t BasicAuthType[AuthParams, AuthModel]) GetType() openapiModels.AuthType {
+	return openapiModels.AuthTypeBasic
 }
 
 func (t BasicAuthType[AuthParams, AuthModel]) GetName() string {
@@ -68,8 +61,8 @@ func (t BasicAuthType[AuthParams, AuthModel]) GetDescription() string {
 	return t.Description
 }
 
-func (t BasicAuthType[AuthParams, AuthModel]) GetIn() openapi.In {
-	return openapi.InHeader
+func (t BasicAuthType[AuthParams, AuthModel]) GetIn() oapi.In {
+	return oapi.InHeader
 }
 
 func (t BasicAuthType[AuthParams, AuthModel]) GetHandler() AuthHandlerFunc[AuthParams, AuthModel] {
@@ -79,7 +72,7 @@ func (t BasicAuthType[AuthParams, AuthModel]) GetHandler() AuthHandlerFunc[AuthP
 type APIKeyAuthConfig struct {
 	Name        string
 	FieldName   string
-	In          openapi.In
+	In          oapi.In
 	Description string
 }
 
@@ -100,13 +93,13 @@ func APIKeyAuth[AuthParams, AuthModel any](
 type APIKeyAuthType[AuthParams, AuthModel any] struct {
 	Name        string
 	FieldName   string
-	In          openapi.In
+	In          oapi.In
 	Description string
 	Handler     AuthHandlerFunc[AuthParams, AuthModel]
 }
 
-func (t APIKeyAuthType[AuthParams, AuthModel]) GetType() AuthType {
-	return AuthTypeAPIKey
+func (t APIKeyAuthType[AuthParams, AuthModel]) GetType() openapiModels.AuthType {
+	return openapiModels.AuthTypeAPIKey
 }
 
 func (t APIKeyAuthType[AuthParams, AuthModel]) GetName() string {
@@ -125,7 +118,7 @@ func (t APIKeyAuthType[AuthParams, AuthModel]) GetDescription() string {
 	return t.Description
 }
 
-func (t APIKeyAuthType[AuthParams, AuthModel]) GetIn() openapi.In {
+func (t APIKeyAuthType[AuthParams, AuthModel]) GetIn() oapi.In {
 	return t.In
 }
 
@@ -159,8 +152,8 @@ type BearerAuthType[AuthParams, AuthModel any] struct {
 	Handler     AuthHandlerFunc[AuthParams, AuthModel]
 }
 
-func (t BearerAuthType[AuthParams, AuthModel]) GetType() AuthType {
-	return AuthTypeBearer
+func (t BearerAuthType[AuthParams, AuthModel]) GetType() openapiModels.AuthType {
+	return openapiModels.AuthTypeBearer
 }
 
 func (t BearerAuthType[AuthParams, AuthModel]) GetName() string {
@@ -179,8 +172,8 @@ func (t BearerAuthType[AuthParams, AuthModel]) GetDescription() string {
 	return t.Description
 }
 
-func (t BearerAuthType[AuthParams, AuthModel]) GetIn() openapi.In {
-	return openapi.InHeader
+func (t BearerAuthType[AuthParams, AuthModel]) GetIn() oapi.In {
+	return oapi.InHeader
 }
 
 func (t BearerAuthType[AuthParams, AuthModel]) GetHandler() AuthHandlerFunc[AuthParams, AuthModel] {

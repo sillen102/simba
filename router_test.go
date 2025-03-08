@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/simbaModels"
 	"gotest.tools/v3/assert"
 )
 
@@ -47,10 +48,10 @@ func TestEndpoints(t *testing.T) {
 			CustomHeader string `header:"X-Custom-Header"`
 		}
 
-		handler := func(ctx context.Context, req *simba.Request[simba.NoBody, TestParams]) (*simba.Response[simba.NoBody], error) {
+		handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TestParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
 			// Assert that the header was set by the middleware in the handler
 			assert.Equal(t, req.Params.CustomHeader, "middleware-applied")
-			return &simba.Response[simba.NoBody]{}, nil
+			return &simbaModels.Response[simbaModels.NoBody]{}, nil
 		}
 
 		app := simba.New()
@@ -70,8 +71,8 @@ func TestRouter_POST(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
-		return &simba.Response[map[string]string]{
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[map[string]string], error) {
+		return &simbaModels.Response[map[string]string]{
 			Body:   map[string]string{"message": "post handled"},
 			Status: http.StatusCreated,
 		}, nil
@@ -104,8 +105,8 @@ func TestRouter_GET(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
-		return &simba.Response[map[string]string]{
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[map[string]string], error) {
+		return &simbaModels.Response[map[string]string]{
 			Body: map[string]string{"message": "get handled"},
 		}, nil
 	}
@@ -137,8 +138,8 @@ func TestRouter_PUT(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
-		return &simba.Response[map[string]string]{
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[map[string]string], error) {
+		return &simbaModels.Response[map[string]string]{
 			Body:   map[string]string{"message": "put handled"},
 			Status: http.StatusAccepted,
 		}, nil
@@ -171,8 +172,8 @@ func TestRouter_DELETE(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
-		return &simba.Response[simba.NoBody]{}, nil
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{}, nil
 	}
 
 	router.DELETE("/test-delete", simba.JsonHandler(handler))
@@ -201,8 +202,8 @@ func TestRouter_PATCH(t *testing.T) {
 
 	router := simba.Default().Router
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[map[string]string], error) {
-		return &simba.Response[map[string]string]{
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[map[string]string], error) {
+		return &simbaModels.Response[map[string]string]{
 			Body:   map[string]string{"message": "patch handled"},
 			Status: http.StatusAccepted,
 		}, nil

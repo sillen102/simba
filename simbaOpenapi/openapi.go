@@ -1,4 +1,4 @@
-package simba
+package simbaOpenapi
 
 import (
 	"fmt"
@@ -16,6 +16,9 @@ import (
 
 	"github.com/iancoleman/strcase"
 	simbaHttp "github.com/sillen102/simba/http"
+	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
 )
@@ -44,8 +47,9 @@ const (
 	deprecatedTag  = "@Deprecated"
 )
 
-func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *routeInfo, handler any) {
-	operationContext, err := reflector.NewOperationContext(routeInfo.method, routeInfo.path)
+// GenerateRouteDocumentation generates OpenAPI documentation for a route
+func GenerateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *openapiModels.RouteInfo, handler any) {
+	operationContext, err := reflector.NewOperationContext(routeInfo.Method, routeInfo.Path)
 	if err != nil {
 		panic(fmt.Errorf("failed to create operation context: %w", err))
 	}
@@ -59,20 +63,20 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	operationContext.SetDescription(info.description)
 
 	// Add request body if it exists
-	if routeInfo.reqBody != nil {
-		operationContext.AddReqStructure(routeInfo.reqBody, func(cu *openapi.ContentUnit) {
-			cu.ContentType = routeInfo.accepts
+	if routeInfo.ReqBody != nil {
+		operationContext.AddReqStructure(routeInfo.ReqBody, func(cu *openapi.ContentUnit) {
+			cu.ContentType = routeInfo.Accepts
 		})
 	}
 
 	// Add params if they exist
-	if routeInfo.params != nil {
-		operationContext.AddReqStructure(routeInfo.params)
+	if routeInfo.Params != nil {
+		operationContext.AddReqStructure(routeInfo.Params)
 	}
 
 	// Get response status code
 	if info.statusCode == 0 {
-		if routeInfo.respBody == (NoBody{}) {
+		if routeInfo.RespBody == (simbaModels.NoBody{}) {
 			info.statusCode = http.StatusNoContent // Default for no response body
 		} else {
 			info.statusCode = http.StatusOK // Default for response body
@@ -80,37 +84,37 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 	}
 
 	// Add response with the status code
-	operationContext.AddRespStructure(routeInfo.respBody, func(cu *openapi.ContentUnit) {
+	operationContext.AddRespStructure(routeInfo.RespBody, func(cu *openapi.ContentUnit) {
 		cu.HTTPStatus = info.statusCode
-		cu.ContentType = routeInfo.produces
+		cu.ContentType = routeInfo.Produces
 	})
 
 	// Add default error responses
-	operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+	operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
 		cu.HTTPStatus = http.StatusBadRequest
 		cu.Description = "Request body contains invalid data"
 	})
-	operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+	operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
 		cu.HTTPStatus = http.StatusUnprocessableEntity
 		cu.Description = "Request body could not be processed"
 	})
-	operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+	operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
 		cu.HTTPStatus = http.StatusInternalServerError
 		cu.Description = "Unexpected error"
 	})
 
 	// Add custom error responses
 	for _, e := range info.errors {
-		operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+		operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
 			cu.HTTPStatus = e.Code
 			cu.Description = e.Message
 		})
 	}
 
 	// Add security if authenticated route
-	if routeInfo.authHandler != nil {
-		authHandler, ok := routeInfo.authHandler.(interface {
-			GetType() AuthType
+	if routeInfo.AuthHandler != nil {
+		authHandler, ok := routeInfo.AuthHandler.(interface {
+			GetType() openapiModels.AuthType
 			GetName() string
 			GetFieldName() string
 			GetFormat() string
@@ -120,20 +124,20 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 
 		if ok {
 			switch authHandler.GetType() {
-			case AuthTypeBasic:
-				ah, _ := routeInfo.authHandler.(interface {
+			case openapiModels.AuthTypeBasic:
+				ah, _ := routeInfo.AuthHandler.(interface {
 					GetName() string
 					GetDescription() string
 				})
 				reflector.SpecEns().SetHTTPBasicSecurity(ah.GetName(), ah.GetDescription())
-			case AuthTypeAPIKey:
+			case openapiModels.AuthTypeAPIKey:
 				reflector.SpecEns().SetAPIKeySecurity(
 					authHandler.GetName(),
 					authHandler.GetFieldName(),
 					authHandler.GetIn(),
 					authHandler.GetDescription(),
 				)
-			case AuthTypeBearer:
+			case openapiModels.AuthTypeBearer:
 				reflector.SpecEns().SetHTTPBearerTokenSecurity(
 					authHandler.GetName(),
 					authHandler.GetFormat(),
@@ -143,11 +147,11 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *route
 
 			operationContext.AddSecurity(authHandler.GetName())
 
-			operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+			operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
 				cu.HTTPStatus = http.StatusUnauthorized
 				cu.Description = "Authorization failed"
 			})
-			operationContext.AddRespStructure(ErrorResponse{}, func(cu *openapi.ContentUnit) {
+			operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
 				cu.HTTPStatus = http.StatusForbidden
 				cu.Description = "Access denied"
 			})
@@ -315,6 +319,10 @@ func getSimpleMethodName(fullName string) string {
 
 // extractCommentForFunction extracts comment for a specific function
 func extractCommentForFunction(node *ast.File, methodName string) string {
+	if node == nil {
+		return ""
+	}
+
 	var comment string
 
 	// Clean the method name to get just the base name
@@ -402,6 +410,10 @@ func parseHandlerCommentTags(comment string) handlerInfo {
 
 // findStatusInAST looks for status codes in the AST
 func findStatusInAST(node *ast.File, methodName string) int {
+	if node == nil {
+		return 0
+	}
+
 	var status int
 
 	ast.Inspect(node, func(n ast.Node) bool {

@@ -9,14 +9,15 @@ import (
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
+	"github.com/sillen102/simba/simbaModels"
 	"gotest.tools/v3/assert"
 )
 
 func TestDefaultApplication(t *testing.T) {
 	t.Parallel()
 
-	handler := func(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
-		return &simba.Response[simba.NoBody]{Status: http.StatusOK}, nil
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	app := simba.Default()

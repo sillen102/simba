@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/simbaModels"
 )
 
 // TODO: Response testing
@@ -14,9 +16,9 @@ import (
 //  4. Response specific test cases (such as 204 when body is nil and status is 0)
 
 // writeResponse writes the response to the client
-func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, resp *Response[ResponseBody], err error) {
+func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, resp *simbaModels.Response[ResponseBody], err error) {
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
@@ -45,7 +47,7 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 	var status int
 	if resp.Status != 0 {
 		status = resp.Status
-	} else if any(resp.Body) == (NoBody{}) {
+	} else if any(resp.Body) == (simbaModels.NoBody{}) {
 		status = http.StatusNoContent
 	} else {
 		status = http.StatusOK
@@ -53,7 +55,7 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 
 	err = writeJSON(w, status, resp.Body)
 	if err != nil {
-		handleUnexpectedError(w)
+		simbaErrors.HandleUnexpectedError(w)
 		return
 	}
 }

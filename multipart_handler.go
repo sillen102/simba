@@ -8,14 +8,16 @@ import (
 	"strings"
 
 	"github.com/sillen102/simba/mimetypes"
+	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/simbaModels"
 )
 
 // MultipartHandlerFunc is a function type for handling routes with Request body and params
-type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *MultipartRequest[Params]) (*Response[ResponseBody], error)
+type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *simbaModels.MultipartRequest[Params]) (*simbaModels.Response[ResponseBody], error)
 
 // AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
 type AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody any] struct {
-	handler     func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error)
+	handler     func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error)
 	authHandler AuthHandler[AuthParams, AuthModel]
 }
 
@@ -67,13 +69,13 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWri
 
 	req, err := handleMultipartRequest[Params](r)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
 	resp, err := h(ctx, req)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
@@ -167,7 +169,7 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
 func AuthMultipartHandler[Params, AuthParams, AuthModel, ResponseBody any](
-	handler func(ctx context.Context, req *MultipartRequest[Params], authModel *AuthModel) (*Response[ResponseBody], error),
+	handler func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error),
 	authHandler AuthHandler[AuthParams, AuthModel],
 ) Handler {
 	return AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]{
@@ -181,19 +183,19 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, Respons
 
 	authModel, err := handleAuthRequest[AuthParams, AuthModel](h.authHandler, r)
 	if err != nil {
-		WriteError(w, r, NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
+		simbaErrors.WriteError(w, r, simbaErrors.NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
 	}
 
 	req, err := handleMultipartRequest[Params](r)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
 	resp, err := h.handler(ctx, req, authModel)
 	if err != nil {
-		WriteError(w, r, err)
+		simbaErrors.WriteError(w, r, err)
 		return
 	}
 
@@ -237,11 +239,11 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, Respons
 }
 
 // handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request
-func handleMultipartRequest[Params any](r *http.Request) (*MultipartRequest[Params], error) {
+func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.MultipartRequest[Params], error) {
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" || !strings.HasPrefix(contentType, "multipart/form-data") {
-		return nil, NewHttpError(http.StatusBadRequest, "invalid content type", nil)
+		return nil, simbaErrors.NewHttpError(http.StatusBadRequest, "invalid content type", nil)
 	}
 
 	reqParams, err := parseAndValidateParams[Params](r)
@@ -250,19 +252,19 @@ func handleMultipartRequest[Params any](r *http.Request) (*MultipartRequest[Para
 	}
 
 	if _, params, err := mime.ParseMediaType(contentType); err != nil || params["boundary"] == "" {
-		return nil, NewHttpError(http.StatusBadRequest, "invalid content type", err, ValidationError{
+		return nil, simbaErrors.NewHttpError(http.StatusBadRequest, "invalid content type", err, simbaErrors.ValidationError{
 			Parameter: "Content-Type",
-			Type:      ParameterTypeHeader,
+			Type:      simbaErrors.ParameterTypeHeader,
 			Message:   "multipart form-data requests must include a boundary parameter",
 		})
 	}
 
 	multipartReader, err := r.MultipartReader()
 	if err != nil {
-		return nil, NewHttpError(http.StatusBadRequest, "invalid request body", err)
+		return nil, simbaErrors.NewHttpError(http.StatusBadRequest, "invalid request body", err)
 	}
 
-	return &MultipartRequest[Params]{
+	return &simbaModels.MultipartRequest[Params]{
 		Reader: multipartReader,
 		Params: reqParams,
 	}, nil

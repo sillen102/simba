@@ -1,4 +1,4 @@
-package test
+package simbaTest
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaAuth"
+	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/simbaModels"
 	"github.com/swaggest/openapi-go"
 )
 
@@ -13,8 +15,8 @@ import (
 type Receiver struct{}
 
 // NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
-func (h *Receiver) NoTagsHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
+func (h *Receiver) NoTagsHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+	return &simbaModels.Response[simbaModels.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }
@@ -29,8 +31,8 @@ func (h *Receiver) NoTagsHandler(ctx context.Context, req *simba.Request[simba.N
 //
 // description for the handler
 // @Error 409 Resource already exists
-func (h *Receiver) TagsHandler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response[ResponseBody], error) {
-	return &simba.Response[ResponseBody]{
+func (h *Receiver) TagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
 		Body: ResponseBody{
@@ -44,8 +46,8 @@ func (h *Receiver) TagsHandler(ctx context.Context, req *simba.Request[RequestBo
 }
 
 // NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
-func NoTagsHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
+func NoTagsHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+	return &simbaModels.Response[simbaModels.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }
@@ -60,8 +62,8 @@ func NoTagsHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.N
 //
 // description for the handler
 // @Error 409 Resource already exists
-func TagsHandler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response[ResponseBody], error) {
-	return &simba.Response[ResponseBody]{
+func TagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
 		Body: ResponseBody{
@@ -79,7 +81,7 @@ func TagsHandler(ctx context.Context, req *simba.Request[RequestBody, Params]) (
 func BasicAuthFunc(ctx context.Context, req *simba.AuthRequest[BasicAuthParams]) (*User, error) {
 	username, password, ok := simbaAuth.BasicAuthDecode(req.Params.Credentials)
 	if !ok || username != "user" || password != "password" {
-		return nil, simba.NewHttpError(http.StatusUnauthorized, "invalid credentials", nil)
+		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid credentials", nil)
 	}
 
 	return &User{
@@ -103,8 +105,8 @@ var BasicAuthAuthenticationHandler = simba.BasicAuth[BasicAuthParams, User](
 // description for the handler
 //
 // @Error 409 Resource already exists
-func BasicAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *User) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
+func BasicAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
+	return &simbaModels.Response[simbaModels.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }
@@ -113,7 +115,7 @@ func BasicAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simb
 // @APIKeyAuth "User" "sessionid" "cookie" "Session cookie"
 func ApiKeyAuthFunc(ctx context.Context, req *simba.AuthRequest[ApiKeyParams]) (*User, error) {
 	if req.Params.APIKey != "valid-key" {
-		return nil, simba.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
+		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
 	}
 
 	return &User{
@@ -139,8 +141,8 @@ var ApiKeyAuthAuthenticationHandler = simba.APIKeyAuth[ApiKeyParams, User](
 // description for the handler
 //
 // @Error 409 Resource already exists
-func ApiKeyAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *User) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
+func ApiKeyAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
+	return &simbaModels.Response[simbaModels.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }
@@ -149,7 +151,7 @@ func ApiKeyAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, sim
 // @BearerAuth "admin" "jwt" "Bearer token"
 func BearerAuthFunc(ctx context.Context, req *simba.AuthRequest[BearerTokenParams]) (*User, error) {
 	if req.Params.Token != "Bearer token" {
-		return nil, simba.NewHttpError(http.StatusUnauthorized, "invalid token", nil)
+		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid token", nil)
 	}
 
 	return &User{
@@ -174,8 +176,8 @@ var BearerAuthAuthenticationHandler = simba.BearerAuth[BearerTokenParams, User](
 // description for the handler
 //
 // @Error  409 	Resource already exists
-func BearerTokenAuthHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], auth *User) (*simba.Response[simba.NoBody], error) {
-	return &simba.Response[simba.NoBody]{
+func BearerTokenAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
+	return &simbaModels.Response[simbaModels.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }

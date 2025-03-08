@@ -1,4 +1,4 @@
-package enums
+package simbaModels
 
 type RequestIdMode string
 

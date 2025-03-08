@@ -1,7 +1,8 @@
-package simba_test
+package simbaOpenapi_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -9,14 +10,15 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/test"
+	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/simbaTest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestOpenAPIDocsGen(t *testing.T) {
 	t.Parallel()
 
-	body, err := json.Marshal(&test.RequestBody{
+	body, err := json.Marshal(&simbaTest.RequestBody{
 		Name:        "John Doe",
 		Age:         30,
 		Description: "A test user",
@@ -29,7 +31,7 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test/{id}", simba.JsonHandler(test.TagsHandler))
+	app.Router.POST("/test/{id}", simba.JsonHandler(simbaTest.TagsHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -66,10 +68,86 @@ func TestOpenAPIDocsGen(t *testing.T) {
 	require.Contains(t, yamlContent, "tags:", "- Test", "- User")
 	require.Contains(t, yamlContent, "- User")
 	require.Contains(t, yamlContent, "- Test")
+}
+
+func TestValidateRequiredField(t *testing.T) {
+	t.Parallel()
+
+	type reqBody struct {
+		Name string `json:"name" validate:"required"`
+	}
+
+	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{}, nil
+	}
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.JsonHandler(handler))
+
+	body, err := json.Marshal(&reqBody{Name: "John Doe"})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/test", io.NopCloser(bytes.NewReader(body)))
+
+	w := httptest.NewRecorder()
+	app.Router.ServeHTTP(w, req)
+
+	yamlContent := fetchOpenAPIDocumentation(t, app)
 
 	require.Contains(t, yamlContent, `
       required:
       - name`)
+}
+
+func TestValidateMinField(t *testing.T) {
+	t.Parallel()
+
+	type reqBody struct {
+		Size int `json:"size" validate:"min=5"`
+	}
+
+	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{}, nil
+	}
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.JsonHandler(handler))
+
+	body, err := json.Marshal(&reqBody{Size: 5})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/test", io.NopCloser(bytes.NewReader(body)))
+
+	w := httptest.NewRecorder()
+	app.Router.ServeHTTP(w, req)
+
+	yamlContent := fetchOpenAPIDocumentation(t, app)
+
+	require.Contains(t, yamlContent, "minimum: 5")
+}
+
+func TestValidateMaxField(t *testing.T) {
+	t.Parallel()
+
+	type reqBody struct {
+		Size int `json:"size" validate:"max=5"`
+	}
+
+	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{}, nil
+	}
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.JsonHandler(handler))
+
+	body, err := json.Marshal(&reqBody{Size: 5})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/test", io.NopCloser(bytes.NewReader(body)))
+
+	w := httptest.NewRecorder()
+	app.Router.ServeHTTP(w, req)
+
+	yamlContent := fetchOpenAPIDocumentation(t, app)
+
+	require.Contains(t, yamlContent, "maximum: 5")
 }
 
 func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
@@ -79,7 +157,7 @@ func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.BasicAuthHandler, simbaTest.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -123,12 +201,12 @@ func TestMultipleAuthHandlers(t *testing.T) {
 
 	req1 := httptest.NewRequest(http.MethodPost, "/test1", nil)
 	w1 := httptest.NewRecorder()
-	app.Router.POST("/test1", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
+	app.Router.POST("/test1", simba.AuthJsonHandler(simbaTest.BasicAuthHandler, simbaTest.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w1, req1)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/test2", nil)
 	w2 := httptest.NewRecorder()
-	app.Router.POST("/test2", simba.AuthJsonHandler(test.BasicAuthHandler, test.BasicAuthAuthenticationHandler))
+	app.Router.POST("/test2", simba.AuthJsonHandler(simbaTest.BasicAuthHandler, simbaTest.BasicAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w2, req2)
 
 	// Fetch OpenAPI documentation
@@ -165,7 +243,7 @@ func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.ApiKeyAuthHandler, test.ApiKeyAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.ApiKeyAuthHandler, simbaTest.ApiKeyAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -209,7 +287,7 @@ func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(test.BearerTokenAuthHandler, test.BearerAuthAuthenticationHandler))
+	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.BearerTokenAuthHandler, simbaTest.BearerAuthAuthenticationHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -254,7 +332,7 @@ func TestOpenAPIGenNoTags(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	app := simba.Default()
-	app.Router.POST("/test", simba.JsonHandler(test.NoTagsHandler))
+	app.Router.POST("/test", simba.JsonHandler(simbaTest.NoTagsHandler))
 	app.Router.ServeHTTP(w, req)
 
 	// Fetch OpenAPI documentation
@@ -272,14 +350,14 @@ func TestOpenAPIGenNoTags(t *testing.T) {
 	require.Contains(t, yamlContent, "operationId: no-tags-handler")
 	require.Contains(t, yamlContent, "summary: No tags handler")
 	require.Contains(t, yamlContent, "tags:")
-	require.Contains(t, yamlContent, "- Test")
+	require.Contains(t, yamlContent, "- SimbaTest")
 	require.Contains(t, yamlContent, "\"202\":")
 }
 
 func TestOpenAPIGenNoTagsReceiverFuncHandler(t *testing.T) {
 	t.Parallel()
 
-	receiver := test.Receiver{}
+	receiver := simbaTest.Receiver{}
 
 	req := httptest.NewRequest(http.MethodPost, "/test", nil)
 	req.Header.Set("Authorization", "Bearer token")
@@ -304,6 +382,20 @@ func TestOpenAPIGenNoTagsReceiverFuncHandler(t *testing.T) {
 	require.Contains(t, yamlContent, "operationId: no-tags-handler")
 	require.Contains(t, yamlContent, "summary: No tags handler")
 	require.Contains(t, yamlContent, "tags:")
-	require.Contains(t, yamlContent, "- Test")
+	require.Contains(t, yamlContent, "- SimbaTest")
 	require.Contains(t, yamlContent, "\"202\":")
+}
+
+func fetchOpenAPIDocumentation(t *testing.T, app *simba.Application) string {
+	t.Helper()
+
+	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
+	getReq.Header.Set("Accept", "application/yaml")
+	getW := httptest.NewRecorder()
+	app.Router.ServeHTTP(getW, getReq)
+
+	require.Equal(t, http.StatusOK, getW.Code)
+	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
+
+	return getW.Body.String()
 }

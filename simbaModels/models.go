@@ -1,4 +1,4 @@
-package simba
+package simbaModels
 
 import (
 	"mime/multipart"

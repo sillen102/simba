@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/sillen102/simba/config"
-	"github.com/sillen102/simba/enums"
+	"github.com/sillen102/simba/simbaModels"
 )
 
 // Simba is a struct that holds the application settings
@@ -46,7 +46,7 @@ type Request struct {
 	LogRequestBody bool `yaml:"log-request-body" env:"SIMBA_REQUEST_LOG_REQUEST_BODY" default:"false"`
 
 	// RequestIdMode determines how the Request ID will be handled
-	RequestIdMode enums.RequestIdMode `yaml:"request-id-mode" env:"SIMBA_REQUEST_ID_MODE" default:"AcceptFromHeader"`
+	RequestIdMode simbaModels.RequestIdMode `yaml:"request-id-mode" env:"SIMBA_REQUEST_ID_MODE" default:"AcceptFromHeader"`
 }
 
 type Docs struct {
