@@ -63,7 +63,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams
 }
 
 func main() {
-    // Using simba.Default() will use the default options for logging and request validation,
+    // Using simba.Default() will use the default options for logger and request validation,
     // add default middleware like panic recovery and request id and add some endpoints like /health
     //
     // If you wish to build up your own router without any default middleware etc., use simba.New()
@@ -100,15 +100,15 @@ app.GET("/users/{userId}", simba.JsonHandler(getUser))
 
 ## Logging
 
-Simba relies on slog to handle logging. If no logger is provided slog.Default will be used.
+Simba relies on slog to handle logger. If no logger is provided slog.Default will be used.
 If you use the Default constructor an slog logger will be injected into the request context for all requests.
-To access the injected logger, use the `logging.From` function the logging package.
+To access the injected logger, use the `logger.From` function the logger package.
 
 Example:
 
 ```go
 func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[respBody], error) {
-    logger := logging.From(ctx)
+    logger := logger.From(ctx)
     logger.Info("handling request")
     // ... handle the request
 }

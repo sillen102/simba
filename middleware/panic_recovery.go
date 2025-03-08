@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/logger"
 )
 
 func PanicRecovery(next http.Handler) http.Handler {
@@ -13,7 +13,7 @@ func PanicRecovery(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				stack := debug.Stack()
-				logging.From(r.Context()).Error("recovered from panic",
+				logger.From(r.Context()).Error("recovered from panic",
 					"error", fmt.Sprint(err),
 					"stacktrace", string(stack),
 				)

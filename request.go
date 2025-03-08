@@ -7,7 +7,7 @@ import (
 	"mime"
 	"net/http"
 
-	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/logger"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaErrors"
@@ -26,7 +26,7 @@ func closeRequestBody(next http.Handler) http.Handler {
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				logging.From(r.Context()).Error("error closing Request body", "error", err)
+				logger.From(r.Context()).Error("error closing Request body", "error", err)
 			}
 		}(r.Body)
 		next.ServeHTTP(w, r)
@@ -69,7 +69,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 
 	requestSettings := getConfigurationFromContext(r.Context())
 	if requestSettings.LogRequestBody {
-		logging.From(r.Context()).Info("request body", "body", r.Body)
+		logger.From(r.Context()).Info("request body", "body", r.Body)
 	}
 
 	err = readJson(r.Body, requestSettings, req)
