@@ -83,19 +83,14 @@ func (c *Loader) Load(cfg any) error {
 
 			// Try YAML first
 			yamlOk, yamlErr := c.loadYamlFile(file, cfg)
-			if yamlOk {
-				slog.Info("Loaded configuration from YAML file")
-			} else {
-				// Fall back to ENV format
+			if !yamlOk {
 				envOk, envErr := c.loadEnvFile(file)
 				if envOk {
-					slog.Info("Loaded configuration from ENV file")
-					// Process ENV variables into struct
-					if err := c.processStruct(reflect.ValueOf(cfg).Elem()); err != nil {
+					if err = c.processStruct(reflect.ValueOf(cfg).Elem()); err != nil {
 						return err
 					}
 				} else {
-					slog.Info("Failed to load file as YAML or ENV format",
+					slog.Info("failed to load file as YAML or ENV format",
 						"yamlError", yamlErr,
 						"envError", envErr)
 				}
@@ -103,7 +98,7 @@ func (c *Loader) Load(cfg any) error {
 		}
 	}
 
-	// Finally, override with environment variables
+	// Finally, override with environment variables if available
 	return c.loadEnvironmentVars(reflect.ValueOf(cfg).Elem())
 }
 
