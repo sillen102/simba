@@ -17,8 +17,6 @@ import (
 
 	"github.com/iancoleman/strcase"
 	simbaHttp "github.com/sillen102/simba/http"
-	"github.com/sillen102/simba/logger"
-	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
@@ -58,13 +56,14 @@ func NewOpenAPIGenerator() *OpenAPIGenerator {
 }
 
 // GenerateDocumentation generates OpenAPI documentation for all routes
-func (g *OpenAPIGenerator) GenerateDocumentation(ctx context.Context, routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error) {
-	log := logger.From(ctx)
-
+func (g *OpenAPIGenerator) GenerateDocumentation(_ context.Context, title string, version string, routeInfos []openapiModels.RouteInfo) ([]byte, error) {
 	reflector, err := GetReflector()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OpenAPI reflector: %w", err)
 	}
+
+	reflector.SpecEns().Info.Title = title
+	reflector.SpecEns().Info.Version = version
 
 	for _, routeInfo := range routeInfos {
 		err = generateRouteDocumentation(reflector, &routeInfo)
@@ -73,14 +72,7 @@ func (g *OpenAPIGenerator) GenerateDocumentation(ctx context.Context, routeInfos
 		}
 	}
 
-	var schema []byte
-	if mimetype == mimetypes.ApplicationJSON {
-		log.Debug("generating OpenAPI schema in JSON format")
-		schema, err = reflector.Spec.MarshalJSON()
-	} else {
-		log.Debug("generating OpenAPI schema in YAML format")
-		schema, err = reflector.Spec.MarshalYAML()
-	}
+	schema, err := reflector.Spec.MarshalJSON()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal OpenAPI schema: %w", err)
 	}

@@ -1,69 +1,744 @@
 package simbaOpenapi_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/http/httptest"
+	"strconv"
 	"testing"
 
-	"github.com/sillen102/simba"
+	"github.com/go-playground/validator/v10"
+	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/simbaOpenapi"
+	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/sillen102/simba/simbaTest"
 	"github.com/stretchr/testify/require"
+	"github.com/swaggest/openapi-go/openapi31"
 )
 
-func TestOpenAPIDocsGen(t *testing.T) {
+type openAPIDoc struct {
+	Info       openapi31.Info       `json:"info"`
+	Paths      openapi31.Paths      `json:"paths"`
+	Components openapi31.Components `json:"components"`
+}
+
+var validate = validator.New(validator.WithRequiredStructEnabled())
+
+func TestTitle(t *testing.T) {
 	t.Parallel()
 
-	body, err := json.Marshal(&simbaTest.RequestBody{
-		Name:        "John Doe",
-		Age:         30,
-		Description: "A test user",
-	})
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	routeInfo := []openapiModels.RouteInfo{
+		{
+			Method:   http.MethodPost,
+			Path:     "/test/{id}",
+			Accepts:  mimetypes.ApplicationJSON,
+			Produces: mimetypes.ApplicationJSON,
+			Handler:  simbaTest.NoTagsHandler,
+			ReqBody:  simbaTest.RequestBody{},
+			RespBody: simbaTest.ResponseBody{},
+			Params:   simbaTest.Params{},
+		},
+	}
+
+	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, "/test/1?gender=male", io.NopCloser(bytes.NewReader(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Request-ID", "1234")
-	req.AddCookie(&http.Cookie{Name: "Authorization", Value: "Bearer token"})
-	w := httptest.NewRecorder()
+	doc := unmarshalJSON(t, schema)
 
-	app := simbaTest.Default()
-	app.Router.POST("/test/{id}", simba.JsonHandler(simbaTest.TagsHandler))
+	require.Equal(t, "Test", doc.Info.Title)
+}
 
-	app.RunTest(func() {
-		app.Router.ServeHTTP(w, req)
+func TestVersion(t *testing.T) {
+	t.Parallel()
 
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	routeInfo := []openapiModels.RouteInfo{
+		{
+			Method:   http.MethodPost,
+			Path:     "/test/{id}",
+			Accepts:  mimetypes.ApplicationJSON,
+			Produces: mimetypes.ApplicationJSON,
+			Handler:  simbaTest.NoTagsHandler,
+			ReqBody:  simbaTest.RequestBody{},
+			RespBody: simbaTest.ResponseBody{},
+			Params:   simbaTest.Params{},
+		},
+	}
 
-		require.Contains(t, yamlContent, "/test/{id}")
-		require.Contains(t, yamlContent, "X-Request-ID")
-		require.Contains(t, yamlContent, "description: ID of the user")
-		require.Contains(t, yamlContent, "description: Name of the user")
-		require.Contains(t, yamlContent, "description: Age of the user")
-		require.Contains(t, yamlContent, "description: Gender of the user")
-		require.Contains(t, yamlContent, "description: description of the user")
-		require.Contains(t, yamlContent, "description: Request body contains invalid data")
-		require.Contains(t, yamlContent, "description: Request body could not be processed")
-		require.Contains(t, yamlContent, "description: Unexpected error")
-		require.Contains(t, yamlContent, "description: Resource already exists")
-		require.Contains(t, yamlContent, `
-      description: |-
-        this is a multiline
+	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
+	require.NoError(t, err)
+	doc := unmarshalJSON(t, schema)
 
-        description for the handler`,
-		)
-		require.Contains(t, yamlContent, "operationId: testHandler")
-		require.Contains(t, yamlContent, "summary: test handler")
-		require.Contains(t, yamlContent, "deprecated: true")
-		require.Contains(t, yamlContent, "\"201\":")
-		require.Contains(t, yamlContent, "tags:", "- Test", "- User")
-		require.Contains(t, yamlContent, "- User")
-		require.Contains(t, yamlContent, "- Test")
-	})
+	require.Equal(t, "1.0.0", doc.Info.Version)
+}
+
+func TestDescription(t *testing.T) {
+	t.Parallel()
+
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	receiver := simbaTest.Receiver{}
+
+	testCases := []struct {
+		name      string
+		routeInfo []openapiModels.RouteInfo
+		expected  string
+	}{
+		{
+			name: "handler with tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "this is a multiline\n\ndescription for the handler",
+		},
+		{
+			name: "handler with no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "A dummy function to test the OpenAPI generation without any tags in the comment.",
+		},
+		{
+			name: "handler with receiver and tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "this is a multiline\n\ndescription for the handler",
+		},
+		{
+			name: "handler with receiver and no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "A dummy function to test the OpenAPI generation without any tags in the comment.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
+
+			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Description)
+		})
+	}
+}
+
+func TestResponseCode(t *testing.T) {
+	t.Parallel()
+
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	receiver := simbaTest.Receiver{}
+
+	testCases := []struct {
+		name      string
+		routeInfo []openapiModels.RouteInfo
+		expected  int
+	}{
+		{
+			name: "handler with tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: http.StatusCreated,
+		},
+		{
+			name: "handler with no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: http.StatusCreated,
+		},
+		{
+			name: "handler with receiver and tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: http.StatusCreated,
+		},
+		{
+			name: "handler with receiver and no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: http.StatusCreated,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
+
+			require.NotNil(
+				t,
+				*doc.Paths.MapOfPathItemValues[path].Post.Responses.MapOfResponseOrReferenceValues[strconv.Itoa(tc.expected)].Response,
+				fmt.Sprintf("response code %d not found", tc.expected),
+			)
+		})
+	}
+}
+
+func TestTags(t *testing.T) {
+	t.Parallel()
+
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	receiver := simbaTest.Receiver{}
+
+	testCases := []struct {
+		name          string
+		routeInfo     []openapiModels.RouteInfo
+		expected      []string
+		expectedError error
+	}{
+		{
+			name: "handler with tag tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected:      []string{"Test", "User"},
+			expectedError: nil,
+		},
+		{
+			name: "handler with no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: []string{"SimbaTest"},
+		},
+		{
+			name: "handler with receiver and tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: []string{"Test", "User"},
+		},
+		{
+			name: "handler with receiver and no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: []string{"SimbaTest"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
+
+			require.ElementsMatch(t, tc.expected, doc.Paths.MapOfPathItemValues[path].Post.Tags)
+		})
+	}
+}
+
+func TestOperationID(t *testing.T) {
+	t.Parallel()
+
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	receiver := simbaTest.Receiver{}
+
+	testCases := []struct {
+		name      string
+		routeInfo []openapiModels.RouteInfo
+		expected  string
+	}{
+		{
+			name: "handler with tag tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "testHandler",
+		},
+		{
+			name: "handler with no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "no-tags-handler",
+		},
+		{
+			name: "handler with receiver and tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "testHandler",
+		},
+		{
+			name: "handler with receiver and no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "no-tags-handler",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
+
+			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.ID)
+		})
+	}
+}
+
+func TestSummary(t *testing.T) {
+	t.Parallel()
+
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	receiver := simbaTest.Receiver{}
+
+	testCases := []struct {
+		name      string
+		routeInfo []openapiModels.RouteInfo
+		expected  string
+	}{
+		{
+			name: "handler with tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "test handler",
+		},
+		{
+			name: "handler with no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "No tags handler",
+		},
+		{
+			name: "handler with receiver and tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "test handler",
+		},
+		{
+			name: "handler with receiver and no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: "No tags handler",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
+
+			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Summary)
+		})
+	}
+}
+
+func TestCustomError(t *testing.T) {
+	t.Parallel()
+
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	receiver := simbaTest.Receiver{}
+
+	testCases := []struct {
+		name      string
+		routeInfo []openapiModels.RouteInfo
+		expected  int
+	}{
+		{
+			name: "handler with tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: http.StatusConflict,
+		},
+		{
+			name: "handler with no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: 0,
+		},
+		{
+			name: "handler with receiver and tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: http.StatusConflict,
+		},
+		{
+			name: "handler with receiver and no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
+
+			if tc.expected != 0 {
+				require.NotNil(
+					t,
+					*doc.Paths.MapOfPathItemValues[path].Post.Responses.MapOfResponseOrReferenceValues[strconv.Itoa(tc.expected)].Response,
+					fmt.Sprintf("response code %d not found", tc.expected),
+				)
+			}
+		})
+	}
+}
+
+func TestDeprecated(t *testing.T) {
+	t.Parallel()
+
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	receiver := simbaTest.Receiver{}
+
+	testCases := []struct {
+		name      string
+		routeInfo []openapiModels.RouteInfo
+		expected  bool
+	}{
+		{
+			name: "handler without deprecated tag",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "handler with deprecated tag",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.DeprecatedHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "handler with no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  simbaTest.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "handler with receiver, tags but no deprecated tag",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.TagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "handler with receiver, tags and deprecated tag",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.DeprecatedHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "handler with receiver and no tags",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:   http.MethodPost,
+					Path:     path,
+					Accepts:  mimetypes.ApplicationJSON,
+					Produces: mimetypes.ApplicationJSON,
+					Handler:  receiver.NoTagsHandler,
+					ReqBody:  simbaTest.RequestBody{},
+					RespBody: simbaTest.ResponseBody{},
+					Params:   simbaTest.Params{},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
+
+			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Deprecated)
+		})
+	}
 }
 
 func TestValidateRequiredField(t *testing.T) {
@@ -77,305 +752,240 @@ func TestValidateRequiredField(t *testing.T) {
 		return &simbaModels.Response[simbaModels.NoBody]{}, nil
 	}
 
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.JsonHandler(handler))
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	routeInfo := []openapiModels.RouteInfo{
+		{
+			Method:   http.MethodPost,
+			Path:     "/test",
+			Accepts:  mimetypes.ApplicationJSON,
+			Produces: mimetypes.ApplicationJSON,
+			Handler:  handler,
+			ReqBody:  reqBody{},
+			RespBody: simbaModels.NoParams{},
+			Params:   simbaModels.NoBody{},
+		},
+	}
 
-	body, err := json.Marshal(&reqBody{Name: "John Doe"})
+	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, "/test", io.NopCloser(bytes.NewReader(body)))
+	doc := unmarshalJSON(t, schema)
 
-	w := httptest.NewRecorder()
-
-	app.RunTest(func() {
-		app.Router.ServeHTTP(w, req)
-
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-
-		require.Contains(t, yamlContent, `
-      required:
-      - name`)
-	})
+	require.ElementsMatch(t, []string{"name"}, doc.Components.Schemas["SimbaOpenapiTestReqBody"]["required"])
 }
 
 func TestValidateMinField(t *testing.T) {
 	t.Parallel()
 
 	type reqBody struct {
-		Size int `json:"size" validate:"min=5"`
+		Size   int      `json:"size" validate:"min=5"`
+		Length string   `json:"length" validate:"min=5"`
+		Items  []string `json:"items" validate:"min=5"`
 	}
 
 	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
 		return &simbaModels.Response[simbaModels.NoBody]{}, nil
 	}
 
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.JsonHandler(handler))
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	routeInfo := []openapiModels.RouteInfo{
+		{
+			Method:   http.MethodPost,
+			Path:     "/test",
+			Accepts:  mimetypes.ApplicationJSON,
+			Produces: mimetypes.ApplicationJSON,
+			Handler:  handler,
+			ReqBody:  reqBody{},
+			RespBody: simbaModels.NoParams{},
+			Params:   simbaModels.NoBody{},
+		},
+	}
 
-	body, err := json.Marshal(&reqBody{Size: 5})
+	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, "/test", io.NopCloser(bytes.NewReader(body)))
+	doc := unmarshalJSON(t, schema)
 
-	w := httptest.NewRecorder()
+	require.Equal(
+		t,
+		5.0,
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["size"].(map[string]interface{})["minimum"],
+	)
+	require.Equal(
+		t,
+		5.0,
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["length"].(map[string]interface{})["minLength"],
+	)
+	require.Equal(
+		t,
+		5.0,
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["items"].(map[string]interface{})["minItems"],
+	)
 
-	app.RunTest(func() {
-		app.Router.ServeHTTP(w, req)
+	valid := reqBody{Size: 5, Length: "12345", Items: []string{"1", "2", "3", "4", "5"}}
+	err = validate.Struct(valid)
+	require.NoError(t, err)
 
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-		fmt.Println(yamlContent)
-
-		require.Contains(t, yamlContent, `
-    SimbaOpenapiTestReqBody:
-      properties:
-        size:
-          minimum: 5
-          type: integer
-      type: object`)
-	})
+	invalid := reqBody{Size: 4, Length: "1234", Items: []string{"1", "2", "3", "4"}}
+	err = validate.Struct(invalid)
+	require.Error(t, err)
 }
 
 func TestValidateMaxField(t *testing.T) {
 	t.Parallel()
 
 	type reqBody struct {
-		Size int `json:"size" validate:"max=5"`
+		Size   int      `json:"size" validate:"max=5"`
+		Length string   `json:"length" validate:"max=5"`
+		Items  []string `json:"items" validate:"max=5"`
 	}
 
 	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
 		return &simbaModels.Response[simbaModels.NoBody]{}, nil
 	}
 
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.JsonHandler(handler))
+	generator := simbaOpenapi.NewOpenAPIGenerator()
+	routeInfo := []openapiModels.RouteInfo{
+		{
+			Method:   http.MethodPost,
+			Path:     "/test",
+			Accepts:  mimetypes.ApplicationJSON,
+			Produces: mimetypes.ApplicationJSON,
+			Handler:  handler,
+			ReqBody:  reqBody{},
+			RespBody: simbaModels.NoParams{},
+			Params:   simbaModels.NoBody{},
+		},
+	}
 
-	app.RunTest(func() {
-		body, err := json.Marshal(&reqBody{Size: 5})
-		require.NoError(t, err)
-		req := httptest.NewRequest(http.MethodPost, "/test", io.NopCloser(bytes.NewReader(body)))
-		w := httptest.NewRecorder()
+	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
+	require.NoError(t, err)
+	doc := unmarshalJSON(t, schema)
 
-		app.Router.ServeHTTP(w, req)
+	require.Equal(
+		t,
+		5.0,
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["size"].(map[string]interface{})["maximum"],
+	)
+	require.Equal(
+		t,
+		5.0,
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["length"].(map[string]interface{})["maxLength"],
+	)
+	require.Equal(
+		t,
+		5.0,
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["items"].(map[string]interface{})["maxItems"],
+	)
 
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
+	valid := reqBody{Size: 5, Length: "12345", Items: []string{"1", "2", "3", "4", "5"}}
+	err = validate.Struct(valid)
+	require.NoError(t, err)
 
-		require.Contains(t, yamlContent, `
-    SimbaOpenapiTestReqBody:
-      properties:
-        size:
-          maximum: 5
-          type: integer
-      type: object`)
-	})
+	invalid := reqBody{Size: 6, Length: "123456", Items: []string{"1", "2", "3", "4", "5", "6"}}
+	err = validate.Struct(invalid)
+	require.Error(t, err)
 }
 
-func TestOpenAPIDocsGenBasicAuthHandler(t *testing.T) {
+func TestAuthHandler(t *testing.T) {
 	t.Parallel()
 
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.BasicAuthHandler, simbaTest.BasicAuthAuthenticationHandler))
+	path := "/test/{id}"
+	generator := simbaOpenapi.NewOpenAPIGenerator()
 
-	app.RunTest(func() {
-		req := httptest.NewRequest(http.MethodPost, "/test", nil)
-		w := httptest.NewRecorder()
+	testCases := []struct {
+		name                string
+		schemeName          string
+		routeInfo           []openapiModels.RouteInfo
+		expectedDescription string
+	}{
+		{
+			name:       "basic auth handler",
+			schemeName: "admin",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:      http.MethodPost,
+					Path:        path,
+					Accepts:     mimetypes.ApplicationJSON,
+					Produces:    mimetypes.ApplicationJSON,
+					Handler:     simbaTest.BasicAuthHandler,
+					ReqBody:     simbaTest.RequestBody{},
+					RespBody:    simbaTest.ResponseBody{},
+					Params:      simbaTest.Params{},
+					AuthHandler: simbaTest.BasicAuthAuthenticationHandler,
+					AuthModel:   simbaTest.User{},
+				},
+			},
+			expectedDescription: "admin access only",
+		},
+		{
+			name:       "api key auth handler",
+			schemeName: "User",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:      http.MethodPost,
+					Path:        path,
+					Accepts:     mimetypes.ApplicationJSON,
+					Produces:    mimetypes.ApplicationJSON,
+					Handler:     simbaTest.ApiKeyAuthHandler,
+					ReqBody:     simbaTest.RequestBody{},
+					RespBody:    simbaTest.ResponseBody{},
+					Params:      simbaTest.Params{},
+					AuthHandler: simbaTest.ApiKeyAuthAuthenticationHandler,
+					AuthModel:   simbaTest.User{},
+				},
+			},
+			expectedDescription: "Session cookie",
+		},
+		{
+			name:       "bearer token auth handler",
+			schemeName: "admin",
+			routeInfo: []openapiModels.RouteInfo{
+				{
+					Method:      http.MethodPost,
+					Path:        path,
+					Accepts:     mimetypes.ApplicationJSON,
+					Produces:    mimetypes.ApplicationJSON,
+					Handler:     simbaTest.BearerTokenAuthHandler,
+					ReqBody:     simbaTest.RequestBody{},
+					RespBody:    simbaTest.ResponseBody{},
+					Params:      simbaTest.Params{},
+					AuthHandler: simbaTest.BearerAuthAuthenticationHandler,
+					AuthModel:   simbaTest.User{},
+				},
+			},
+			expectedDescription: "Bearer token",
+		},
+	}
 
-		app.Router.ServeHTTP(w, req)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
+			require.NoError(t, err)
+			doc := unmarshalJSON(t, schema)
 
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-		require.Contains(t, yamlContent, "/test")
-		require.Contains(t, yamlContent, `
-      description: |
-        this is a multiline
+			securityScheme := doc.Components.SecuritySchemes[tc.schemeName].SecurityScheme
 
-        description for the handler`,
-		)
-		require.Contains(t, yamlContent, `
-  securitySchemes:
-    admin:
-      description: admin access only
-      scheme: basic
-      type: http`,
-		)
-		require.Contains(t, yamlContent, `
-      security:
-      - admin: []`,
-		)
-		require.Contains(t, yamlContent, "operationId: basicAuthHandler")
-		require.Contains(t, yamlContent, "summary: basic auth handler")
-		require.NotContains(t, yamlContent, "deprecated: true")
-		require.Contains(t, yamlContent, "\"202\":")
-	})
+			switch {
+			case securityScheme.HTTP != nil:
+				require.Equal(t, "basic", securityScheme.HTTP.Scheme)
+			case securityScheme.APIKey != nil:
+				require.Equal(t, "sessionid", securityScheme.APIKey.Name)
+				require.Equal(t, openapi31.SecuritySchemeAPIKeyInCookie, securityScheme.APIKey.In)
+			case securityScheme.HTTPBearer != nil:
+				require.Equal(t, "bearer", securityScheme.HTTPBearer.Scheme)
+				require.Equal(t, "jwt", *securityScheme.HTTPBearer.BearerFormat)
+			}
+
+			require.Equal(t, tc.expectedDescription, *securityScheme.Description)
+		})
+	}
 }
 
-func TestMultipleAuthHandlers(t *testing.T) {
-	t.Parallel()
-
-	app := simbaTest.Default()
-	app.Router.POST("/test1", simba.AuthJsonHandler(simbaTest.BasicAuthHandler, simbaTest.BasicAuthAuthenticationHandler))
-	app.Router.POST("/test2", simba.AuthJsonHandler(simbaTest.BasicAuthHandler, simbaTest.BasicAuthAuthenticationHandler))
-
-	app.RunTest(func() {
-		w1 := httptest.NewRecorder()
-		w2 := httptest.NewRecorder()
-
-		req1 := httptest.NewRequest(http.MethodPost, "/test1", nil)
-		req2 := httptest.NewRequest(http.MethodPost, "/test2", nil)
-
-		app.Router.ServeHTTP(w1, req1)
-		app.Router.ServeHTTP(w2, req2)
-
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-		require.Contains(t, yamlContent, "/test1")
-		require.Contains(t, yamlContent, "/test2")
-		require.Contains(t, yamlContent, `
-  securitySchemes:
-    admin:
-      description: admin access only
-      scheme: basic
-      type: http`,
-		)
-		require.Contains(t, yamlContent, `
-      security:
-      - admin: []`,
-		)
-		require.Contains(t, yamlContent, "operationId: basicAuthHandler")
-	})
-}
-
-func TestOpenAPIDocsGenAPIKeyAuthHandler(t *testing.T) {
-	t.Parallel()
-
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.ApiKeyAuthHandler, simbaTest.ApiKeyAuthAuthenticationHandler))
-
-	app.RunTest(func() {
-		req := httptest.NewRequest(http.MethodPost, "/test", nil)
-		req.Header.Set("Authorization", "APIKey token")
-		w := httptest.NewRecorder()
-
-		app.Router.ServeHTTP(w, req)
-
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-		require.Contains(t, yamlContent, "/test")
-		require.Contains(t, yamlContent, `
-      description: |
-        this is a multiline
-
-        description for the handler`,
-		)
-		require.Contains(t, yamlContent, `
-  securitySchemes:
-    User:
-      description: Session cookie
-      in: cookie
-      name: sessionid
-      type: apiKey`,
-		)
-		require.Contains(t, yamlContent, `
-      security:
-      - User: []`,
-		)
-		require.Contains(t, yamlContent, "operationId: apiKeyAuthHandler")
-		require.Contains(t, yamlContent, "summary: api key handler")
-	})
-}
-
-func TestOpenAPIDocsGenBearerTokenAuthHandler(t *testing.T) {
-	t.Parallel()
-
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.BearerTokenAuthHandler, simbaTest.BearerAuthAuthenticationHandler))
-
-	app.RunTest(func() {
-		req := httptest.NewRequest(http.MethodPost, "/test", nil)
-		req.Header.Set("Authorization", "Bearer token")
-		w := httptest.NewRecorder()
-
-		app.Router.ServeHTTP(w, req)
-
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-		require.Contains(t, yamlContent, "/test")
-		require.Contains(t, yamlContent, "\"202\":")
-		require.Contains(t, yamlContent, `
-      description: |
-        this is a multiline
-
-        description for the handler`,
-		)
-		require.Contains(t, yamlContent, `
-  securitySchemes:
-    admin:
-      bearerFormat: jwt
-      description: Bearer token
-      scheme: bearer
-      type: http`,
-		)
-		require.Contains(t, yamlContent, `
-      security:
-      - admin: []`,
-		)
-		require.Contains(t, yamlContent, "operationId: bearerTokenAuthHandler")
-		require.Contains(t, yamlContent, "summary: bearer token handler")
-	})
-}
-
-func TestOpenAPIGenNoTags(t *testing.T) {
-	t.Parallel()
-
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.JsonHandler(simbaTest.NoTagsHandler))
-
-	app.RunTest(func() {
-		req := httptest.NewRequest(http.MethodPost, "/test", nil)
-		req.Header.Set("Authorization", "Bearer token")
-		w := httptest.NewRecorder()
-
-		app.Router.ServeHTTP(w, req)
-
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-		require.Contains(t, yamlContent, "/test")
-		require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags")
-		require.Contains(t, yamlContent, "operationId: no-tags-handler")
-		require.Contains(t, yamlContent, "summary: No tags handler")
-		require.Contains(t, yamlContent, "tags:")
-		require.Contains(t, yamlContent, "- SimbaTest")
-		require.Contains(t, yamlContent, "\"202\":")
-	})
-}
-
-func TestOpenAPIGenNoTagsReceiverFuncHandler(t *testing.T) {
-	t.Parallel()
-
-	receiver := simbaTest.Receiver{}
-	app := simbaTest.Default()
-	app.Router.POST("/test", simba.JsonHandler(receiver.NoTagsHandler))
-
-	app.RunTest(func() {
-		req := httptest.NewRequest(http.MethodPost, "/test", nil)
-		req.Header.Set("Authorization", "Bearer token")
-		w := httptest.NewRecorder()
-
-		app.Router.ServeHTTP(w, req)
-
-		yamlContent := fetchOpenAPIDocumentation(t, app.Application)
-		require.Contains(t, yamlContent, "/test")
-		require.Contains(t, yamlContent, "description: A dummy function to test the OpenAPI generation without any tags")
-		require.Contains(t, yamlContent, "operationId: no-tags-handler")
-		require.Contains(t, yamlContent, "summary: No tags handler")
-		require.Contains(t, yamlContent, "tags:")
-		require.Contains(t, yamlContent, "- SimbaTest")
-		require.Contains(t, yamlContent, "\"202\":")
-	})
-}
-
-func fetchOpenAPIDocumentation(t *testing.T, app *simba.Application) string {
+func unmarshalJSON(t *testing.T, schema []byte) openAPIDoc {
 	t.Helper()
 
-	getReq := httptest.NewRequest(http.MethodGet, "/openapi.yml", nil)
-	getReq.Header.Set("Accept", "application/yaml")
-	getW := httptest.NewRecorder()
-	app.Router.ServeHTTP(getW, getReq)
+	var jsonDoc openAPIDoc
+	err := json.Unmarshal(schema, &jsonDoc)
+	require.NoError(t, err)
 
-	require.Equal(t, http.StatusOK, getW.Code)
-	require.Equal(t, "application/yaml", getW.Header().Get("Content-Type"))
-
-	return getW.Body.String()
+	return jsonDoc
 }

@@ -10,17 +10,25 @@ import (
 // Simba is a struct that holds the application settings
 type Simba struct {
 
+	// Application settings
+	Application `yaml:"application"`
+
 	// Server settings
-	Server
+	Server `yaml:"server"`
 
 	// Request settings
-	Request
+	Request `yaml:"request"`
 
 	// Docs settings
-	Docs
+	Docs `yaml:"docs"`
 
 	// Logger settings
 	Logger *slog.Logger `yaml:"-" env:"-"`
+}
+
+type Application struct {
+	Name    string `yaml:"name" env:"APPLICATION_NAME" default:"Simba Application"`
+	Version string `yaml:"version" env:"APPLICATION_VERSION" default:"0.1.0"`
 }
 
 // Server holds the Simba for the application server
@@ -58,10 +66,10 @@ type Docs struct {
 	MountDocsEndpoint bool `yaml:"mount-docs-endpoint" env:"SIMBA_DOCS_MOUNT_ENDPOINT" default:"true"`
 
 	// OpenAPIFileType is the type of the OpenAPI file (YAML or JSON)
-	OpenAPIFileType string `yaml:"open-api-file-type" env:"SIMBA_DOCS_OPENAPI_FILE_TYPE" default:"application/yaml"`
+	OpenAPIFileType string `yaml:"open-api-file-type" env:"SIMBA_DOCS_OPENAPI_FILE_TYPE" default:"application/json"`
 
 	// OpenAPIFilePath is the path to the OpenAPI YAML file
-	OpenAPIFilePath string `yaml:"open-api-file-path" env:"SIMBA_DOCS_OPENAPI_MOUNT_PATH" default:"/openapi.yml"`
+	OpenAPIFilePath string `yaml:"open-api-file-path" env:"SIMBA_DOCS_OPENAPI_MOUNT_PATH" default:"/openapi.json"`
 
 	// DocsPath is the path to the API documentation
 	DocsPath string `yaml:"docs-path" env:"SIMBA_DOCS_MOUNT_PATH" default:"/docs"`
