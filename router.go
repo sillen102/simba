@@ -24,7 +24,7 @@ type Handler interface {
 }
 
 type openApiGenerator interface {
-	GenerateDocumentation(ctx context.Context, routeInfos []openapiModels.RouteInfo, mimetype string) ([]byte, error)
+	GenerateDocumentation(ctx context.Context, title string, version string, routeInfos []openapiModels.RouteInfo) ([]byte, error)
 }
 
 // Router is a simple Mux that wraps [http.ServeMux] and allows for middleware chaining
@@ -42,10 +42,10 @@ type Router struct {
 
 // GenerateOpenAPIDocumentation generates the OpenAPI documentation for the routes mounted in the router
 // if enabled in [settings.Docs]
-func (r *Router) GenerateOpenAPIDocumentation(ctx context.Context) error {
+func (r *Router) GenerateOpenAPIDocumentation(ctx context.Context, title, version string) error {
 	if r.docsSettings.GenerateOpenAPIDocs {
 		var err error
-		r.schema, err = r.openAPIGenerator.GenerateDocumentation(ctx, r.routes, r.docsSettings.OpenAPIFileType)
+		r.schema, err = r.openAPIGenerator.GenerateDocumentation(ctx, title, version, r.routes)
 		if err != nil {
 			return fmt.Errorf("failed to generate OpenAPI documentation: %w", err)
 		}
@@ -57,7 +57,7 @@ func (r *Router) GenerateOpenAPIDocumentation(ctx context.Context) error {
 	return nil
 }
 
-func newRouter(requestSettings settings.Request, docsSettings settings.Docs, generator openApiGenerator) *Router {
+func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Router {
 	return &Router{
 		Mux: http.NewServeMux(),
 		middleware: []func(http.Handler) http.Handler{
@@ -76,7 +76,7 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs, gen
 		schema:                 nil,
 		openAPIEndpointMounted: false,
 		docsEndpointsMounted:   false,
-		openAPIGenerator:       generator,
+		openAPIGenerator:       simbaOpenapi.NewOpenAPIGenerator(),
 	}
 }
 

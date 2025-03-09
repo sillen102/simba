@@ -47,21 +47,106 @@ func setIsRequired(params jsonschema.InterceptPropParams) {
 }
 
 func setMinProperty(params jsonschema.InterceptPropParams, v string) error {
-	val, err := getFloatPropertyValue(v, "min")
+
+	propertyName := "min"
+
+	if params.PropertySchema.Type != nil && params.PropertySchema.Type.SimpleTypes != nil {
+		switch *params.PropertySchema.Type.SimpleTypes {
+		case jsonschema.String:
+			val, err := getInt64PropertyValue(v, propertyName)
+			if err != nil {
+				return err
+			}
+			params.PropertySchema.MinLength = val
+			return nil
+		case jsonschema.Array:
+			val, err := getInt64PropertyValue(v, propertyName)
+			if err != nil {
+				return err
+			}
+			params.PropertySchema.MinItems = val
+			return nil
+		}
+	} else if params.PropertySchema.Type != nil && len(params.PropertySchema.Type.SliceOfSimpleTypeValues) > 0 {
+		switch params.PropertySchema.Type.SliceOfSimpleTypeValues[0] {
+		case jsonschema.Array:
+			val, err := getInt64PropertyValue(v, propertyName)
+			if err != nil {
+				return err
+			}
+			params.PropertySchema.MinItems = val
+			return nil
+		}
+	}
+
+	val, err := getFloatPropertyValue(v, propertyName)
 	if err != nil {
 		return err
 	}
+
 	params.PropertySchema.Minimum = &val
 	return nil
 }
 
 func setMaxProperty(params jsonschema.InterceptPropParams, v string) error {
-	val, err := getFloatPropertyValue(v, "max")
+
+	propertyName := "max"
+
+	if params.PropertySchema.Type != nil && params.PropertySchema.Type.SimpleTypes != nil {
+		switch *params.PropertySchema.Type.SimpleTypes {
+		case jsonschema.String:
+			val, err := getInt64PropertyValue(v, propertyName)
+			if err != nil {
+				return err
+			}
+			params.PropertySchema.MaxLength = &val
+			return nil
+		case jsonschema.Array:
+			val, err := getInt64PropertyValue(v, propertyName)
+			if err != nil {
+				return err
+			}
+			params.PropertySchema.MaxItems = &val
+			return nil
+		}
+	} else if params.PropertySchema.Type != nil && len(params.PropertySchema.Type.SliceOfSimpleTypeValues) > 0 {
+		switch params.PropertySchema.Type.SliceOfSimpleTypeValues[0] {
+		case jsonschema.Array:
+			val, err := getInt64PropertyValue(v, propertyName)
+			if err != nil {
+				return err
+			}
+			params.PropertySchema.MaxItems = &val
+			return nil
+		}
+	}
+
+	val, err := getFloatPropertyValue(v, propertyName)
 	if err != nil {
 		return err
 	}
+
 	params.PropertySchema.Maximum = &val
 	return nil
+}
+
+func getInt64PropertyValue(v string, propertyName string) (int64, error) {
+	parts := strings.Split(v, propertyName+"=")
+	if len(parts) <= 1 {
+		return 0, fmt.Errorf("property %s not found", propertyName)
+	}
+
+	valStr := parts[1]
+	if commaIdx := strings.Index(valStr, ","); commaIdx != -1 {
+		valStr = valStr[:commaIdx]
+	}
+
+	value, err := strconv.ParseInt(valStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return value, nil
 }
 
 func getFloatPropertyValue(v string, propertyName string) (float64, error) {

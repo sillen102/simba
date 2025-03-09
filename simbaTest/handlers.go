@@ -15,9 +15,17 @@ import (
 type Receiver struct{}
 
 // NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
-func (h *Receiver) NoTagsHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-	return &simbaModels.Response[simbaModels.NoBody]{
-		Status: http.StatusAccepted,
+func (h *Receiver) NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+	return &simbaModels.Response[ResponseBody]{
+		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
+		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Body: ResponseBody{
+			ID:          req.Params.ID,
+			Name:        req.Body.Name,
+			Age:         req.Body.Age,
+			Description: req.Body.Description,
+		},
+		Status: http.StatusCreated,
 	}, nil
 }
 
@@ -45,24 +53,23 @@ func (h *Receiver) TagsHandler(ctx context.Context, req *simbaModels.Request[Req
 	}, nil
 }
 
-// NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
-func NoTagsHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-	return &simbaModels.Response[simbaModels.NoBody]{
-		Status: http.StatusAccepted,
+// DeprecatedHandler A dummy function to test the OpenAPI generation with deprecated tag.
+// @Deprecated
+func (h *Receiver) DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+	return &simbaModels.Response[ResponseBody]{
+		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
+		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Body: ResponseBody{
+			ID:          req.Params.ID,
+			Name:        req.Body.Name,
+			Age:         req.Body.Age,
+			Description: req.Body.Description,
+		},
 	}, nil
 }
 
-// TagsHandler A dummy function to test the OpenAPI generation with tags in the comment.
-// @ID testHandler
-// @Deprecated
-// @Tag Test
-// @Tag User
-// @Summary test handler
-// @Description this is a multiline
-//
-// description for the handler
-// @Error 409 Resource already exists
-func TagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+// NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
+func NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
@@ -76,8 +83,44 @@ func TagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Para
 	}, nil
 }
 
-// BasicAuthFunc A dummy function to test the OpenAPI generation with basic auth.
-// @BasicAuth "admin" "admin access only"
+// TagsHandler A dummy function to test the OpenAPI generation with tags in the comment.
+// @ID testHandler
+// @Tag Test
+// @Tag User
+// @Summary test handler
+// @Description this is a multiline
+// @StatusCode 201
+//
+// description for the handler
+// @Error 409 Resource already exists
+func TagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+	return &simbaModels.Response[ResponseBody]{
+		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
+		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Body: ResponseBody{
+			ID:          req.Params.ID,
+			Name:        req.Body.Name,
+			Age:         req.Body.Age,
+			Description: req.Body.Description,
+		},
+	}, nil
+}
+
+// DeprecatedHandler A dummy function to test the OpenAPI generation with deprecated tag.
+// @Deprecated
+func DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+	return &simbaModels.Response[ResponseBody]{
+		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
+		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Body: ResponseBody{
+			ID:          req.Params.ID,
+			Name:        req.Body.Name,
+			Age:         req.Body.Age,
+			Description: req.Body.Description,
+		},
+	}, nil
+}
+
 func BasicAuthFunc(ctx context.Context, req *simba.AuthRequest[BasicAuthParams]) (*User, error) {
 	username, password, ok := simbaAuth.BasicAuthDecode(req.Params.Credentials)
 	if !ok || username != "user" || password != "password" {
