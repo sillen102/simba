@@ -244,8 +244,8 @@ func TestHandlerErrors(t *testing.T) {
 func TestAuthenticatedJsonHandler(t *testing.T) {
 	t.Parallel()
 
-	authFunc := func(ctx context.Context, req *simba.AuthRequest[simbaTest.AuthParams]) (*simbaTest.User, error) {
-		assert.Equal(t, "token", req.Params.Token)
+	authFunc := func(ctx context.Context, token string) (*simbaTest.User, error) {
+		assert.Equal(t, "token", token)
 		return &simbaTest.User{
 			ID:   1,
 			Name: "John Doe",
@@ -253,15 +253,15 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 		}, nil
 	}
 
-	authHandler := simba.BasicAuthType[simbaTest.AuthParams, simbaTest.User]{
+	authHandler := simba.BearerAuthType[simbaTest.User]{
 		Handler: authFunc,
 	}
 
-	errorAuthFunc := func(ctx context.Context, req *simba.AuthRequest[simbaTest.AuthParams]) (*simbaTest.User, error) {
+	errorAuthFunc := func(ctx context.Context, token string) (*simbaTest.User, error) {
 		return nil, errors.New("user not found")
 	}
 
-	errorAuthHandler := simba.BasicAuthType[simbaTest.AuthParams, simbaTest.User]{
+	errorAuthHandler := simba.BearerAuthType[simbaTest.User]{
 		Handler: errorAuthFunc,
 	}
 
@@ -283,7 +283,7 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 		body := strings.NewReader(`{"name": "John"}`)
 		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/test/%s?page=1&size=10&active=true", id), body)
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "token")
+		req.Header.Set("Authorization", "Bearer token")
 		req.Header.Set("name", "John")
 		w := httptest.NewRecorder()
 

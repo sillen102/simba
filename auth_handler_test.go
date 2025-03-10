@@ -87,7 +87,7 @@ func TestApiKeyAuth(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/test", nil)
-			req.Header.Add("Authorization", tc.apiKey)
+			req.Header.Add(simbaTest.ApiKeyAuthAuthenticationHandler.GetFieldName(), tc.apiKey)
 
 			w := httptest.NewRecorder()
 			app.Router.ServeHTTP(w, req)
