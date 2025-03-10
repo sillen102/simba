@@ -172,32 +172,170 @@ app.Router.Use(myMiddleware)
 
 ## Authentication
 
-Simba provides built-in support for authentication:
+Simba provides built-in support for authentication of the handlers.
 
+It works by providing an authentication function signature respectively for Basic Auth, API Key Auth, and Bearer Token Auth.
+The example below shows how to use API Key Auth. It works by you implementing a function that takes a context and an API key and returns a model
+of whatever authenticated model you have. It works by using generics so everything is type safe.
+In this case we expect a User model to be returned with an ID and a name.
+
+For Basic Auth and Bearer Token Auth the function signatures are slightly different.
+
+### Basic Auth
 ```go
 type User struct {
     ID   string
     Name string
 }
 
-// @BasicAuth "admin" "admin access only"
-func authFunc(r *http.Request) (*User, error) {
-    // Your authentication logic here, either be it a database lookup or any other authentication method
-    return &User{ID: "123", Name: "John"}, nil
+// authFunc is should use the basic auth function signature:
+// BasicAuthHandlerFunc[AuthModel any] func(ctx context.Context, username, password string) (*AuthModel, error)
+func authFunc(ctx context.Context, username, password string) (*User, error) {
+    if !(username == "john" && password == "password") {
+        return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid username or password", nil)
+    }
+
+    return &User{
+        ID:   1,
+        Name: "John Doe",
+        Role: "admin",
+    }, nil
 }
 
-// This handler will only be called if the user is authenticated and the user is available as one of the function parameters
-func getUser(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams], user *User) (*simba.Response[respBody], error) {
-    // ... handle the request
+var authHandler = simba.BasicAuth[User](
+    authFunc,
+    simba.BasicAuthConfig{
+        Name:        "admin",
+        Description: "admin access only",
+    }, 
+)
+
+// @ID authenticatedHandler
+// @Summary authenticated handler
+// @Description this is a handler that requires authentication
+func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
+
+    // Access the request cookies
+    // req.Cookies
+    
+    // Access the request headers
+    // req.Headers
+    
+    return &simbaModels.Response[ResponseBody]{
+        Body: ResponseBody{
+            Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
+        },
+    }, nil
 }
 
 app := simba.Default()
-app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authFunc))
+app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
 ```
 
-In this example the `authFunc` function is called for every request to authenticate the user.
-If the user is authenticated, the user is injected into the handler function.
-If the authFunc returns an error, a 401 Unauthorized response is returned.
+### API Key Auth
+```go
+type User struct {
+    ID   string
+    Name string
+}
+
+// authFunc should use the API key auth function signature:
+// APIKeyAuthHandlerFunc[AuthModel any] func(ctx context.Context, apiKey string) (*AuthModel, error)
+func authFunc(ctx context.Context, apiKey string) (*User, error) {
+	if apiKey != "valid-key" {
+		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
+	}
+
+	return &User{
+		ID:   1,
+		Name: "John Doe",
+		Role: "admin",
+	}, nil
+}
+
+var authHandler = simba.APIKeyAuth[User](
+	authFunc,
+	simba.APIKeyAuthConfig{
+		Name:        "admin",
+		FieldName:   "sessionid",
+		In:          openapi.InHeader,
+		Description: "admin access only",
+	},
+)
+
+// @ID authenticatedHandler
+// @Summary authenticated handler
+// @Description this is a handler that requires authentication
+func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
+
+    // Access the request cookies
+    // req.Cookies
+    
+    // Access the request headers
+    // req.Headers
+    
+    return &simbaModels.Response[ResponseBody]{
+        Body: ResponseBody{
+            Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
+        },
+    }, nil
+}
+
+app := simba.Default()
+app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
+```
+
+### Bearer Token Auth
+```go
+type User struct {
+    ID   string
+    Name string
+}
+
+// authFunc should use the Bearer token auth function signature:
+// BearerAuthHandlerFunc[AuthModel any] func(ctx context.Context, token string) (*AuthModel, error)
+func authFunc(ctx context.Context, token string) (*User, error) {
+    if token != "token" {
+        return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid token", nil)
+    }
+
+    return &User{
+        ID:   1,
+        Name: "John Doe",
+        Role: "admin",
+    }, nil
+}
+
+var authHandler = simba.BearerAuth[User](
+    BearerAuthFunc,
+    simba.BearerAuthConfig{
+        Name:        "admin",
+        Format:      "jwt",
+        Description: "Bearer token",
+    },
+)
+
+// @ID authenticatedHandler
+// @Summary authenticated handler
+// @Description this is a handler that requires authentication
+func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
+
+    // Access the request cookies
+    // req.Cookies
+    
+    // Access the request headers
+    // req.Headers
+    
+    return &simbaModels.Response[ResponseBody]{
+        Body: ResponseBody{
+            Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
+        },
+    }, nil
+}
+
+app := simba.Default()
+app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
+```
 
 ## OpenAPI Documentation Generation
 
@@ -236,12 +374,6 @@ If you want greater control over the generated API documentation you can customi
 Simba uses [openapi-go](https://github.com/swaggest/openapi-go) under the hood to generate the documentation.
 
 ```go
-// @BasicAuth "admin" "admin access only"
-func authFunc(r *http.Request) (*User, error) {
-    // Your authentication logic here, either be it a database lookup or any other authentication method
-    return &User{ID: "123", Name: "John"}, nil
-}
-
 type reqParams struct {
     ID       string `path:"id" example:"XXX-XXXXX"`
     Locale   string `query:"locale" pattern:"^[a-z]{2}-[A-Z]{2}$"`

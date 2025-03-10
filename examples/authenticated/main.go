@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 	"github.com/swaggest/openapi-go"
 )
@@ -23,7 +25,11 @@ type User struct {
 
 // authFunc is a function that authenticates and returns a user
 // in this example we just return a hard-coded user
-func authFunc(ctx context.Context, req *simba.AuthRequest[simbaModels.NoParams]) (*User, error) {
+func authFunc(ctx context.Context, apiKey string) (*User, error) {
+	if apiKey != "valid-key" {
+		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
+	}
+
 	return &User{
 		ID:   1,
 		Name: "John Doe",
@@ -31,7 +37,7 @@ func authFunc(ctx context.Context, req *simba.AuthRequest[simbaModels.NoParams])
 	}, nil
 }
 
-var authHandler = simba.APIKeyAuth[simbaModels.NoParams, User](
+var authHandler = simba.APIKeyAuth[User](
 	authFunc,
 	simba.APIKeyAuthConfig{
 		Name:        "admin",
