@@ -100,15 +100,15 @@ app.GET("/users/{userId}", simba.JsonHandler(getUser))
 
 ## Logging
 
-Simba relies on slog to handle logger. If no logger is provided slog.Default will be used.
-If you use the Default constructor an slog logger will be injected into the request context for all requests.
-To access the injected logger, use the `logger.From` function the logger package.
+Simba relies on slog to handle logging. If no logger is provided `slog.Default` will be used.
+If you use the Default constructor a slog logger will be injected into the request context for all requests.
+To access the injected logger, use the `logging.From` function in the logging package.
 
 Example:
 
 ```go
 func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[respBody], error) {
-    logger := logger.From(ctx)
+    logger := logging.From(ctx)
     logger.Info("handling request")
     // ... handle the request
 }
@@ -172,16 +172,13 @@ app.Router.Use(myMiddleware)
 
 ## Authentication
 
-Simba provides built-in support for authentication of the handlers.
+Simba provides built-in support for authentication of the handlers by providing an
+authentication function signature respectively for Basic Auth, API Key Auth, and Bearer Token Auth.
+It uses generics so everything is type safe.
 
-It works by providing an authentication function signature respectively for Basic Auth, API Key Auth, and Bearer Token Auth.
-The example below shows how to use API Key Auth. It works by you implementing a function that takes a context and an API key and returns a model
-of whatever authenticated model you have. It works by using generics so everything is type safe.
-In this case we expect a User model to be returned with an ID and a name.
+Notice that the authFunc signature differs slightly between the different authentication methods.
 
-For Basic Auth and Bearer Token Auth the function signatures are slightly different.
-
-### Basic Auth
+#### Basic Auth
 ```go
 type User struct {
     ID   string
@@ -232,7 +229,7 @@ app := simba.Default()
 app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
 ```
 
-### API Key Auth
+#### API Key Auth
 ```go
 type User struct {
     ID   string
@@ -285,7 +282,7 @@ app := simba.Default()
 app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
 ```
 
-### Bearer Token Auth
+#### Bearer Token Auth
 ```go
 type User struct {
     ID   string

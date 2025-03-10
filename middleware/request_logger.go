@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/logger"
+	"github.com/sillen102/simba/logging"
 )
 
 // LogRequests logs the incoming requests
@@ -21,7 +21,7 @@ func LogRequests(next http.Handler) http.Handler {
 		duration := roundDuration(time.Since(start))
 
 		// Log request details after processing
-		logger.From(r.Context()).Info("request processed",
+		logging.From(r.Context()).Info("request processed",
 			"remoteIp", r.RemoteAddr,
 			"userAgent", r.UserAgent(),
 			"status", wrapped.Status(),
