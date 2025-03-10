@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/sillen102/simba/logger"
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
 	"gotest.tools/v3/assert"
@@ -23,7 +23,7 @@ func TestContextLogger(t *testing.T) {
 		contextLogger := middleware.Logger{Logger: log}
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctxLogger := logger.From(r.Context())
+			ctxLogger := logging.From(r.Context())
 			assert.Assert(t, ctxLogger != nil)
 			w.WriteHeader(http.StatusOK)
 		})
@@ -42,7 +42,7 @@ func TestContextLogger(t *testing.T) {
 		contextLogger := middleware.Logger{Logger: log}
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger.From(r.Context()).Info("test log")
+			logging.From(r.Context()).Info("test log")
 			w.WriteHeader(http.StatusOK)
 		})
 

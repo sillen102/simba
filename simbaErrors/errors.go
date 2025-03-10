@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/logger"
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaContext"
 )
 
@@ -140,7 +140,7 @@ func (ve ValidationErrors) Error() string {
 
 // WriteError is a helper function for handling errors in HTTP handlers
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
-	logger := logger.From(r.Context())
+	logger := logging.From(r.Context())
 	if logger == nil {
 		logger = slog.Default()
 	}

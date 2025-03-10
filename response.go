@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/sillen102/simba/logger"
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 )
@@ -25,7 +25,7 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 	// Check if resp is nil
 	if resp == nil {
 		// Log this unexpected condition
-		logger.From(r.Context()).Error("unexpected nil response")
+		logging.From(r.Context()).Error("unexpected nil response")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
