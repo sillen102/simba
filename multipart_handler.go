@@ -16,9 +16,9 @@ import (
 type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *simbaModels.MultipartRequest[Params]) (*simbaModels.Response[ResponseBody], error)
 
 // AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
-type AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody any] struct {
+type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] struct {
 	handler     func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error)
-	authHandler AuthHandler[AuthParams, AuthModel]
+	authHandler AuthHandler[AuthModel]
 }
 
 // MultipartHandler handles a MultipartRequest with params.
@@ -168,20 +168,20 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
 // Register the handler:
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
-func AuthMultipartHandler[Params, AuthParams, AuthModel, ResponseBody any](
+func AuthMultipartHandler[Params, AuthModel, ResponseBody any](
 	handler func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error),
-	authHandler AuthHandler[AuthParams, AuthModel],
+	authHandler AuthHandler[AuthModel],
 ) Handler {
-	return AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]{
+	return AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]{
 		handler:     handler,
 		authHandler: authHandler,
 	}
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := handleAuthRequest[AuthParams, AuthModel](h.authHandler, r)
+	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		simbaErrors.WriteError(w, r, simbaErrors.NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
 		return
@@ -202,39 +202,39 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, Respons
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getRequestBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getRequestBody() any {
 	var file multipart.File
 	return &file
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getResponseBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getParams() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getAccepts() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAccepts() string {
 	return mimetypes.MultipartForm
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getProduces() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getHandler() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getHandler() any {
 	return h.handler
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getAuthModel() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthParams, AuthModel, ResponseBody]) getAuthHandler() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthHandler() any {
 	return h.authHandler
 }
 
