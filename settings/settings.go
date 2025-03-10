@@ -2,6 +2,7 @@ package settings
 
 import (
 	"log/slog"
+	"os"
 
 	"github.com/sillen102/simba/config"
 	"github.com/sillen102/simba/simbaModels"
@@ -24,6 +25,8 @@ type Simba struct {
 
 	// Logger settings
 	Logger *slog.Logger `yaml:"-" env:"-"`
+
+	envGetter func(string) string
 }
 
 type Application struct {
@@ -62,24 +65,35 @@ type Docs struct {
 	// GenerateOpenAPIDocs will determine if the API documentation (YAML or JSON) will be generated
 	GenerateOpenAPIDocs bool `yaml:"generate-docs" env:"SIMBA_DOCS_GENERATE" default:"true"`
 
-	// MountDocsEndpoint will determine if the documentation UI will be mounted
-	MountDocsEndpoint bool `yaml:"mount-docs-endpoint" env:"SIMBA_DOCS_MOUNT_ENDPOINT" default:"true"`
-
-	// OpenAPIFileType is the type of the OpenAPI file (YAML or JSON)
-	OpenAPIFileType string `yaml:"open-api-file-type" env:"SIMBA_DOCS_OPENAPI_FILE_TYPE" default:"application/json"`
+	// MountDocsUIEndpoint will determine if the documentation UI will be mounted
+	MountDocsUIEndpoint bool `yaml:"mount-docs-endpoint" env:"SIMBA_DOCS_MOUNT_DOCS_UI_ENDPOINT" default:"true"`
 
 	// OpenAPIFilePath is the path to the OpenAPI YAML file
-	OpenAPIFilePath string `yaml:"open-api-file-path" env:"SIMBA_DOCS_OPENAPI_MOUNT_PATH" default:"/openapi.json"`
+	OpenAPIFilePath string `yaml:"open-api-file-path" env:"SIMBA_DOCS_OPENAPI_FILE_PATH" default:"/openapi.json"`
 
-	// DocsPath is the path to the API documentation
-	DocsPath string `yaml:"docs-path" env:"SIMBA_DOCS_MOUNT_PATH" default:"/docs"`
+	// DocsUIPath is the path to the API documentation
+	DocsUIPath string `yaml:"docs-path" env:"SIMBA_DOCS_UI_PATH" default:"/docs"`
 
 	// ServiceName is the name of the service
-	ServiceName string `yaml:"service-name" env:"SIMBA_DOCS_SERVICE_NAME" default:"Simba Application"`
+	ServiceName string
 }
 
 // Option is a function that configures a Simba application settings struct.
 type Option func(*Simba)
+
+// WithApplicationName sets the application name
+func WithApplicationName(name string) Option {
+	return func(s *Simba) {
+		s.Application.Name = name
+	}
+}
+
+// WithApplicationVersion sets the application version
+func WithApplicationVersion(version string) Option {
+	return func(s *Simba) {
+		s.Application.Version = version
+	}
+}
 
 // WithServerPort sets the server port
 func WithServerPort(port int) Option {
@@ -109,6 +123,41 @@ func WithLogRequestBody(log bool) Option {
 	}
 }
 
+// WithRequestIdMode sets the request ID mode
+func WithRequestIdMode(mode simbaModels.RequestIdMode) Option {
+	return func(s *Simba) {
+		s.Request.RequestIdMode = mode
+	}
+}
+
+// WithGenerateOpenAPIDocs sets whether to generate OpenAPI docs
+func WithGenerateOpenAPIDocs(generate bool) Option {
+	return func(s *Simba) {
+		s.Docs.GenerateOpenAPIDocs = generate
+	}
+}
+
+// WithMountDocsUIEndpoint sets whether to mount the docs endpoint
+func WithMountDocsUIEndpoint(mount bool) Option {
+	return func(s *Simba) {
+		s.Docs.MountDocsUIEndpoint = mount
+	}
+}
+
+// WithOpenAPIFilePath sets the OpenAPI JSON file path
+func WithOpenAPIFilePath(path string) Option {
+	return func(s *Simba) {
+		s.Docs.OpenAPIFilePath = path
+	}
+}
+
+// WithDocsUIPath sets the docs UI path
+func WithDocsUIPath(path string) Option {
+	return func(s *Simba) {
+		s.Docs.DocsUIPath = path
+	}
+}
+
 // WithLogger sets the logger
 func WithLogger(logger *slog.Logger) Option {
 	return func(s *Simba) {
@@ -118,26 +167,48 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
+// WithEnvGetter is a test-only option to mock environment variable retrieval
+func WithEnvGetter(getter func(string) string) Option {
+	return func(s *Simba) {
+		s.envGetter = getter
+	}
+}
+
 // Load loads the application settings
 func Load(opts ...Option) (*Simba, error) {
-	var settings Simba
+	// Initialize settings with defaults
+	settings := &Simba{
+		envGetter: os.Getenv, // Set default environment getter
+	}
 
-	// Load defaults from config files/env vars
-	if err := config.NewLoader(nil).Load(&settings); err != nil {
+	// Apply user options first
+	for _, opt := range opts {
+		opt(settings)
+	}
+
+	// Load config from files and environment
+	err := config.NewLoader(&config.LoaderOpts{
+		EnvGetter: settings.envGetter,
+	}).Load(settings)
+
+	if err != nil {
 		return nil, err
 	}
 
-	// Apply options
+	// Reapply options to override any config values
 	for _, opt := range opts {
-		opt(&settings)
+		opt(settings)
 	}
 
-	// Set default logger if none provided
+	// Ensure we have a logger
 	if settings.Logger == nil {
 		settings.Logger = slog.Default()
 	}
 
-	return &settings, nil
+	// Set the service name
+	settings.Docs.ServiceName = settings.Application.Name
+
+	return settings, nil
 }
 
 // LoadWithOptions loads settings using the options pattern

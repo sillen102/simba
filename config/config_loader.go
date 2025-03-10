@@ -10,12 +10,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// EnvGetter is a function type for retrieving environment variables
+type EnvGetter func(string) string
+
 type Loader struct {
-	filePath string
+	filePath  string
+	envGetter EnvGetter
 }
 
 type LoaderOpts struct {
 	ConfigFilePath string
+	EnvGetter      EnvGetter
 }
 
 // NewLoader creates a new configuration loader
@@ -30,8 +35,15 @@ func NewLoader(opts *LoaderOpts) *Loader {
 		filePath = findDefaultConfigFile()
 	}
 
+	// Use the provided env getter or default to os.Getenv
+	envGetter := opts.EnvGetter
+	if envGetter == nil {
+		envGetter = os.Getenv
+	}
+
 	return &Loader{
-		filePath: filePath,
+		filePath:  filePath,
+		envGetter: envGetter,
 	}
 }
 
@@ -204,7 +216,7 @@ func (c *Loader) loadEnvironmentVars(v reflect.Value) error {
 		}
 
 		// Check environment variables
-		if value := os.Getenv(tag); value != "" {
+		if value := c.envGetter(tag); value != "" {
 			if err := c.setField(fieldValue, value); err != nil {
 				return fmt.Errorf("failed to set field %s from env: %w", field.Name, err)
 			}
@@ -212,7 +224,7 @@ func (c *Loader) loadEnvironmentVars(v reflect.Value) error {
 		}
 
 		// Check for _FILE suffix (used for Docker secrets)
-		if filePath := os.Getenv(tag + "_FILE"); filePath != "" {
+		if filePath := c.envGetter(tag + "_FILE"); filePath != "" {
 			fileContent, err := os.ReadFile(filePath)
 			if err != nil {
 				return fmt.Errorf("failed to read file %s: %w", filePath, err)
@@ -246,7 +258,7 @@ func (c *Loader) processStruct(v reflect.Value) error {
 		}
 
 		// Check for _FILE suffix (used for Docker secrets)
-		if filePath := os.Getenv(tag + "_FILE"); filePath != "" {
+		if filePath := c.envGetter(tag + "_FILE"); filePath != "" {
 			fileContent, err := os.ReadFile(filePath)
 			if err != nil {
 				return fmt.Errorf("failed to read file %s: %w", filePath, err)
@@ -257,7 +269,7 @@ func (c *Loader) processStruct(v reflect.Value) error {
 		}
 
 		// Look for environment variables
-		if value := os.Getenv(tag); value != "" {
+		if value := c.envGetter(tag); value != "" {
 			if err := c.setField(fieldValue, value); err != nil {
 				return fmt.Errorf("failed to set field %s: %w", field.Name, err)
 			}

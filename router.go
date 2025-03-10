@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaOpenapi"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
@@ -86,7 +87,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		r.mountOpenAPIEndpoint()
 	}
 
-	if r.docsSettings.MountDocsEndpoint {
+	if r.docsSettings.MountDocsUIEndpoint {
 		r.mountDocsUIEndpoint()
 	}
 
@@ -179,12 +180,11 @@ func (r *Router) mountDocsUIEndpoint() {
 		return
 	}
 
-	if r.docsSettings.MountDocsEndpoint {
-		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsPath), simbaOpenapi.ScalarDocsHandler(simbaOpenapi.DocsParams{
-			OpenAPIFileType: r.docsSettings.OpenAPIFileType,
-			OpenAPIPath:     r.docsSettings.OpenAPIFilePath,
-			DocsPath:        r.docsSettings.DocsPath,
-			ServiceName:     r.docsSettings.ServiceName,
+	if r.docsSettings.MountDocsUIEndpoint {
+		r.Mux.Handle(fmt.Sprintf("%s %s", http.MethodGet, r.docsSettings.DocsUIPath), simbaOpenapi.ScalarDocsHandler(simbaOpenapi.DocsParams{
+			OpenAPIPath: r.docsSettings.OpenAPIFilePath,
+			DocsPath:    r.docsSettings.DocsUIPath,
+			ServiceName: r.docsSettings.ServiceName,
 		}))
 	}
 
@@ -203,7 +203,7 @@ func (r *Router) mountOpenAPIEndpoint() {
 
 func (r *Router) openAPIDocsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", r.docsSettings.OpenAPIFileType)
+		w.Header().Set("Content-Type", mimetypes.ApplicationJSON)
 		_, _ = w.Write(r.schema)
 	}
 }
