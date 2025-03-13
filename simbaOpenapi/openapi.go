@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -251,23 +252,50 @@ func getFunctionFullName(fn *runtime.Func) string {
 
 // getFunctionASTFile finds the Go source file containing a handler function
 func getFunctionASTFile(packagePath string) *ast.File {
-	// For receiver methods, search in the correct package directory
-	if packagePath != "" {
-		// Get the physical path on disk for the package
-		pkgDir := findPackageDir(packagePath)
-		if pkgDir != "" {
-			// Search all Go files in this directory
-			files, err := filepath.Glob(filepath.Join(pkgDir, "*.go"))
-			if err == nil {
-				for _, file := range files {
-					node, err := parseFile(file)
-					if err != nil {
-						continue
-					}
+	if packagePath == "" {
+		return nil
+	}
 
-					return node
+	// Get the physical path on disk for the package
+	pkgDir := findPackageDir(packagePath)
+	if pkgDir == "" {
+		return nil
+	}
+
+	// Search all Go files in this directory
+	files, err := filepath.Glob(filepath.Join(pkgDir, "*.go"))
+	if err != nil {
+		return nil
+	}
+
+	// Sort files to ensure consistent behavior
+	sort.Strings(files)
+
+	for _, file := range files {
+		// Skip test files
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+
+		node, err := parseFile(file)
+		if err != nil {
+			continue
+		}
+
+		// Check if this file contains any function declarations
+		var hasTargetFunc bool
+		ast.Inspect(node, func(n ast.Node) bool {
+			if fd, ok := n.(*ast.FuncDecl); ok {
+				if fd.Doc != nil && len(fd.Doc.List) > 0 {
+					hasTargetFunc = true
+					return false
 				}
 			}
+			return true
+		})
+
+		if hasTargetFunc {
+			return node
 		}
 	}
 
