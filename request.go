@@ -3,9 +3,12 @@ package simba
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/settings"
@@ -92,6 +95,47 @@ func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) 
 	}
 	err := decoder.Decode(&model)
 	if err != nil {
+		var unmarshalTypeError *json.UnmarshalTypeError
+		if errors.As(err, &unmarshalTypeError) {
+			return simbaErrors.NewHttpError(
+				http.StatusUnprocessableEntity,
+				"invalid request body",
+				err,
+				simbaErrors.ValidationError{
+					Parameter: unmarshalTypeError.Field,
+					Type:      simbaErrors.ParameterTypeBody,
+					Message:   "invalid type",
+				},
+			)
+		}
+		var jsonSyntaxError *json.SyntaxError
+		if errors.As(err, &jsonSyntaxError) {
+			return simbaErrors.NewHttpError(
+				http.StatusUnprocessableEntity,
+				"invalid request body",
+				err,
+				simbaErrors.ValidationError{
+					Parameter: strconv.Itoa(int(jsonSyntaxError.Offset)),
+					Type:      simbaErrors.ParameterTypeBody,
+					Message:   "invalid syntax",
+				},
+			)
+		}
+		var invalidUnmarshalError *time.ParseError
+		if errors.As(err, &invalidUnmarshalError) {
+			return simbaErrors.NewHttpError(
+				http.StatusUnprocessableEntity,
+				"invalid request body",
+				err,
+				simbaErrors.ValidationError{
+					Parameter: "datetime",
+					Type:      simbaErrors.ParameterTypeBody,
+					Message:   "invalid time format: " + invalidUnmarshalError.Value,
+				},
+			)
+		}
+
+		// Handle other types of errors
 		return simbaErrors.NewHttpError(
 			http.StatusUnprocessableEntity,
 			"invalid request body",
