@@ -3,6 +3,7 @@ package simba
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/iancoleman/strcase"
@@ -54,7 +55,7 @@ func ValidateStruct(request any, paramType simbaErrors.ParameterType) simbaError
 
 			message := MapValidationMessage(e, valueStr)
 			validationErrorsData[i] = simbaErrors.ValidationError{
-				Parameter: strcase.ToLowerCamel(e.Field()),
+				Parameter: mapFieldName(e),
 				Type:      paramType,
 				Message:   message,
 			}
@@ -93,4 +94,37 @@ func MapValidationMessage(e validator.FieldError, value string) string {
 	default:
 		return fmt.Sprintf("'%s' is invalid as input for %s", value, strcase.ToLowerCamel(e.Field()))
 	}
+}
+
+func mapFieldName(e validator.FieldError) string {
+	// Get the full namespace (e.g., "CreateUserRequest.Address.PostalCode")
+	ns := e.Namespace()
+
+	// Find the first dot position to skip the root struct name
+	firstDotPos := -1
+	for i, char := range ns {
+		if char == '.' {
+			firstDotPos = i
+			break
+		}
+	}
+
+	// If there's no dot or it's the last character, return the field name directly
+	if firstDotPos == -1 || firstDotPos >= len(ns)-1 {
+		return strcase.ToLowerCamel(e.Field())
+	}
+
+	// Extract everything after the first dot
+	fieldPath := ns[firstDotPos+1:]
+
+	// Split the field path by dots
+	parts := strings.Split(fieldPath, ".")
+
+	// Convert each part to lowerCamelCase
+	for i, part := range parts {
+		parts[i] = strcase.ToLowerCamel(part)
+	}
+
+	// Join the parts back with dots
+	return strings.Join(parts, ".")
 }
