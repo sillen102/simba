@@ -15,7 +15,6 @@ import (
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/sillen102/simba/simbaTest"
 	"github.com/sillen102/simba/simbaTestAssert"
-	"github.com/stretchr/testify/require"
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
@@ -248,7 +247,7 @@ func TestResponseCode(t *testing.T) {
 			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
-			require.NotNil(
+			simbaTestAssert.NotNil(
 				t,
 				*doc.Paths.MapOfPathItemValues[path].Post.Responses.MapOfResponseOrReferenceValues[strconv.Itoa(tc.expected)].Response,
 				fmt.Sprintf("response code %d not found", tc.expected),
@@ -343,7 +342,7 @@ func TestTags(t *testing.T) {
 			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
-			require.ElementsMatch(t, tc.expected, doc.Paths.MapOfPathItemValues[path].Post.Tags)
+			simbaTestAssert.ContainsInAnyOrder(t, tc.expected, doc.Paths.MapOfPathItemValues[path].Post.Tags)
 		})
 	}
 }
@@ -611,7 +610,7 @@ func TestCustomError(t *testing.T) {
 			doc := unmarshalJSON(t, schema)
 
 			if tc.expected != 0 {
-				require.NotNil(
+				simbaTestAssert.NotNil(
 					t,
 					*doc.Paths.MapOfPathItemValues[path].Post.Responses.MapOfResponseOrReferenceValues[strconv.Itoa(tc.expected)].Response,
 					fmt.Sprintf("response code %d not found", tc.expected),
@@ -771,7 +770,7 @@ func TestValidateRequiredField(t *testing.T) {
 	simbaTestAssert.NoError(t, err)
 	doc := unmarshalJSON(t, schema)
 
-	require.ElementsMatch(t, []string{"name"}, doc.Components.Schemas["SimbaOpenapiTestReqBody"]["required"])
+	simbaTestAssert.Contains(t, []string{"name"}, doc.Components.Schemas["SimbaOpenapiTestReqBody"]["required"])
 }
 
 func TestValidateMinField(t *testing.T) {
@@ -827,7 +826,7 @@ func TestValidateMinField(t *testing.T) {
 
 	invalid := reqBody{Size: 4, Length: "1234", Items: []string{"1", "2", "3", "4"}}
 	err = validate.Struct(invalid)
-	require.Error(t, err)
+	simbaTestAssert.Error(t, err)
 }
 
 func TestValidateMaxField(t *testing.T) {
@@ -883,7 +882,7 @@ func TestValidateMaxField(t *testing.T) {
 
 	invalid := reqBody{Size: 6, Length: "123456", Items: []string{"1", "2", "3", "4", "5", "6"}}
 	err = validate.Struct(invalid)
-	require.Error(t, err)
+	simbaTestAssert.Error(t, err)
 }
 
 func TestAuthHandler(t *testing.T) {

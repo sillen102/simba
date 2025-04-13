@@ -12,7 +12,7 @@ import (
 
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
-	"gotest.tools/v3/assert"
+	"github.com/sillen102/simba/simbaTestAssert"
 )
 
 type testHandler struct {
@@ -61,14 +61,14 @@ func TestPanicRecovery(t *testing.T) {
 
 		middleware.PanicRecovery(httpHandler).ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Equal(t, "Internal Server Error\n", w.Body.String())
-		assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
+		simbaTestAssert.Equal(t, http.StatusInternalServerError, w.Code)
+		simbaTestAssert.Equal(t, "Internal Server Error\n", w.Body.String())
+		simbaTestAssert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 
-		assert.Assert(t, len(handler.logs) > 0, "Expected logs to be recorded")
+		simbaTestAssert.Assert(t, len(handler.logs) > 0, "Expected logs to be recorded")
 		logMsg := handler.logs[0]
-		assert.Assert(t, strings.Contains(logMsg, "error=test panic"), "Log should contain panic message")
-		assert.Assert(t, strings.Contains(logMsg, "stacktrace="), "Log should contain stack trace")
+		simbaTestAssert.Assert(t, strings.Contains(logMsg, "error=test panic"), "Log should contain panic message")
+		simbaTestAssert.Assert(t, strings.Contains(logMsg, "stacktrace="), "Log should contain stack trace")
 	})
 
 	t.Run("recovers from panic and logs stack trace (JSON format)", func(t *testing.T) {
@@ -85,16 +85,16 @@ func TestPanicRecovery(t *testing.T) {
 
 		middleware.PanicRecovery(httpHandler).ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		simbaTestAssert.Equal(t, http.StatusInternalServerError, w.Code)
 
 		// Parse the JSON log output
 		var logEntry map[string]interface{}
 		err := json.Unmarshal(buf.Bytes(), &logEntry)
-		assert.NilError(t, err, "Should be valid JSON")
+		simbaTestAssert.NoError(t, err, "Should be valid JSON")
 
 		// Verify the structure
-		assert.Equal(t, "test panic", logEntry["error"])
-		assert.Assert(t, logEntry["stacktrace"] != nil, "Should have stacktrace")
+		simbaTestAssert.Equal(t, "test panic", logEntry["error"])
+		simbaTestAssert.Assert(t, logEntry["stacktrace"] != nil, "Should have stacktrace")
 	})
 
 	t.Run("does not interfere with normal requests", func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestPanicRecovery(t *testing.T) {
 
 		middleware.PanicRecovery(handler).ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "success", w.Body.String())
+		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		simbaTestAssert.Equal(t, "success", w.Body.String())
 	})
 }

@@ -11,7 +11,7 @@ import (
 
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
-	"gotest.tools/v3/assert"
+	"github.com/sillen102/simba/simbaTestAssert"
 )
 
 func TestLogRequests(t *testing.T) {
@@ -35,7 +35,7 @@ func TestLogRequests(t *testing.T) {
 		middleware.LogRequests(handler).ServeHTTP(w, req)
 
 		// Since we're using a custom logger, we can only verify the response was written
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, `{"message":"success"}`, w.Body.String())
+		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		simbaTestAssert.Equal(t, `{"message":"success"}`, w.Body.String())
 	})
 }

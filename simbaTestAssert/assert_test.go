@@ -21,7 +21,77 @@ func (m *mockT) Errorf(format string, args ...interface{}) {
 	m.errorArgs = args
 }
 
+func TestTrue(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		condition  bool
+		message    string
+		shouldPass bool
+	}{
+		{"true condition", true, "", true},
+		{"false condition", false, "condition should be true", false},
+		{"false condition with formatted message", false, "condition failed with code %d", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockT{}
+			var result bool
+			if tc.message != "" {
+				result = simbaTestAssert.True(mock, tc.condition, tc.message)
+			} else {
+				result = simbaTestAssert.True(mock, tc.condition)
+			}
+
+			if result != tc.shouldPass {
+				t.Errorf("True(%v) returned %v, expected %v", tc.condition, result, tc.shouldPass)
+			}
+			if mock.failed == tc.shouldPass {
+				t.Errorf("mockT.failed = %v, expected %v", mock.failed, !tc.shouldPass)
+			}
+		})
+	}
+}
+
+func TestFalse(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		condition  bool
+		message    string
+		shouldPass bool
+	}{
+		{"true condition", true, "condition should be false", false},
+		{"false condition", false, "", true},
+		{"false condition with formatted message", false, "condition failed with code %d", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockT{}
+			var result bool
+			if tc.message != "" {
+				result = simbaTestAssert.False(mock, tc.condition, tc.message)
+			} else {
+				result = simbaTestAssert.False(mock, tc.condition)
+			}
+
+			if result != tc.shouldPass {
+				t.Errorf("False(%v) returned %v, expected %v", tc.condition, result, tc.shouldPass)
+			}
+			if mock.failed == tc.shouldPass {
+				t.Errorf("mockT.failed = %v, expected %v", mock.failed, !tc.shouldPass)
+			}
+		})
+	}
+}
+
 func TestEqual(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expected   interface{}
@@ -58,6 +128,8 @@ func TestEqual(t *testing.T) {
 }
 
 func TestEqualWithNestedStructs(t *testing.T) {
+	t.Parallel()
+
 	type Inner struct {
 		Value string
 		Count int
@@ -165,6 +237,8 @@ func TestEqualWithNestedStructs(t *testing.T) {
 }
 
 func TestNotEqual(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expected   interface{}
@@ -291,7 +365,9 @@ func TestNotEqualWithNestedStructs(t *testing.T) {
 	}
 }
 
-func TestNilError(t *testing.T) {
+func TestNoError(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		err        error
@@ -322,7 +398,42 @@ func TestNilError(t *testing.T) {
 	}
 }
 
+func TestError(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		err        error
+		message    string
+		shouldPass bool
+	}{
+		{"nil error", nil, "error should not be nil", false},
+		{"non-nil error", errors.New("test error"), "", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockT{}
+			var result bool
+			if tc.message != "" {
+				result = simbaTestAssert.Error(mock, tc.err, tc.message)
+			} else {
+				result = simbaTestAssert.Error(mock, tc.err)
+			}
+
+			if result != tc.shouldPass {
+				t.Errorf("Error(%v) returned %v, expected %v", tc.err, result, tc.shouldPass)
+			}
+			if mock.failed == tc.shouldPass {
+				t.Errorf("mockT.failed = %v, expected %v", mock.failed, !tc.shouldPass)
+			}
+		})
+	}
+}
+
 func TestAssert(t *testing.T) {
+	t.Parallel()
+
 	// Test passing assertion
 	mock := &mockT{}
 	result := simbaTestAssert.Assert(mock, true)
@@ -355,6 +466,8 @@ func TestAssert(t *testing.T) {
 }
 
 func TestNil(t *testing.T) {
+	t.Parallel()
+
 	// Test passing case with nil interface
 	mock := &mockT{}
 	var nilInterface interface{} = nil
@@ -397,6 +510,8 @@ func TestNil(t *testing.T) {
 }
 
 func TestNotNil(t *testing.T) {
+	t.Parallel()
+
 	// Test passing case with non-nil value
 	mock := &mockT{}
 	nonNilValue := "test"

@@ -11,7 +11,7 @@ import (
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaModels"
-	"gotest.tools/v3/assert"
+	"github.com/sillen102/simba/simbaTestAssert"
 )
 
 func TestRequestID(t *testing.T) {
@@ -20,7 +20,7 @@ func TestRequestID(t *testing.T) {
 	t.Run("generates new request ID", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestID := r.Context().Value(simbaContext.RequestIDKey).(string)
-			assert.Assert(t, requestID != "")
+			simbaTestAssert.Assert(t, requestID != "")
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -29,18 +29,18 @@ func TestRequestID(t *testing.T) {
 
 		middleware.RequestID(handler).ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Assert(t, w.Header().Get(simbaContext.RequestIDHeader) != "")
+		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		simbaTestAssert.Assert(t, w.Header().Get(simbaContext.RequestIDHeader) != "")
 
 		// Check if the request ID is a valid UUID
 		_, err := uuid.Parse(w.Header().Get(simbaContext.RequestIDHeader))
-		assert.NilError(t, err)
+		simbaTestAssert.NoError(t, err)
 	})
 
 	t.Run("accepts request ID from header", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestID := r.Context().Value(simbaContext.RequestIDKey).(string)
-			assert.Equal(t, "test-request-id", requestID)
+			simbaTestAssert.Equal(t, "test-request-id", requestID)
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -53,7 +53,7 @@ func TestRequestID(t *testing.T) {
 
 		middleware.RequestID(handler).ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "test-request-id", w.Header().Get(simbaContext.RequestIDHeader))
+		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		simbaTestAssert.Equal(t, "test-request-id", w.Header().Get(simbaContext.RequestIDHeader))
 	})
 }

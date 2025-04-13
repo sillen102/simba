@@ -5,6 +5,44 @@ import (
 	"reflect"
 )
 
+// True checks if the condition is true and returns true if it is.
+func True(t interface {
+	Errorf(format string, args ...any)
+}, condition bool, msgAndArgs ...any) bool {
+	if condition {
+		return true
+	}
+
+	message := "Expected true, got false"
+	if len(msgAndArgs) > 0 {
+		if msgFormat, ok := msgAndArgs[0].(string); ok {
+			message = formatMessage(msgFormat, msgAndArgs[1:]...)
+		}
+	}
+
+	t.Errorf(message)
+	return false
+}
+
+// False checks if the condition is false and returns true if it is.
+func False(t interface {
+	Errorf(format string, args ...any)
+}, condition bool, msgAndArgs ...any) bool {
+	if !condition {
+		return true
+	}
+
+	message := "Expected false, got true"
+	if len(msgAndArgs) > 0 {
+		if msgFormat, ok := msgAndArgs[0].(string); ok {
+			message = formatMessage(msgFormat, msgAndArgs[1:]...)
+		}
+	}
+
+	t.Errorf(message)
+	return false
+}
+
 // Equal compares two values of the same type and returns true if they're equal.
 // If they're not equal, it formats an error message and reports it through the test interface.
 func Equal[T any](t interface {
@@ -64,6 +102,29 @@ func NoError(t interface {
 	}
 
 	t.Errorf("%sExpected nil error, got: %v", msg, err)
+	return false
+}
+
+// Error checks if the error is not nil and returns true if it is not.
+func Error(t interface {
+	Errorf(format string, args ...any)
+}, err error, msgAndArgs ...any) bool {
+	if err != nil {
+		return true
+	}
+
+	var msg string
+	if len(msgAndArgs) > 0 {
+		if fmtMsg, ok := msgAndArgs[0].(string); ok {
+			if len(msgAndArgs) > 1 {
+				msg = fmt.Sprintf(fmtMsg, msgAndArgs[1:]...) + "\n"
+			} else {
+				msg = fmtMsg + "\n"
+			}
+		}
+	}
+
+	t.Errorf("%sExpected non-nil error, got: nil", msg)
 	return false
 }
 

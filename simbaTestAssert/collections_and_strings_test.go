@@ -7,6 +7,8 @@ import (
 )
 
 func TestContainsOnly(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expected   []int
@@ -42,6 +44,8 @@ func TestContainsOnly(t *testing.T) {
 }
 
 func TestContainsOnlyWithComplexStructs(t *testing.T) {
+	t.Parallel()
+
 	type Person struct {
 		Name string
 		Age  int
@@ -115,6 +119,8 @@ func TestContainsOnlyWithComplexStructs(t *testing.T) {
 }
 
 func TestContainsOnlyInAnyOrder(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expected   []int
@@ -152,6 +158,8 @@ func TestContainsOnlyInAnyOrder(t *testing.T) {
 }
 
 func TestContainsOnlyInAnyOrderWithComplexStructs(t *testing.T) {
+	t.Parallel()
+
 	type Person struct {
 		Name string
 		Age  int
@@ -224,6 +232,8 @@ func TestContainsOnlyInAnyOrderWithComplexStructs(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expected   any
@@ -267,6 +277,8 @@ func TestContains(t *testing.T) {
 }
 
 func TestContainsWithComplexStructs(t *testing.T) {
+	t.Parallel()
+
 	type Person struct {
 		Name string
 		Age  int
@@ -370,6 +382,8 @@ func TestContainsWithComplexStructs(t *testing.T) {
 }
 
 func TestContainsInAnyOrder(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expected   []int
@@ -387,6 +401,7 @@ func TestContainsInAnyOrder(t *testing.T) {
 		{"actual too short", []int{1, 2, 3}, []int{1, 2}, "", false},
 		{"empty expected", []int{}, []int{1, 2, 3}, "", true},
 		{"both empty", []int{}, []int{}, "", true},
+		{"slice in map", []int{}, []int{}, "", true},
 	}
 
 	for _, tc := range testCases {
@@ -410,6 +425,8 @@ func TestContainsInAnyOrder(t *testing.T) {
 }
 
 func TestContainsInAnyOrderWithComplexStructs(t *testing.T) {
+	t.Parallel()
+
 	type Person struct {
 		Name string
 		Age  int
@@ -482,6 +499,8 @@ func TestContainsInAnyOrderWithComplexStructs(t *testing.T) {
 }
 
 func TestContainsAnyOf(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		expected   any
@@ -522,6 +541,8 @@ func TestContainsAnyOf(t *testing.T) {
 }
 
 func TestContainsAnyOfWithComplexStructs(t *testing.T) {
+	t.Parallel()
+
 	type Person struct {
 		Name string
 		Age  int
@@ -613,6 +634,8 @@ func TestContainsAnyOfWithComplexStructs(t *testing.T) {
 }
 
 func TestNotEmpty(t *testing.T) {
+	t.Parallel()
+
 	// Define a struct type for testing
 	type TestStruct struct {
 		Field1 string
