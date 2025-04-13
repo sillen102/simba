@@ -186,6 +186,9 @@ func Load(opts ...Option) (*Simba, error) {
 		opt(settings)
 	}
 
+	// Save logger reference before config loading potentially resets it
+	savedLogger := settings.Logger
+
 	// Load config from files and environment
 	err := config.NewLoader(&config.LoaderOpts{
 		EnvGetter: settings.envGetter,
@@ -195,12 +198,17 @@ func Load(opts ...Option) (*Simba, error) {
 		return nil, err
 	}
 
+	// Restore the logger if it was set via options
+	if savedLogger != nil {
+		settings.Logger = savedLogger
+	}
+
 	// Reapply options to override any config values
 	for _, opt := range opts {
 		opt(settings)
 	}
 
-	// Ensure we have a logger
+	// Ensure we have a logger (only set default if no logger is configured)
 	if settings.Logger == nil {
 		settings.Logger = slog.Default()
 	}

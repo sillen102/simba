@@ -212,7 +212,7 @@ func NotNil(t interface {
 }, value any, msgAndArgs ...any) bool {
 	t.Helper()
 
-	if value != nil && reflect.ValueOf(value).Kind() != reflect.Ptr && reflect.ValueOf(value).IsNil() {
+	if value != nil && (reflect.ValueOf(value).Kind() != reflect.Ptr || !reflect.ValueOf(value).IsNil()) {
 		return true
 	}
 
