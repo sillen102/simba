@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 func TestAddDefaultEndpoints(t *testing.T) {
@@ -20,8 +20,8 @@ func TestAddDefaultEndpoints(t *testing.T) {
 
 		app.Router.Mux.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
-		simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-		simbaTestAssert.Equal(t, "{\"status\":\"ok\"}", w.Body.String())
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		assert.Equal(t, "{\"status\":\"ok\"}", w.Body.String())
 	})
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaTest"
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 func TestBasicAuth(t *testing.T) {
@@ -51,7 +51,7 @@ func TestBasicAuth(t *testing.T) {
 			app.Router.ServeHTTP(w, req)
 
 			resp := w.Result()
-			simbaTestAssert.Equal(t, tc.expectedStatus, resp.StatusCode)
+			assert.Equal(t, tc.expectedStatus, resp.StatusCode)
 		})
 	}
 }
@@ -93,7 +93,7 @@ func TestApiKeyAuth(t *testing.T) {
 			app.Router.ServeHTTP(w, req)
 
 			resp := w.Result()
-			simbaTestAssert.Equal(t, tc.expectedStatus, resp.StatusCode)
+			assert.Equal(t, tc.expectedStatus, resp.StatusCode)
 		})
 	}
 }
@@ -135,7 +135,7 @@ func TestBearerTokenAuthHandler(t *testing.T) {
 			app.Router.ServeHTTP(w, req)
 
 			resp := w.Result()
-			simbaTestAssert.Equal(t, tc.expectedStatus, resp.StatusCode)
+			assert.Equal(t, tc.expectedStatus, resp.StatusCode)
 		})
 	}
 }

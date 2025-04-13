@@ -1,4 +1,4 @@
-package simbaTestAssert
+package assert
 
 import (
 	"fmt"
@@ -409,7 +409,7 @@ func NotEmpty(t interface {
 	Helper()
 }, collection any, msgAndArgs ...any) bool {
 	t.Helper()
-	
+
 	if collection == nil {
 		message := formatEmptyMessage("nil value", msgAndArgs...)
 		t.Errorf(message)

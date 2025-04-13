@@ -1,4 +1,4 @@
-package simbaTestAssert
+package assert
 
 import (
 	"fmt"

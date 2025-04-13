@@ -14,7 +14,7 @@ import (
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 type TestAllParamTypes struct {
@@ -48,26 +48,26 @@ func TestParamParsing(t *testing.T) {
 
 		handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TestAllParamTypes]) (*simbaModels.Response[simbaModels.NoBody], error) {
 			// Verify header parameters
-			simbaTestAssert.Equal(t, "test-string", req.Params.HeaderString)
-			simbaTestAssert.Equal(t, 42, req.Params.HeaderInt)
-			simbaTestAssert.Equal(t, true, req.Params.HeaderBool)
-			simbaTestAssert.Equal(t, testUUID, req.Params.HeaderUUID)
+			assert.Equal(t, "test-string", req.Params.HeaderString)
+			assert.Equal(t, 42, req.Params.HeaderInt)
+			assert.Equal(t, true, req.Params.HeaderBool)
+			assert.Equal(t, testUUID, req.Params.HeaderUUID)
 
 			// Verify path parameters
-			simbaTestAssert.Equal(t, 123, req.Params.PathID)
-			simbaTestAssert.Equal(t, "test-slug", req.Params.PathSlug)
-			simbaTestAssert.Equal(t, testUUID, req.Params.PathUUID)
+			assert.Equal(t, 123, req.Params.PathID)
+			assert.Equal(t, "test-slug", req.Params.PathSlug)
+			assert.Equal(t, testUUID, req.Params.PathUUID)
 
 			// Verify query parameters
-			simbaTestAssert.Equal(t, 2, req.Params.QueryPage)
-			simbaTestAssert.Equal(t, 20, req.Params.QuerySize)
-			simbaTestAssert.Equal(t, "active", req.Params.QueryFilter)
-			simbaTestAssert.Equal(t, true, req.Params.QueryEnabled)
-			simbaTestAssert.Equal(t, testDate, req.Params.QueryDate)
+			assert.Equal(t, 2, req.Params.QueryPage)
+			assert.Equal(t, 20, req.Params.QuerySize)
+			assert.Equal(t, "active", req.Params.QueryFilter)
+			assert.Equal(t, true, req.Params.QueryEnabled)
+			assert.Equal(t, testDate, req.Params.QueryDate)
 
 			// Verify query slice
-			simbaTestAssert.Equal(t, []string{"one", "two"}, req.Params.QuerySlice1)
-			simbaTestAssert.Equal(t, []string{"three", "four"}, req.Params.QuerySlice2)
+			assert.Equal(t, []string{"one", "two"}, req.Params.QuerySlice1)
+			assert.Equal(t, []string{"three", "four"}, req.Params.QuerySlice2)
 
 			return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 		}
@@ -97,14 +97,14 @@ func TestParamParsing(t *testing.T) {
 		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("default values", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TestAllParamTypes]) (*simbaModels.Response[simbaModels.NoBody], error) {
-			simbaTestAssert.Equal(t, 1, req.Params.QueryPage)
-			simbaTestAssert.Equal(t, 10, req.Params.QuerySize)
-			simbaTestAssert.Equal(t, true, req.Params.QueryEnabled)
+			assert.Equal(t, 1, req.Params.QueryPage)
+			assert.Equal(t, 10, req.Params.QuerySize)
+			assert.Equal(t, true, req.Params.QueryEnabled)
 			return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 		}
 
@@ -118,7 +118,7 @@ func TestParamParsing(t *testing.T) {
 		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
 
@@ -196,18 +196,18 @@ func TestValidationRules(t *testing.T) {
 			app.Router.GET("/test", simba.JsonHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
-			simbaTestAssert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
 
 			var errorResponse simbaErrors.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
-			simbaTestAssert.NoError(t, err)
-			simbaTestAssert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-			simbaTestAssert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
 
-			simbaTestAssert.Equal(t, 1, len(errorResponse.ValidationErrors))
-			simbaTestAssert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
-			simbaTestAssert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
-			simbaTestAssert.Equal(t, tt.expectedError, errorResponse.ValidationErrors[0].Message)
+			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
+			assert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
+			assert.Equal(t, tt.expectedError, errorResponse.ValidationErrors[0].Message)
 		})
 	}
 }
@@ -216,9 +216,9 @@ func TestDefaultValues(t *testing.T) {
 	t.Parallel()
 
 	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, ValidationTestParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-		simbaTestAssert.Equal(t, 1, req.Params.Page)
-		simbaTestAssert.Equal(t, 10, req.Params.Size)
-		simbaTestAssert.Equal(t, "asc", req.Params.SortOrder)
+		assert.Equal(t, 1, req.Params.Page)
+		assert.Equal(t, 10, req.Params.Size)
+		assert.Equal(t, "asc", req.Params.SortOrder)
 		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusNoContent}, nil
 	}
 
@@ -229,7 +229,7 @@ func TestDefaultValues(t *testing.T) {
 	app.Router.GET("/test", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
 
-	simbaTestAssert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
 func TestUUIDParameters(t *testing.T) {
@@ -292,25 +292,25 @@ func TestUUIDParameters(t *testing.T) {
 			app.Router.GET("/test/{id}", simba.JsonHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
-			simbaTestAssert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
 
 			var errorResponse simbaErrors.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
-			simbaTestAssert.NoError(t, err)
+			assert.NoError(t, err)
 
-			simbaTestAssert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-			simbaTestAssert.Equal(t, "Bad Request", errorResponse.Error)
+			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+			assert.Equal(t, "Bad Request", errorResponse.Error)
 			expectedPath := tt.path
 			if idx := strings.Index(expectedPath, "?"); idx != -1 {
 				expectedPath = expectedPath[:idx]
 			}
-			simbaTestAssert.Equal(t, expectedPath, errorResponse.Path)
-			simbaTestAssert.Equal(t, http.MethodGet, errorResponse.Method)
-			simbaTestAssert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-			simbaTestAssert.Equal(t, 1, len(errorResponse.ValidationErrors))
-			simbaTestAssert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
-			simbaTestAssert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
-			simbaTestAssert.Equal(t, tt.wantMsg, errorResponse.ValidationErrors[0].Message)
+			assert.Equal(t, expectedPath, errorResponse.Path)
+			assert.Equal(t, http.MethodGet, errorResponse.Method)
+			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+			assert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
+			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
+			assert.Equal(t, tt.wantMsg, errorResponse.ValidationErrors[0].Message)
 		})
 	}
 }
@@ -334,22 +334,22 @@ func TestFloatParameters(t *testing.T) {
 	app.Router.GET("/test/{id}", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
 
-	simbaTestAssert.Equal(t, http.StatusBadRequest, w.Code)
-	simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
 	var errorResponse simbaErrors.ErrorResponse
 	err := json.NewDecoder(w.Body).Decode(&errorResponse)
-	simbaTestAssert.NoError(t, err)
+	assert.NoError(t, err)
 
-	simbaTestAssert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-	simbaTestAssert.Equal(t, "Bad Request", errorResponse.Error)
-	simbaTestAssert.Equal(t, "/test/1", errorResponse.Path)
-	simbaTestAssert.Equal(t, http.MethodGet, errorResponse.Method)
-	simbaTestAssert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-	simbaTestAssert.Equal(t, 1, len(errorResponse.ValidationErrors))
-	simbaTestAssert.Equal(t, "page", errorResponse.ValidationErrors[0].Parameter)
-	simbaTestAssert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
-	simbaTestAssert.Equal(t, "invalid float parameter value: invalid", errorResponse.ValidationErrors[0].Message)
+	assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+	assert.Equal(t, "Bad Request", errorResponse.Error)
+	assert.Equal(t, "/test/1", errorResponse.Path)
+	assert.Equal(t, http.MethodGet, errorResponse.Method)
+	assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+	assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+	assert.Equal(t, "page", errorResponse.ValidationErrors[0].Parameter)
+	assert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
+	assert.Equal(t, "invalid float parameter value: invalid", errorResponse.ValidationErrors[0].Message)
 }
 
 func TestInvalidParameterTypes(t *testing.T) {
@@ -426,26 +426,26 @@ func TestInvalidParameterTypes(t *testing.T) {
 			w := httptest.NewRecorder()
 			app.Router.ServeHTTP(w, req)
 
-			simbaTestAssert.Equal(t, http.StatusBadRequest, w.Code)
-			simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
 			var errorResponse simbaErrors.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
-			simbaTestAssert.NoError(t, err)
+			assert.NoError(t, err)
 
-			simbaTestAssert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-			simbaTestAssert.Equal(t, "Bad Request", errorResponse.Error)
+			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+			assert.Equal(t, "Bad Request", errorResponse.Error)
 			expectedPath := tt.path
 			if idx := strings.Index(expectedPath, "?"); idx != -1 {
 				expectedPath = expectedPath[:idx]
 			}
-			simbaTestAssert.Equal(t, expectedPath, errorResponse.Path)
-			simbaTestAssert.Equal(t, http.MethodGet, errorResponse.Method)
-			simbaTestAssert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-			simbaTestAssert.Equal(t, 1, len(errorResponse.ValidationErrors))
-			simbaTestAssert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
-			simbaTestAssert.Equal(t, tt.paramName, errorResponse.ValidationErrors[0].Parameter)
-			simbaTestAssert.Equal(t, tt.errorMessage, errorResponse.ValidationErrors[0].Message)
+			assert.Equal(t, expectedPath, errorResponse.Path)
+			assert.Equal(t, http.MethodGet, errorResponse.Method)
+			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
+			assert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
+			assert.Equal(t, tt.paramName, errorResponse.ValidationErrors[0].Parameter)
+			assert.Equal(t, tt.errorMessage, errorResponse.ValidationErrors[0].Message)
 		})
 	}
 }
@@ -462,8 +462,8 @@ func TestTimeParameters(t *testing.T) {
 		expectedDefaultTime, _ := time.Parse(time.RFC3339, "2023-10-15T14:00:00Z")
 		expectedCustomTime, _ := time.Parse("2006-01-02", "2023-10-15")
 
-		simbaTestAssert.Equal(t, expectedDefaultTime, req.Params.DefaultTime)
-		simbaTestAssert.Equal(t, expectedCustomTime, req.Params.CustomTime)
+		assert.Equal(t, expectedDefaultTime, req.Params.DefaultTime)
+		assert.Equal(t, expectedCustomTime, req.Params.CustomTime)
 		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
 	}
 
@@ -474,7 +474,7 @@ func TestTimeParameters(t *testing.T) {
 	app.Router.GET("/test", simba.JsonHandler(handler))
 	app.Router.ServeHTTP(w, req)
 
-	simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestCookieParams(t *testing.T) {
@@ -530,7 +530,7 @@ func TestCookieParams(t *testing.T) {
 			w := httptest.NewRecorder()
 			app.Router.ServeHTTP(w, req)
 
-			simbaTestAssert.Equal(t, tt.expectedStatus, w.Code)
+			assert.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }

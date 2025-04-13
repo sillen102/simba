@@ -11,7 +11,7 @@ import (
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 func TestContextLogger(t *testing.T) {
@@ -24,7 +24,7 @@ func TestContextLogger(t *testing.T) {
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctxLogger := logging.From(r.Context())
-			simbaTestAssert.Assert(t, ctxLogger != nil)
+			assert.Assert(t, ctxLogger != nil)
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -33,7 +33,7 @@ func TestContextLogger(t *testing.T) {
 
 		contextLogger.ContextLogger(handler).ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("logs request details", func(t *testing.T) {
@@ -52,8 +52,8 @@ func TestContextLogger(t *testing.T) {
 
 		contextLogger.ContextLogger(handler).ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 		logOutput := buf.String()
-		simbaTestAssert.Assert(t, bytes.Contains([]byte(logOutput), []byte(`"test log"`)))
+		assert.Assert(t, bytes.Contains([]byte(logOutput), []byte(`"test log"`)))
 	})
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaModels"
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 func TestDefaultApplication(t *testing.T) {
@@ -24,10 +24,10 @@ func TestDefaultApplication(t *testing.T) {
 	app.Router.GET("/test", simba.JsonHandler(handler))
 
 	t.Run("creates default application", func(t *testing.T) {
-		simbaTestAssert.Assert(t, app != nil)
-		simbaTestAssert.Assert(t, app.Server != nil)
-		simbaTestAssert.Assert(t, app.Router != nil)
-		simbaTestAssert.Assert(t, app.Settings != nil)
+		assert.Assert(t, app != nil)
+		assert.Assert(t, app.Server != nil)
+		assert.Assert(t, app.Router != nil)
+		assert.Assert(t, app.Settings != nil)
 	})
 
 	t.Run("adds default endpoints", func(t *testing.T) {
@@ -36,9 +36,9 @@ func TestDefaultApplication(t *testing.T) {
 
 		app.Router.Mux.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
-		simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-		simbaTestAssert.Equal(t, "{\"status\":\"ok\"}", w.Body.String())
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		assert.Equal(t, "{\"status\":\"ok\"}", w.Body.String())
 	})
 
 	t.Run("applies default middleware", func(t *testing.T) {
@@ -47,9 +47,9 @@ func TestDefaultApplication(t *testing.T) {
 
 		app.Router.Mux.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 		// Check if the middleware is applied by verifying the presence of a request ID header
-		simbaTestAssert.Assert(t, w.Header().Get(simbaContext.RequestIDHeader) != "")
+		assert.Assert(t, w.Header().Get(simbaContext.RequestIDHeader) != "")
 	})
 }
 
@@ -63,10 +63,10 @@ func TestNewApplication(t *testing.T) {
 		}
 		app := simba.New(opts...)
 
-		simbaTestAssert.Assert(t, app != nil)
-		simbaTestAssert.Assert(t, app.Server != nil)
-		simbaTestAssert.Assert(t, app.Router != nil)
-		simbaTestAssert.Assert(t, app.Settings != nil)
-		simbaTestAssert.Equal(t, "localhost:8080", app.Server.Addr)
+		assert.Assert(t, app != nil)
+		assert.Assert(t, app.Server != nil)
+		assert.Assert(t, app.Router != nil)
+		assert.Assert(t, app.Settings != nil)
+		assert.Equal(t, "localhost:8080", app.Server.Addr)
 	})
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 type TestStruct struct {
@@ -84,17 +84,17 @@ func TestValidateStruct(t *testing.T) {
 			errors := simba.ValidateStruct(tt.input, tt.paramType)
 
 			if tt.expectedError {
-				simbaTestAssert.NotNil(t, errors)
-				simbaTestAssert.Equal(t, tt.errorCount, len(errors))
+				assert.NotNil(t, errors)
+				assert.Equal(t, tt.errorCount, len(errors))
 
 				// Check that each error has the correct parameter type
 				for _, err := range errors {
-					simbaTestAssert.Equal(t, tt.paramType, err.Type)
-					simbaTestAssert.NotEmpty(t, err.Parameter)
-					simbaTestAssert.ContainsAnyOf(t, tt.expectedMsgs, err.Message)
+					assert.Equal(t, tt.paramType, err.Type)
+					assert.NotEmpty(t, err.Parameter)
+					assert.ContainsAnyOf(t, tt.expectedMsgs, err.Message)
 				}
 			} else {
-				simbaTestAssert.Nil(t, errors)
+				assert.Nil(t, errors)
 			}
 		})
 	}

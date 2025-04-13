@@ -9,7 +9,7 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaModels"
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 // TODO: Add more tests
@@ -30,9 +30,9 @@ func TestEndpoints(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
-		simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-		simbaTestAssert.Equal(t, "{\"status\":\"ok\"}", w.Body.String())
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		assert.Equal(t, "{\"status\":\"ok\"}", w.Body.String())
 	})
 
 	t.Run("use middleware", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestEndpoints(t *testing.T) {
 
 		handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TestParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
 			// Assert that the header was set by the middleware in the handler
-			simbaTestAssert.Equal(t, req.Params.CustomHeader, "middleware-applied")
+			assert.Equal(t, req.Params.CustomHeader, "middleware-applied")
 			return &simbaModels.Response[simbaModels.NoBody]{}, nil
 		}
 
@@ -62,7 +62,7 @@ func TestEndpoints(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		app.Router.ServeHTTP(w, req)
-		simbaTestAssert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
 }
 
@@ -86,8 +86,8 @@ func TestRouter_POST(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusCreated, w.Code)
-		simbaTestAssert.Equal(t, `{"message":"post handled"}`, strings.Trim(w.Body.String(), "\n"))
+		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.Equal(t, `{"message":"post handled"}`, strings.Trim(w.Body.String(), "\n"))
 	})
 
 	t.Run("method not allowed", func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestRouter_POST(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
 }
 
@@ -119,8 +119,8 @@ func TestRouter_GET(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusOK, w.Code)
-		simbaTestAssert.Equal(t, `{"message":"get handled"}`, strings.Trim(w.Body.String(), "\n"))
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, `{"message":"get handled"}`, strings.Trim(w.Body.String(), "\n"))
 	})
 
 	t.Run("method not allowed", func(t *testing.T) {
@@ -129,7 +129,7 @@ func TestRouter_GET(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
 }
 
@@ -153,8 +153,8 @@ func TestRouter_PUT(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusAccepted, w.Code)
-		simbaTestAssert.Equal(t, `{"message":"put handled"}`, strings.Trim(w.Body.String(), "\n"))
+		assert.Equal(t, http.StatusAccepted, w.Code)
+		assert.Equal(t, `{"message":"put handled"}`, strings.Trim(w.Body.String(), "\n"))
 	})
 
 	t.Run("method not allowed", func(t *testing.T) {
@@ -163,7 +163,7 @@ func TestRouter_PUT(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
 }
 
@@ -184,7 +184,7 @@ func TestRouter_DELETE(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
 
 	t.Run("method not allowed", func(t *testing.T) {
@@ -193,7 +193,7 @@ func TestRouter_DELETE(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
 }
 
@@ -217,8 +217,8 @@ func TestRouter_PATCH(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusAccepted, w.Code)
-		simbaTestAssert.Equal(t, `{"message":"patch handled"}`, strings.Trim(w.Body.String(), "\n"))
+		assert.Equal(t, http.StatusAccepted, w.Code)
+		assert.Equal(t, `{"message":"patch handled"}`, strings.Trim(w.Body.String(), "\n"))
 	})
 
 	t.Run("method not allowed", func(t *testing.T) {
@@ -227,6 +227,6 @@ func TestRouter_PATCH(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 
-		simbaTestAssert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
 }

@@ -1,9 +1,9 @@
-package simbaTestAssert_test
+package assert_test
 
 import (
 	"testing"
 
-	"github.com/sillen102/simba/simbaTestAssert"
+	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 func TestContainsOnly(t *testing.T) {
@@ -28,9 +28,9 @@ func TestContainsOnly(t *testing.T) {
 			mock := &mockT{}
 			var result bool
 			if tc.message != "" {
-				result = simbaTestAssert.ContainsOnly(mock, tc.expected, tc.actual, tc.message)
+				result = assert.ContainsOnly(mock, tc.expected, tc.actual, tc.message)
 			} else {
-				result = simbaTestAssert.ContainsOnly(mock, tc.expected, tc.actual)
+				result = assert.ContainsOnly(mock, tc.expected, tc.actual)
 			}
 
 			if result != tc.shouldPass {
@@ -105,7 +105,7 @@ func TestContainsOnlyWithComplexStructs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockT{}
-			result := simbaTestAssert.ContainsOnly(mock, tc.expected, tc.actual)
+			result := assert.ContainsOnly(mock, tc.expected, tc.actual)
 
 			if result != tc.shouldPass {
 				t.Errorf("ContainsOnly test '%s' returned %v, expected %v",
@@ -142,9 +142,9 @@ func TestContainsOnlyInAnyOrder(t *testing.T) {
 			mock := &mockT{}
 			var result bool
 			if tc.message != "" {
-				result = simbaTestAssert.ContainsOnlyInAnyOrder(mock, tc.expected, tc.actual, tc.message)
+				result = assert.ContainsOnlyInAnyOrder(mock, tc.expected, tc.actual, tc.message)
 			} else {
-				result = simbaTestAssert.ContainsOnlyInAnyOrder(mock, tc.expected, tc.actual)
+				result = assert.ContainsOnlyInAnyOrder(mock, tc.expected, tc.actual)
 			}
 
 			if result != tc.shouldPass {
@@ -218,7 +218,7 @@ func TestContainsOnlyInAnyOrderWithComplexStructs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockT{}
-			result := simbaTestAssert.ContainsOnlyInAnyOrder(mock, tc.expected, tc.actual)
+			result := assert.ContainsOnlyInAnyOrder(mock, tc.expected, tc.actual)
 
 			if result != tc.shouldPass {
 				t.Errorf("ContainsOnlyInAnyOrder test '%s' returned %v, expected %v",
@@ -261,9 +261,9 @@ func TestContains(t *testing.T) {
 			mock := &mockT{}
 			var result bool
 			if tc.message != "" {
-				result = simbaTestAssert.Contains(mock, tc.expected, tc.actual, tc.message)
+				result = assert.Contains(mock, tc.expected, tc.actual, tc.message)
 			} else {
-				result = simbaTestAssert.Contains(mock, tc.expected, tc.actual)
+				result = assert.Contains(mock, tc.expected, tc.actual)
 			}
 
 			if result != tc.shouldPass {
@@ -368,7 +368,7 @@ func TestContainsWithComplexStructs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockT{}
-			result := simbaTestAssert.Contains(mock, tc.expected, tc.actual)
+			result := assert.Contains(mock, tc.expected, tc.actual)
 
 			if result != tc.shouldPass {
 				t.Errorf("Contains test '%s' returned %v, expected %v",
@@ -409,9 +409,9 @@ func TestContainsInAnyOrder(t *testing.T) {
 			mock := &mockT{}
 			var result bool
 			if tc.message != "" {
-				result = simbaTestAssert.ContainsInAnyOrder(mock, tc.expected, tc.actual, tc.message)
+				result = assert.ContainsInAnyOrder(mock, tc.expected, tc.actual, tc.message)
 			} else {
-				result = simbaTestAssert.ContainsInAnyOrder(mock, tc.expected, tc.actual)
+				result = assert.ContainsInAnyOrder(mock, tc.expected, tc.actual)
 			}
 
 			if result != tc.shouldPass {
@@ -485,7 +485,7 @@ func TestContainsInAnyOrderWithComplexStructs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockT{}
-			result := simbaTestAssert.ContainsInAnyOrder(mock, tc.expected, tc.actual)
+			result := assert.ContainsInAnyOrder(mock, tc.expected, tc.actual)
 
 			if result != tc.shouldPass {
 				t.Errorf("ContainsInAnyOrder test '%s' returned %v, expected %v",
@@ -525,9 +525,9 @@ func TestContainsAnyOf(t *testing.T) {
 			mock := &mockT{}
 			var result bool
 			if tc.message != "" {
-				result = simbaTestAssert.ContainsAnyOf(mock, tc.expected, tc.actual, tc.message)
+				result = assert.ContainsAnyOf(mock, tc.expected, tc.actual, tc.message)
 			} else {
-				result = simbaTestAssert.ContainsAnyOf(mock, tc.expected, tc.actual)
+				result = assert.ContainsAnyOf(mock, tc.expected, tc.actual)
 			}
 
 			if result != tc.shouldPass {
@@ -620,7 +620,7 @@ func TestContainsAnyOfWithComplexStructs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockT{}
-			result := simbaTestAssert.ContainsAnyOf(mock, tc.expected, tc.actual)
+			result := assert.ContainsAnyOf(mock, tc.expected, tc.actual)
 
 			if result != tc.shouldPass {
 				t.Errorf("ContainsAnyOf test '%s' returned %v, expected %v",
@@ -686,9 +686,9 @@ func TestNotEmpty(t *testing.T) {
 			var result bool
 
 			if tc.message != "" {
-				result = simbaTestAssert.NotEmpty(mock, tc.value, tc.message)
+				result = assert.NotEmpty(mock, tc.value, tc.message)
 			} else {
-				result = simbaTestAssert.NotEmpty(mock, tc.value)
+				result = assert.NotEmpty(mock, tc.value)
 			}
 
 			if result != tc.shouldPass {
@@ -708,7 +708,7 @@ func TestNotEmpty(t *testing.T) {
 	// Test with formatted message arguments
 	t.Run("formatted message", func(t *testing.T) {
 		mock := &mockT{}
-		result := simbaTestAssert.NotEmpty(mock, "", "expected non-empty value in test %d", 123)
+		result := assert.NotEmpty(mock, "", "expected non-empty value in test %d", 123)
 
 		if result {
 			t.Error("Should have failed with empty string")
@@ -725,7 +725,7 @@ func TestNotEmpty(t *testing.T) {
 		// Non-nil pointer
 		nonNilPtr := &TestStruct{Field1: "test"}
 		mock := &mockT{}
-		result := simbaTestAssert.NotEmpty(mock, nonNilPtr)
+		result := assert.NotEmpty(mock, nonNilPtr)
 		if !result || mock.failed {
 			t.Error("NotEmpty should pass for non-nil pointer")
 		}
@@ -733,7 +733,7 @@ func TestNotEmpty(t *testing.T) {
 		// Nil pointer
 		var nilPtr *TestStruct = nil
 		mock = &mockT{}
-		result = simbaTestAssert.NotEmpty(mock, nilPtr)
+		result = assert.NotEmpty(mock, nilPtr)
 		if result || !mock.failed {
 			t.Error("NotEmpty should fail for nil pointer")
 		}
