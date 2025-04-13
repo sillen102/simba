@@ -8,7 +8,7 @@ import (
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest"
-	"gotest.tools/v3/assert"
+	"github.com/sillen102/simba/simbaTestAssert"
 )
 
 func TestNew(t *testing.T) {
@@ -24,8 +24,8 @@ func TestNew(t *testing.T) {
 	app.RunTest(func() {
 		// Create a test request
 		resp, err := app.Client().Get(app.URL() + "/test")
-		assert.NilError(t, err)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		simbaTestAssert.NoError(t, err)
+		simbaTestAssert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 }
 
@@ -42,7 +42,7 @@ func TestDefault(t *testing.T) {
 	app.RunTest(func() {
 		// Create a test request
 		resp, err := app.Client().Get(app.URL() + "/test")
-		assert.NilError(t, err)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		simbaTestAssert.NoError(t, err)
+		simbaTestAssert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 }

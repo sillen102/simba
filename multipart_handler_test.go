@@ -18,7 +18,7 @@ import (
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest"
-	"gotest.tools/v3/assert"
+	"github.com/sillen102/simba/simbaTestAssert"
 )
 
 func TestMultipartHandler(t *testing.T) {
@@ -34,10 +34,10 @@ func TestMultipartHandler(t *testing.T) {
 
 	t.Run("multipart file and params", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simbaModels.MultipartRequest[simbaTest.Params]) (*simbaModels.Response[map[string]string], error) {
-			assert.Equal(t, id, req.Params.ID.String())
-			assert.Equal(t, true, req.Params.Active)
-			assert.Equal(t, 0, req.Params.Page)
-			assert.Equal(t, int64(10), req.Params.Size)
+			simbaTestAssert.Equal(t, id, req.Params.ID.String())
+			simbaTestAssert.Equal(t, true, req.Params.Active)
+			simbaTestAssert.Equal(t, 0, req.Params.Page)
+			simbaTestAssert.Equal(t, int64(10), req.Params.Size)
 
 			return &simbaModels.Response[map[string]string]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
@@ -57,12 +57,12 @@ func TestMultipartHandler(t *testing.T) {
 		app.Router.POST("/multipart-test/{id}", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusAccepted, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-		assert.Equal(t, "{\"message\":\"success\"}\n", w.Body.String())
-		assert.Equal(t, "header-value", w.Header().Get("My-Header"))
+		simbaTestAssert.Equal(t, http.StatusAccepted, w.Code)
+		simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		simbaTestAssert.Equal(t, "{\"message\":\"success\"}\n", w.Body.String())
+		simbaTestAssert.Equal(t, "header-value", w.Header().Get("My-Header"))
 		cookie := w.Result().Cookies()[0].Value
-		assert.Equal(t, "cookie-value", cookie)
+		simbaTestAssert.Equal(t, "cookie-value", cookie)
 	})
 
 	t.Run("no params", func(t *testing.T) {
@@ -85,14 +85,14 @@ func TestMultipartHandler(t *testing.T) {
 		app.Router.POST("/multipart-test", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusAccepted, w.Code)
+		simbaTestAssert.Equal(t, http.StatusAccepted, w.Code)
 	})
 
 	t.Run("default values on params", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simbaModels.MultipartRequest[simbaTest.Params]) (*simbaModels.Response[simbaModels.NoBody], error) {
-			assert.Equal(t, 1, req.Params.Page)         // default value
-			assert.Equal(t, int64(10), req.Params.Size) // default value
-			assert.Equal(t, 10.0, req.Params.Score)
+			simbaTestAssert.Equal(t, 1, req.Params.Page)         // default value
+			simbaTestAssert.Equal(t, int64(10), req.Params.Size) // default value
+			simbaTestAssert.Equal(t, 10.0, req.Params.Score)
 			return &simbaModels.Response[simbaModels.NoBody]{}, nil
 		}
 
@@ -107,14 +107,14 @@ func TestMultipartHandler(t *testing.T) {
 		app.Router.POST("/multipart-test/{id}", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		simbaTestAssert.Equal(t, http.StatusNoContent, w.Code)
 	})
 
 	t.Run("override default values with query params", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simbaModels.MultipartRequest[simbaTest.Params]) (*simbaModels.Response[simbaModels.NoBody], error) {
-			assert.Equal(t, 5, req.Params.Page)         // overridden value
-			assert.Equal(t, int64(20), req.Params.Size) // overridden value
-			assert.Equal(t, 15.5, req.Params.Score)     // overridden value
+			simbaTestAssert.Equal(t, 5, req.Params.Page)         // overridden value
+			simbaTestAssert.Equal(t, int64(20), req.Params.Size) // overridden value
+			simbaTestAssert.Equal(t, 15.5, req.Params.Score)     // overridden value
 			return &simbaModels.Response[simbaModels.NoBody]{}, nil
 		}
 
@@ -129,7 +129,7 @@ func TestMultipartHandler(t *testing.T) {
 		app.Router.POST("/multipart-test/{id}", simba.MultipartHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		simbaTestAssert.Equal(t, http.StatusNoContent, w.Code)
 	})
 }
 
@@ -198,19 +198,19 @@ func TestMultipartHandlerErrors(t *testing.T) {
 			app.Router.POST("/test", simba.MultipartHandler(handler))
 			app.Router.ServeHTTP(w, req)
 
-			assert.Equal(t, tt.expectedStatus, w.Code)
-			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+			simbaTestAssert.Equal(t, tt.expectedStatus, w.Code)
+			simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
 			var errorResponse simbaErrors.ErrorResponse
 			err := json.NewDecoder(w.Body).Decode(&errorResponse)
-			assert.NilError(t, err)
+			simbaTestAssert.NoError(t, err)
 
-			assert.Equal(t, tt.expectedStatus, errorResponse.Status)
-			assert.Equal(t, tt.expectedError, errorResponse.Error)
-			assert.Equal(t, tt.path, errorResponse.Path)
-			assert.Equal(t, tt.method, errorResponse.Method)
+			simbaTestAssert.Equal(t, tt.expectedStatus, errorResponse.Status)
+			simbaTestAssert.Equal(t, tt.expectedError, errorResponse.Error)
+			simbaTestAssert.Equal(t, tt.path, errorResponse.Path)
+			simbaTestAssert.Equal(t, tt.method, errorResponse.Method)
 			if tt.expectedMsg != "" {
-				assert.Equal(t, tt.expectedMsg, errorResponse.Message)
+				simbaTestAssert.Equal(t, tt.expectedMsg, errorResponse.Message)
 			}
 		})
 	}
@@ -220,7 +220,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 	t.Parallel()
 
 	authFunc := func(ctx context.Context, token string) (*simbaTest.User, error) {
-		assert.Equal(t, "token", token)
+		simbaTestAssert.Equal(t, "token", token)
 		return &simbaTest.User{
 			ID:   1,
 			Name: "John Doe",
@@ -250,9 +250,9 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 
 	t.Run("authenticated multipart handler", func(t *testing.T) {
 		handler := func(ctx context.Context, req *simbaModels.MultipartRequest[simbaTest.Params], authModel *simbaTest.User) (*simbaModels.Response[simbaModels.NoBody], error) {
-			assert.Equal(t, 1, authModel.ID)
-			assert.Equal(t, "John Doe", authModel.Name)
-			assert.Equal(t, "admin", authModel.Role)
+			simbaTestAssert.Equal(t, 1, authModel.ID)
+			simbaTestAssert.Equal(t, "John Doe", authModel.Name)
+			simbaTestAssert.Equal(t, "admin", authModel.Role)
 			return &simbaModels.Response[simbaModels.NoBody]{}, nil
 		}
 
@@ -268,7 +268,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, authHandler))
 		app.Router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		simbaTestAssert.Equal(t, http.StatusNoContent, w.Code)
 	})
 
 	t.Run("authenticated multipart handler with error", func(t *testing.T) {
@@ -286,11 +286,11 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, errorAuthHandler))
 		app.Router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		simbaTestAssert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var errorResponse simbaErrors.ErrorResponse
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
-		assert.NilError(t, err)
-		assert.Equal(t, "unauthorized", errorResponse.Message)
+		simbaTestAssert.NoError(t, err)
+		simbaTestAssert.Equal(t, "unauthorized", errorResponse.Message)
 	})
 }

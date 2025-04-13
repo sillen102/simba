@@ -14,6 +14,7 @@ import (
 	"github.com/sillen102/simba/simbaOpenapi"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/sillen102/simba/simbaTest"
+	"github.com/sillen102/simba/simbaTestAssert"
 	"github.com/stretchr/testify/require"
 	"github.com/swaggest/openapi-go/openapi31"
 )
@@ -44,10 +45,10 @@ func TestTitle(t *testing.T) {
 	}
 
 	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 	doc := unmarshalJSON(t, schema)
 
-	require.Equal(t, "Test", doc.Info.Title)
+	simbaTestAssert.Equal(t, "Test", doc.Info.Title)
 }
 
 func TestVersion(t *testing.T) {
@@ -68,10 +69,10 @@ func TestVersion(t *testing.T) {
 	}
 
 	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 	doc := unmarshalJSON(t, schema)
 
-	require.Equal(t, "1.0.0", doc.Info.Version)
+	simbaTestAssert.Equal(t, "1.0.0", doc.Info.Version)
 }
 
 func TestDescription(t *testing.T) {
@@ -155,10 +156,10 @@ func TestDescription(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
-			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Description)
+			simbaTestAssert.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Description)
 		})
 	}
 }
@@ -244,7 +245,7 @@ func TestResponseCode(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
 			require.NotNil(
@@ -339,7 +340,7 @@ func TestTags(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
 			require.ElementsMatch(t, tc.expected, doc.Paths.MapOfPathItemValues[path].Post.Tags)
@@ -428,10 +429,10 @@ func TestOperationID(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
-			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.ID)
+			simbaTestAssert.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.ID)
 		})
 	}
 }
@@ -517,10 +518,10 @@ func TestSummary(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
-			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Summary)
+			simbaTestAssert.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Summary)
 		})
 	}
 }
@@ -606,7 +607,7 @@ func TestCustomError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
 			if tc.expected != 0 {
@@ -733,10 +734,10 @@ func TestDeprecated(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
-			require.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Deprecated)
+			simbaTestAssert.Equal(t, tc.expected, *doc.Paths.MapOfPathItemValues[path].Post.Deprecated)
 		})
 	}
 }
@@ -767,7 +768,7 @@ func TestValidateRequiredField(t *testing.T) {
 	}
 
 	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 	doc := unmarshalJSON(t, schema)
 
 	require.ElementsMatch(t, []string{"name"}, doc.Components.Schemas["SimbaOpenapiTestReqBody"]["required"])
@@ -801,20 +802,20 @@ func TestValidateMinField(t *testing.T) {
 	}
 
 	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 	doc := unmarshalJSON(t, schema)
 
-	require.Equal(
+	simbaTestAssert.Equal(
 		t,
 		5.0,
 		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["size"].(map[string]interface{})["minimum"],
 	)
-	require.Equal(
+	simbaTestAssert.Equal(
 		t,
 		5.0,
 		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["length"].(map[string]interface{})["minLength"],
 	)
-	require.Equal(
+	simbaTestAssert.Equal(
 		t,
 		5.0,
 		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["items"].(map[string]interface{})["minItems"],
@@ -822,7 +823,7 @@ func TestValidateMinField(t *testing.T) {
 
 	valid := reqBody{Size: 5, Length: "12345", Items: []string{"1", "2", "3", "4", "5"}}
 	err = validate.Struct(valid)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 
 	invalid := reqBody{Size: 4, Length: "1234", Items: []string{"1", "2", "3", "4"}}
 	err = validate.Struct(invalid)
@@ -857,20 +858,20 @@ func TestValidateMaxField(t *testing.T) {
 	}
 
 	schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", routeInfo)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 	doc := unmarshalJSON(t, schema)
 
-	require.Equal(
+	simbaTestAssert.Equal(
 		t,
 		5.0,
 		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["size"].(map[string]interface{})["maximum"],
 	)
-	require.Equal(
+	simbaTestAssert.Equal(
 		t,
 		5.0,
 		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["length"].(map[string]interface{})["maxLength"],
 	)
-	require.Equal(
+	simbaTestAssert.Equal(
 		t,
 		5.0,
 		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["items"].(map[string]interface{})["maxItems"],
@@ -878,7 +879,7 @@ func TestValidateMaxField(t *testing.T) {
 
 	valid := reqBody{Size: 5, Length: "12345", Items: []string{"1", "2", "3", "4", "5"}}
 	err = validate.Struct(valid)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 
 	invalid := reqBody{Size: 6, Length: "123456", Items: []string{"1", "2", "3", "4", "5", "6"}}
 	err = validate.Struct(invalid)
@@ -959,23 +960,23 @@ func TestAuthHandler(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			schema, err := generator.GenerateDocumentation(context.Background(), "Test", "1.0.0", tc.routeInfo)
-			require.NoError(t, err)
+			simbaTestAssert.NoError(t, err)
 			doc := unmarshalJSON(t, schema)
 
 			securityScheme := doc.Components.SecuritySchemes[tc.schemeName].SecurityScheme
 
 			switch {
 			case securityScheme.HTTP != nil:
-				require.Equal(t, "basic", securityScheme.HTTP.Scheme)
+				simbaTestAssert.Equal(t, "basic", securityScheme.HTTP.Scheme)
 			case securityScheme.APIKey != nil:
-				require.Equal(t, "sessionid", securityScheme.APIKey.Name)
-				require.Equal(t, openapi31.SecuritySchemeAPIKeyInCookie, securityScheme.APIKey.In)
+				simbaTestAssert.Equal(t, "sessionid", securityScheme.APIKey.Name)
+				simbaTestAssert.Equal(t, openapi31.SecuritySchemeAPIKeyInCookie, securityScheme.APIKey.In)
 			case securityScheme.HTTPBearer != nil:
-				require.Equal(t, "bearer", securityScheme.HTTPBearer.Scheme)
-				require.Equal(t, "jwt", *securityScheme.HTTPBearer.BearerFormat)
+				simbaTestAssert.Equal(t, "bearer", securityScheme.HTTPBearer.Scheme)
+				simbaTestAssert.Equal(t, "jwt", *securityScheme.HTTPBearer.BearerFormat)
 			}
 
-			require.Equal(t, tc.expectedDescription, *securityScheme.Description)
+			simbaTestAssert.Equal(t, tc.expectedDescription, *securityScheme.Description)
 		})
 	}
 }
@@ -985,7 +986,7 @@ func unmarshalJSON(t *testing.T, schema []byte) openAPIDoc {
 
 	var jsonDoc openAPIDoc
 	err := json.Unmarshal(schema, &jsonDoc)
-	require.NoError(t, err)
+	simbaTestAssert.NoError(t, err)
 
 	return jsonDoc
 }

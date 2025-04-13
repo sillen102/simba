@@ -14,7 +14,7 @@ import (
 
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaErrors"
-	"gotest.tools/v3/assert"
+	"github.com/sillen102/simba/simbaTestAssert"
 )
 
 func TestHandleError(t *testing.T) {
@@ -34,17 +34,17 @@ func TestHandleError(t *testing.T) {
 			fmt.Errorf("outermost error: %w", fmt.Errorf("wrapping error: %w", errors.New("original error"))),
 			"Internal server error"))
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		simbaTestAssert.Equal(t, http.StatusInternalServerError, w.Code)
+		simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
 		var errorResponse simbaErrors.ErrorResponse
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
-		assert.NilError(t, err)
-		assert.Equal(t, http.StatusInternalServerError, errorResponse.Status)
-		assert.Equal(t, "Internal server error", errorResponse.Message)
+		simbaTestAssert.NoError(t, err)
+		simbaTestAssert.Equal(t, http.StatusInternalServerError, errorResponse.Status)
+		simbaTestAssert.Equal(t, "Internal server error", errorResponse.Message)
 
 		expectedLog := "wrapping error: original error"
-		assert.Assert(t, strings.Contains(logBuffer.String(), expectedLog))
+		simbaTestAssert.Assert(t, strings.Contains(logBuffer.String(), expectedLog))
 	})
 
 	t.Run("unauthorized does not show wrapped error", func(t *testing.T) {
@@ -58,16 +58,16 @@ func TestHandleError(t *testing.T) {
 
 		simbaErrors.WriteError(w, req, simbaErrors.WrapError(http.StatusUnauthorized, errors.New("wrapped error"), "Internal server error"))
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		simbaTestAssert.Equal(t, http.StatusUnauthorized, w.Code)
+		simbaTestAssert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
 		var errorResponse simbaErrors.ErrorResponse
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
-		assert.NilError(t, err)
-		assert.Equal(t, http.StatusUnauthorized, errorResponse.Status)
-		assert.Equal(t, "unauthorized", errorResponse.Message) // hide details of the error
+		simbaTestAssert.NoError(t, err)
+		simbaTestAssert.Equal(t, http.StatusUnauthorized, errorResponse.Status)
+		simbaTestAssert.Equal(t, "unauthorized", errorResponse.Message) // hide details of the error
 
 		expectedLog := "wrapped error"
-		assert.Assert(t, strings.Contains(logBuffer.String(), expectedLog))
+		simbaTestAssert.Assert(t, strings.Contains(logBuffer.String(), expectedLog))
 	})
 }

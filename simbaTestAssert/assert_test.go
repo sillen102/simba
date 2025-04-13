@@ -2,6 +2,7 @@ package simbaTestAssert_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/sillen102/simba/simbaTestAssert"
@@ -306,9 +307,9 @@ func TestNilError(t *testing.T) {
 			mock := &mockT{}
 			var result bool
 			if tc.message != "" {
-				result = simbaTestAssert.NilError(mock, tc.err, tc.message)
+				result = simbaTestAssert.NoError(mock, tc.err, tc.message)
 			} else {
-				result = simbaTestAssert.NilError(mock, tc.err)
+				result = simbaTestAssert.NoError(mock, tc.err)
 			}
 
 			if result != tc.shouldPass {
@@ -319,4 +320,134 @@ func TestNilError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAssert(t *testing.T) {
+	// Test passing assertion
+	mock := &mockT{}
+	result := simbaTestAssert.Assert(mock, true)
+	if !result || mock.failed {
+		t.Error("Assert should pass for true condition")
+	}
+
+	// Test failing assertion
+	mock = &mockT{}
+	result = simbaTestAssert.Assert(mock, false)
+	if result || !mock.failed {
+		t.Error("Assert should fail for false condition")
+	}
+
+	// Test with custom message
+	mock = &mockT{}
+	customMsg := "custom error message"
+	simbaTestAssert.Assert(mock, false, customMsg)
+	if !mock.failed || mock.errorMsg != customMsg {
+		t.Errorf("Expected error message '%s', got '%s'", customMsg, mock.errorMsg)
+	}
+
+	// Test with formatted message
+	mock = &mockT{}
+	simbaTestAssert.Assert(mock, false, "failed with code %d", 404)
+	expectedMsg := "failed with code 404"
+	if !mock.failed || mock.errorMsg != expectedMsg {
+		t.Errorf("Expected formatted error message '%s', got '%s'", expectedMsg, mock.errorMsg)
+	}
+}
+
+func TestNil(t *testing.T) {
+	// Test passing case with nil interface
+	mock := &mockT{}
+	var nilInterface interface{} = nil
+	result := simbaTestAssert.Nil(mock, nilInterface)
+	if !result || mock.failed {
+		t.Error("Nil should pass for nil interface value")
+	}
+
+	// Test passing case with nil pointer
+	mock = &mockT{}
+	var nilPointer *string = nil
+	result = simbaTestAssert.Nil(mock, nilPointer)
+	if !result || mock.failed {
+		t.Error("Nil should pass for nil pointer")
+	}
+
+	// Test failing case with non-nil value
+	mock = &mockT{}
+	nonNilValue := "test"
+	result = simbaTestAssert.Nil(mock, nonNilValue)
+	if result || !mock.failed {
+		t.Error("Nil should fail for non-nil value")
+	}
+
+	// Test with custom message
+	mock = &mockT{}
+	customMsg := "custom error message"
+	simbaTestAssert.Nil(mock, "not nil", customMsg)
+	if !mock.failed || !contains(mock.errorMsg, customMsg) {
+		t.Errorf("Expected error message to contain '%s', got '%s'", customMsg, mock.errorMsg)
+	}
+
+	// Test with formatted message
+	mock = &mockT{}
+	simbaTestAssert.Nil(mock, "not nil", "failed with code %d", 404)
+	expectedMsg := "failed with code 404"
+	if !mock.failed || !contains(mock.errorMsg, expectedMsg) {
+		t.Errorf("Expected error message to contain '%s', got '%s'", expectedMsg, mock.errorMsg)
+	}
+}
+
+func TestNotNil(t *testing.T) {
+	// Test passing case with non-nil value
+	mock := &mockT{}
+	nonNilValue := "test"
+	result := simbaTestAssert.NotNil(mock, nonNilValue)
+	if !result || mock.failed {
+		t.Error("NotNil should pass for non-nil value")
+	}
+
+	// Test passing case with non-nil pointer
+	mock = &mockT{}
+	value := "test"
+	nonNilPointer := &value
+	result = simbaTestAssert.NotNil(mock, nonNilPointer)
+	if !result || mock.failed {
+		t.Error("NotNil should pass for non-nil pointer")
+	}
+
+	// Test failing case with nil interface
+	mock = &mockT{}
+	var nilInterface interface{} = nil
+	result = simbaTestAssert.NotNil(mock, nilInterface)
+	if result || !mock.failed {
+		t.Error("NotNil should fail for nil interface")
+	}
+
+	// Test failing case with nil pointer
+	mock = &mockT{}
+	var nilPointer *string = nil
+	result = simbaTestAssert.NotNil(mock, nilPointer)
+	if result || !mock.failed {
+		t.Error("NotNil should fail for nil pointer")
+	}
+
+	// Test with custom message
+	mock = &mockT{}
+	customMsg := "custom error message"
+	simbaTestAssert.NotNil(mock, nil, customMsg)
+	if !mock.failed || !contains(mock.errorMsg, customMsg) {
+		t.Errorf("Expected error message to contain '%s', got '%s'", customMsg, mock.errorMsg)
+	}
+
+	// Test with formatted message
+	mock = &mockT{}
+	simbaTestAssert.NotNil(mock, nil, "failed with code %d", 404)
+	expectedMsg := "failed with code 404"
+	if !mock.failed || !contains(mock.errorMsg, expectedMsg) {
+		t.Errorf("Expected error message to contain '%s', got '%s'", expectedMsg, mock.errorMsg)
+	}
+}
+
+// Helper function to check if a string contains another string
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
 }
