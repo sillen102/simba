@@ -10,7 +10,10 @@ import (
 // If not, it formats an error message and reports it through the test interface.
 func ContainsOnly[T any](t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, expected, actual []T, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if len(expected) != len(actual) {
 		message := formatSliceFailureMessage("Slices have different lengths", expected, actual, msgAndArgs...)
 		t.Errorf("%s", message)
@@ -32,7 +35,10 @@ func ContainsOnly[T any](t interface {
 // If not, it formats an error message and reports it through the test interface.
 func ContainsOnlyInAnyOrder[T any](t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, expected, actual []T, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if len(expected) != len(actual) {
 		message := formatSliceFailureMessage("Slices have different lengths", expected, actual, msgAndArgs...)
 		t.Errorf("%s", message)
@@ -70,7 +76,10 @@ func ContainsOnlyInAnyOrder[T any](t interface {
 // Contains checks if an item is present in a collection, or if a collection contains another collection
 func Contains(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, item any, collection any, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if collection == nil {
 		message := fmt.Sprintf("Cannot check if nil contains '%v'", item)
 		if len(msgAndArgs) > 0 {
@@ -221,7 +230,10 @@ func Contains(t interface {
 // Extra elements in the actual slice are allowed.
 func ContainsInAnyOrder[T any](t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, expected, actual []T, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if len(expected) == 0 {
 		return true
 	}
@@ -268,7 +280,10 @@ func ContainsInAnyOrder[T any](t interface {
 // For slice of strings expected vs string collection: checks if any string from the slice is contained in the collection string.
 func ContainsAnyOf(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, expected any, collection any, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if collection == nil {
 		message := fmt.Sprintf("Cannot check if nil contains any elements from '%v'", expected)
 		if len(msgAndArgs) > 0 {
@@ -391,7 +406,10 @@ func ContainsAnyOf(t interface {
 // If it is empty, it formats an error message and reports it through the test interface.
 func NotEmpty(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, collection any, msgAndArgs ...any) bool {
+	t.Helper()
+	
 	if collection == nil {
 		message := formatEmptyMessage("nil value", msgAndArgs...)
 		t.Errorf(message)
@@ -423,7 +441,7 @@ func NotEmpty(t interface {
 			return true
 		}
 	}
-	
+
 	message := formatEmptyMessage(fmt.Sprintf("zero value of type %T", collection), msgAndArgs...)
 	t.Errorf(message)
 	return false

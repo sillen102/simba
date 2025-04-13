@@ -48,7 +48,7 @@ func New(opts ...settings.Option) *Application {
 	})
 
 	return &Application{
-		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), Handler: router},
+		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), Handler: router},
 		Router:   router,
 		Settings: cfg,
 	}

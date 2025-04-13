@@ -26,8 +26,5 @@ jobs:
 
     - name: Lint
       run: |
-        go install honnef.co/go/tools/cmd/staticcheck@latest
-        staticcheck ./...
-        
-        go install go.uber.org/nilaway/cmd/nilaway@latest
-        nilaway ./...
+        go install honnef.co/go/tools/cmd/staticcheck@latest        
+        golangci-lint run ./...

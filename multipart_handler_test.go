@@ -26,9 +26,9 @@ func TestMultipartHandler(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("lastName", "Connor")
-	writer.WriteField("alive", "true")
-	writer.Close()
+	_ = writer.WriteField("lastName", "Connor")
+	_ = writer.WriteField("alive", "true")
+	_ = writer.Close()
 
 	id := uuid.NewString()
 
@@ -242,9 +242,9 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("lastName", "Connor")
-	writer.WriteField("alive", "true")
-	writer.Close()
+	_ = writer.WriteField("lastName", "Connor")
+	_ = writer.WriteField("alive", "true")
+	_ = writer.Close()
 
 	id := uuid.NewString()
 

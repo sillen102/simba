@@ -29,7 +29,7 @@ func (a *Application) Start() {
 	// Generate OpenAPI documentation in a goroutine
 	go func() {
 		log.Debug("generating OpenAPI documentation...")
-		err := a.Router.GenerateOpenAPIDocumentation(ctx, a.Settings.Application.Name, a.Settings.Application.Version)
+		err := a.Router.GenerateOpenAPIDocumentation(ctx, a.Settings.Name, a.Settings.Version)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				log.Debug("OpenAPI documentation generation cancelled")

@@ -9,7 +9,7 @@ import (
 func ScalarDocsHandler(params DocsParams) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		_, _ = w.Write([]byte(fmt.Sprintf(`
+		_, _ = fmt.Fprintf(w, `
 			<!doctype html>
 			<html>
 			  <head>
@@ -27,7 +27,7 @@ func ScalarDocsHandler(params DocsParams) http.HandlerFunc {
 				  data-proxy-url="https://proxy.scalar.com"></script>
 				<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 			  </body>
-			</html>`, params.ServiceName, params.OpenAPIFileType, params.OpenAPIPath)),
+			</html>`, params.ServiceName, params.OpenAPIFileType, params.OpenAPIPath,
 		)
 	}
 }

@@ -84,77 +84,77 @@ type Option func(*Simba)
 // WithApplicationName sets the application name
 func WithApplicationName(name string) Option {
 	return func(s *Simba) {
-		s.Application.Name = name
+		s.Name = name
 	}
 }
 
 // WithApplicationVersion sets the application version
 func WithApplicationVersion(version string) Option {
 	return func(s *Simba) {
-		s.Application.Version = version
+		s.Version = version
 	}
 }
 
 // WithServerPort sets the server port
 func WithServerPort(port int) Option {
 	return func(s *Simba) {
-		s.Server.Port = port
+		s.Port = port
 	}
 }
 
 // WithServerHost sets the server host
 func WithServerHost(host string) Option {
 	return func(s *Simba) {
-		s.Server.Host = host
+		s.Host = host
 	}
 }
 
 // WithAllowUnknownFields sets whether to allow unknown fields
 func WithAllowUnknownFields(allow bool) Option {
 	return func(s *Simba) {
-		s.Request.AllowUnknownFields = allow
+		s.AllowUnknownFields = allow
 	}
 }
 
 // WithLogRequestBody sets whether to log request bodies
 func WithLogRequestBody(log bool) Option {
 	return func(s *Simba) {
-		s.Request.LogRequestBody = log
+		s.LogRequestBody = log
 	}
 }
 
 // WithRequestIdMode sets the request ID mode
 func WithRequestIdMode(mode simbaModels.RequestIdMode) Option {
 	return func(s *Simba) {
-		s.Request.RequestIdMode = mode
+		s.RequestIdMode = mode
 	}
 }
 
 // WithGenerateOpenAPIDocs sets whether to generate OpenAPI docs
 func WithGenerateOpenAPIDocs(generate bool) Option {
 	return func(s *Simba) {
-		s.Docs.GenerateOpenAPIDocs = generate
+		s.GenerateOpenAPIDocs = generate
 	}
 }
 
 // WithMountDocsUIEndpoint sets whether to mount the docs endpoint
 func WithMountDocsUIEndpoint(mount bool) Option {
 	return func(s *Simba) {
-		s.Docs.MountDocsUIEndpoint = mount
+		s.MountDocsUIEndpoint = mount
 	}
 }
 
 // WithOpenAPIFilePath sets the OpenAPI JSON file path
 func WithOpenAPIFilePath(path string) Option {
 	return func(s *Simba) {
-		s.Docs.OpenAPIFilePath = path
+		s.OpenAPIFilePath = path
 	}
 }
 
 // WithDocsUIPath sets the docs UI path
 func WithDocsUIPath(path string) Option {
 	return func(s *Simba) {
-		s.Docs.DocsUIPath = path
+		s.DocsUIPath = path
 	}
 }
 
@@ -206,7 +206,7 @@ func Load(opts ...Option) (*Simba, error) {
 	}
 
 	// Set the service name
-	settings.Docs.ServiceName = settings.Application.Name
+	settings.ServiceName = settings.Name
 
 	return settings, nil
 }

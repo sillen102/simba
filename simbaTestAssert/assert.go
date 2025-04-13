@@ -8,7 +8,10 @@ import (
 // True checks if the condition is true and returns true if it is.
 func True(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, condition bool, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if condition {
 		return true
 	}
@@ -27,7 +30,10 @@ func True(t interface {
 // False checks if the condition is false and returns true if it is.
 func False(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, condition bool, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if !condition {
 		return true
 	}
@@ -47,7 +53,10 @@ func False(t interface {
 // If they're not equal, it formats an error message and reports it through the test interface.
 func Equal[T any](t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, expected, actual T, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if reflect.DeepEqual(expected, actual) {
 		return true
 	}
@@ -61,7 +70,10 @@ func Equal[T any](t interface {
 // If they're equal, it formats an error message and reports it through the test interface.
 func NotEqual[T any](t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, expected, actual T, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if !reflect.DeepEqual(expected, actual) {
 		return true
 	}
@@ -85,7 +97,10 @@ func NotEqual[T any](t interface {
 // If the error is not nil, it formats an error message and reports it through the test interface.
 func NoError(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, err error, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if err == nil {
 		return true
 	}
@@ -108,7 +123,10 @@ func NoError(t interface {
 // Error checks if the error is not nil and returns true if it is not.
 func Error(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, err error, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if err != nil {
 		return true
 	}
@@ -132,7 +150,10 @@ func Error(t interface {
 // If not, it formats an error message and reports it through the test interface.
 func Assert(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, condition bool, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if condition {
 		return true
 	}
@@ -154,7 +175,10 @@ func Assert(t interface {
 // If the value is not nil, it formats an error message and reports it through the test interface.
 func Nil(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, value any, msgAndArgs ...any) bool {
+	t.Helper()
+
 	if value == nil {
 		return true
 	}
@@ -184,8 +208,11 @@ func Nil(t interface {
 // If the value is nil, it formats an error message and reports it through the test interface.
 func NotNil(t interface {
 	Errorf(format string, args ...any)
+	Helper()
 }, value any, msgAndArgs ...any) bool {
-	if value != nil && !(reflect.ValueOf(value).Kind() == reflect.Ptr && reflect.ValueOf(value).IsNil()) {
+	t.Helper()
+
+	if value != nil && reflect.ValueOf(value).Kind() != reflect.Ptr && reflect.ValueOf(value).IsNil() {
 		return true
 	}
 

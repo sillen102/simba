@@ -120,8 +120,8 @@ func DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody
 	}, nil
 }
 
-func BasicAuthFunc(ctx context.Context, username, password string) (*User, error) {
-	if !(username == "user" && password == "password") {
+func BasicAuthFunc(_ context.Context, username, password string) (*User, error) {
+	if username != "user" || password != "password" {
 		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid username or password", nil)
 	}
 

@@ -10,8 +10,7 @@ test-race:
 
 # Run linters
 lint:
-	@staticcheck ./...
-	@nilaway ./...
+	@golangci-lint run ./...
 
 # Update dependencies
 update-deps:

@@ -21,6 +21,10 @@ func (m *mockT) Errorf(format string, args ...interface{}) {
 	m.errorArgs = args
 }
 
+func (m *mockT) Helper() {
+	// No-op for mock
+}
+
 func TestTrue(t *testing.T) {
 	t.Parallel()
 
