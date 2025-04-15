@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/sillen102/simba/config"
+	"github.com/sillen102/config-loader"
 	"github.com/sillen102/simba/simbaModels"
 )
 
@@ -190,7 +190,7 @@ func Load(opts ...Option) (*Simba, error) {
 	savedLogger := settings.Logger
 
 	// Load config from files and environment
-	err := config.NewLoader(&config.LoaderOpts{
+	err := configloader.NewLoader(&configloader.LoaderOpts{
 		EnvGetter: settings.envGetter,
 	}).Load(settings)
 
