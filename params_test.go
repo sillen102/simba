@@ -142,46 +142,53 @@ func TestValidationRules(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		query         string
-		expectedError string
-		parameter     string
+		name            string
+		query           string
+		expectedError   string
+		expectedDetails any
+		parameter       string
 	}{
 		{
-			name:          "invalid email",
-			query:         "?email=notanemail",
-			expectedError: "'notanemail' is not a valid email address",
-			parameter:     "email",
+			name:            "invalid email",
+			query:           "?email=notanemail",
+			expectedError:   "'notanemail' is not a valid email address",
+			expectedDetails: []any{"'notanemail' is not a valid email address"},
+			parameter:       "email",
 		},
 		{
-			name:          "password too short",
-			query:         "?password=short",
-			expectedError: "password must be at least 8 characters long",
-			parameter:     "password",
+			name:            "password too short",
+			query:           "?password=short",
+			expectedError:   "password must be at least 8 characters long",
+			expectedDetails: []any{"password must be at least 8 characters long"},
+			parameter:       "password",
 		},
 		{
-			name:          "password too long",
-			query:         "?password=thispasswordiswaytoolongandshouldfail",
-			expectedError: "password must not exceed 32 characters",
-			parameter:     "password",
+			name:            "password too long",
+			query:           "?password=thispasswordiswaytoolongandshouldfail",
+			expectedError:   "password must not exceed 32 characters",
+			expectedDetails: []any{"password must not exceed 32 characters"},
+			parameter:       "password",
 		},
 		{
-			name:          "invalid code length",
-			query:         "?code=12345",
-			expectedError: "code must be exactly 6 characters long",
-			parameter:     "code",
+			name:            "invalid code length",
+			query:           "?code=12345",
+			expectedError:   "code must be exactly 6 characters long",
+			expectedDetails: []any{"code must be exactly 6 characters long"},
+			parameter:       "code",
 		},
 		{
-			name:          "non-numeric pin",
-			query:         "?pin=abc123",
-			expectedError: "'abc123' must be a valid number",
-			parameter:     "pin",
+			name:            "non-numeric pin",
+			query:           "?pin=abc123",
+			expectedError:   "'abc123' must be a valid number",
+			expectedDetails: []any{"'abc123' must be a valid number"},
+			parameter:       "pin",
 		},
 		{
-			name:          "non-alphanumeric username",
-			query:         "?username=user@name",
-			expectedError: "'user@name' must contain only letters and numbers",
-			parameter:     "username",
+			name:            "non-alphanumeric username",
+			query:           "?username=user@name",
+			expectedError:   "'user@name' must contain only letters and numbers",
+			expectedDetails: []any{"'user@name' must contain only letters and numbers"},
+			parameter:       "username",
 		},
 	}
 
@@ -203,11 +210,7 @@ func TestValidationRules(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
 			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-
-			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
-			assert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
-			assert.Equal(t, tt.expectedError, errorResponse.ValidationErrors[0].Message)
+			assert.Equal(t, tt.expectedDetails, errorResponse.Details)
 		})
 	}
 }
@@ -248,7 +251,6 @@ func TestUUIDParameters(t *testing.T) {
 	tests := []struct {
 		name      string
 		path      string
-		paramType simbaErrors.ParameterType
 		parameter string
 		headerID  string
 		wantMsg   string
@@ -256,14 +258,12 @@ func TestUUIDParameters(t *testing.T) {
 		{
 			name:      "invalid uuid in path",
 			path:      "/test/invalid-uuid",
-			paramType: simbaErrors.ParameterTypePath,
 			parameter: "id",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
 		},
 		{
 			name:      "invalid uuid in header",
 			path:      "/test/123e4567-e89b-12d3-a456-426655440000",
-			paramType: simbaErrors.ParameterTypeHeader,
 			parameter: "Header-ID",
 			headerID:  "invalid-uuid",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
@@ -271,7 +271,6 @@ func TestUUIDParameters(t *testing.T) {
 		{
 			name:      "invalid uuid in query",
 			path:      "/test/123e4567-e89b-12d3-a456-426655440000?queryId=invalid-uuid",
-			paramType: simbaErrors.ParameterTypeQuery,
 			parameter: "queryId",
 			headerID:  "248ccd0e-4bdf-4c41-a125-92ef3a416251",
 			wantMsg:   "invalid UUID parameter value: invalid-uuid",
@@ -307,10 +306,6 @@ func TestUUIDParameters(t *testing.T) {
 			assert.Equal(t, expectedPath, errorResponse.Path)
 			assert.Equal(t, http.MethodGet, errorResponse.Method)
 			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-			assert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
-			assert.Equal(t, tt.parameter, errorResponse.ValidationErrors[0].Parameter)
-			assert.Equal(t, tt.wantMsg, errorResponse.ValidationErrors[0].Message)
 		})
 	}
 }
@@ -346,10 +341,6 @@ func TestFloatParameters(t *testing.T) {
 	assert.Equal(t, "/test/1", errorResponse.Path)
 	assert.Equal(t, http.MethodGet, errorResponse.Method)
 	assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-	assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-	assert.Equal(t, "page", errorResponse.ValidationErrors[0].Parameter)
-	assert.Equal(t, simbaErrors.ParameterTypeQuery, errorResponse.ValidationErrors[0].Type)
-	assert.Equal(t, "invalid float parameter value: invalid", errorResponse.ValidationErrors[0].Message)
 }
 
 func TestInvalidParameterTypes(t *testing.T) {
@@ -374,42 +365,36 @@ func TestInvalidParameterTypes(t *testing.T) {
 	tests := []struct {
 		name         string
 		path         string
-		paramType    simbaErrors.ParameterType
 		paramName    string
 		errorMessage string
 	}{
 		{
 			name:         "invalid page parameter",
 			path:         "/test/1?active=true&page=invalid",
-			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "page",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid size parameter",
 			path:         "/test/1?active=true&size=invalid",
-			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "size",
 			errorMessage: "invalid int parameter value: invalid",
 		},
 		{
 			name:         "invalid score parameter",
 			path:         "/test/1?active=true&score=invalid",
-			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "score",
 			errorMessage: "invalid float parameter value: invalid",
 		},
 		{
 			name:         "invalid active parameter",
 			path:         "/test/1?active=notbool",
-			paramType:    simbaErrors.ParameterTypeQuery,
 			paramName:    "active",
 			errorMessage: "invalid bool parameter value: notbool",
 		},
 		{
 			name:         "invalid id parameter",
 			path:         "/test/notint?active=true",
-			paramType:    simbaErrors.ParameterTypePath,
 			paramName:    "id",
 			errorMessage: "invalid int parameter value: notint",
 		},
@@ -442,10 +427,6 @@ func TestInvalidParameterTypes(t *testing.T) {
 			assert.Equal(t, expectedPath, errorResponse.Path)
 			assert.Equal(t, http.MethodGet, errorResponse.Method)
 			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-			assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-			assert.Equal(t, tt.paramType, errorResponse.ValidationErrors[0].Type)
-			assert.Equal(t, tt.paramName, errorResponse.ValidationErrors[0].Parameter)
-			assert.Equal(t, tt.errorMessage, errorResponse.ValidationErrors[0].Message)
 		})
 	}
 }

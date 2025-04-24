@@ -192,9 +192,7 @@ func TestMultipartHandlerErrors(t *testing.T) {
 			}
 			w := httptest.NewRecorder()
 
-			logBuffer := &bytes.Buffer{}
-			logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
-			app := simba.New(settings.WithLogger(logger))
+			app := simba.New()
 			app.Router.POST("/test", simba.MultipartHandler(handler))
 			app.Router.ServeHTTP(w, req)
 

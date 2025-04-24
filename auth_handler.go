@@ -3,19 +3,13 @@ package simba
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	oapi "github.com/swaggest/openapi-go"
-)
-
-const (
-	AuthHeader   = "Authorization"
-	BasicPrefix  = "Basic "
-	BearerPrefix = "Bearer "
 )
 
 type AuthHandler[AuthModel any] interface {
@@ -83,23 +77,39 @@ func (t BasicAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 	return func(r *http.Request) (*AuthModel, error) {
 		authHeader := r.Header.Get(AuthHeader)
 		if authHeader == "" {
-			return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "missing Authorization header", nil)
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("missing Authorization header"),
+			)
 		}
 
 		if !strings.HasPrefix(authHeader, BasicPrefix) {
-			return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid Authorization header format, expected Basic authentication", nil)
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("invalid Authorization header format, expected Basic authentication"),
+			)
 		}
 
 		encoded := authHeader[len(BasicPrefix):]
 
 		decoded, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {
-			return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid base64 in Authorization header", err)
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("invalid base64 in Authorization header"),
+			)
 		}
 
 		credentials := strings.SplitN(string(decoded), ":", 2)
 		if len(credentials) != 2 {
-			return nil, fmt.Errorf("invalid Basic auth format, expected 'username:password'")
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("invalid Basic auth format, expected 'username:password'"),
+			)
 		}
 
 		username := credentials[0]
@@ -170,7 +180,11 @@ func (t APIKeyAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 	return func(r *http.Request) (*AuthModel, error) {
 		apiKey := r.Header.Get(t.FieldName)
 		if apiKey == "" {
-			return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "missing API key", nil)
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("missing API key"),
+			)
 		}
 
 		return t.Handler(r.Context(), apiKey)
@@ -236,16 +250,28 @@ func (t BearerAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 	return func(r *http.Request) (*AuthModel, error) {
 		authHeader := r.Header.Get(AuthHeader)
 		if authHeader == "" {
-			return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "missing Authorization header", nil)
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("missing Authorization header"),
+			)
 		}
 
 		if !strings.HasPrefix(authHeader, BearerPrefix) {
-			return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid Authorization header format, expected Bearer authentication", nil)
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("invalid Authorization header format, expected Bearer authentication"),
+			)
 		}
 
 		token := authHeader[len(BearerPrefix):]
 		if token == "" {
-			return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "missing token", nil)
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("missing token"),
+			)
 		}
 
 		return t.Handler(r.Context(), token)

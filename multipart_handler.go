@@ -183,7 +183,7 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 
 	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
-		simbaErrors.WriteError(w, r, simbaErrors.NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
+		simbaErrors.WriteError(w, r, simbaErrors.ErrUnauthorized)
 		return
 	}
 
@@ -243,7 +243,7 @@ func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.Multipart
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" || !strings.HasPrefix(contentType, "multipart/form-data") {
-		return nil, simbaErrors.NewHttpError(http.StatusBadRequest, "invalid content type", nil)
+		return nil, simbaErrors.ErrInvalidContentType
 	}
 
 	reqParams, err := parseAndValidateParams[Params](r)
@@ -252,16 +252,16 @@ func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.Multipart
 	}
 
 	if _, params, err := mime.ParseMediaType(contentType); err != nil || params["boundary"] == "" {
-		return nil, simbaErrors.NewHttpError(http.StatusBadRequest, "invalid content type", err, simbaErrors.ValidationError{
-			Parameter: "Content-Type",
-			Type:      simbaErrors.ParameterTypeHeader,
-			Message:   "multipart form-data requests must include a boundary parameter",
-		})
+		e := simbaErrors.ErrInvalidContentType
+		if err != nil {
+			e.WithDetails(err.Error())
+		}
+		return nil, e
 	}
 
 	multipartReader, err := r.MultipartReader()
 	if err != nil {
-		return nil, simbaErrors.NewHttpError(http.StatusBadRequest, "invalid request body", err)
+		return nil, simbaErrors.ErrInvalidRequestBody.WithDetails(err.Error())
 	}
 
 	return &simbaModels.MultipartRequest[Params]{

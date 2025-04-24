@@ -189,7 +189,7 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 
 	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
-		simbaErrors.WriteError(w, r, simbaErrors.NewHttpError(http.StatusUnauthorized, "failed to authenticate", err))
+		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(http.StatusUnauthorized, "unauthorized", err))
 		return
 	}
 

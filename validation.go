@@ -3,17 +3,10 @@ package simba
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/iancoleman/strcase"
-	"github.com/sillen102/simba/simbaErrors"
 )
-
-// TODO: Validation testing
-// 	1. Custom validation messages generation
-// 	2. Edge cases with various data types
-// 	3. Error handling for invalid structs
 
 var validate = validator.New(validator.WithRequiredStructEnabled())
 
@@ -22,7 +15,7 @@ var validate = validator.New(validator.WithRequiredStructEnabled())
 // will return an empty slice of ValidationErrors. If the request is invalid, it
 // will return a slice of ValidationErrors containing the validation errors for
 // each field.
-func ValidateStruct(request any, paramType simbaErrors.ParameterType) simbaErrors.ValidationErrors {
+func ValidateStruct(request any) []string {
 	if request == nil {
 		return nil
 	}
@@ -34,31 +27,13 @@ func ValidateStruct(request any, paramType simbaErrors.ParameterType) simbaError
 
 	var validationErrors validator.ValidationErrors
 	if !errors.As(err, &validationErrors) {
-		return simbaErrors.ValidationErrors{
-			{
-				Parameter: "unknown",
-				Type:      paramType,
-				Message:   "validation failed",
-			},
-		}
+		return []string{"validation failed"}
 	}
 
 	if len(validationErrors) > 0 {
-		validationErrorsData := make(simbaErrors.ValidationErrors, len(validationErrors))
+		validationErrorsData := make([]string, len(validationErrors))
 		for i, e := range validationErrors {
-			var valueStr string
-			if str, ok := e.Value().(string); ok {
-				valueStr = str
-			} else {
-				valueStr = fmt.Sprintf("%v", e.Value())
-			}
-
-			message := MapValidationMessage(e, valueStr)
-			validationErrorsData[i] = simbaErrors.ValidationError{
-				Parameter: mapFieldName(e),
-				Type:      paramType,
-				Message:   message,
-			}
+			validationErrorsData[i] = mapValidationMessage(e)
 		}
 		return validationErrorsData
 	}
@@ -67,7 +42,9 @@ func ValidateStruct(request any, paramType simbaErrors.ParameterType) simbaError
 }
 
 // MapValidationMessage returns appropriate error message based on the validation tag
-func MapValidationMessage(e validator.FieldError, value string) string {
+func mapValidationMessage(e validator.FieldError) string {
+	value := getValueString(e)
+
 	switch e.Tag() {
 	case "required":
 		return fmt.Sprintf("%s is required", strcase.ToLowerCamel(e.Field()))
@@ -96,35 +73,13 @@ func MapValidationMessage(e validator.FieldError, value string) string {
 	}
 }
 
-func mapFieldName(e validator.FieldError) string {
-	// Get the full namespace (e.g., "CreateUserRequest.Address.PostalCode")
-	ns := e.Namespace()
-
-	// Find the first dot position to skip the root struct name
-	firstDotPos := -1
-	for i, char := range ns {
-		if char == '.' {
-			firstDotPos = i
-			break
-		}
+func getValueString(e validator.FieldError) string {
+	var valueStr string
+	if str, ok := e.Value().(string); ok {
+		valueStr = str
+	} else {
+		valueStr = fmt.Sprintf("%v", e.Value())
 	}
 
-	// If there's no dot or it's the last character, return the field name directly
-	if firstDotPos == -1 || firstDotPos >= len(ns)-1 {
-		return strcase.ToLowerCamel(e.Field())
-	}
-
-	// Extract everything after the first dot
-	fieldPath := ns[firstDotPos+1:]
-
-	// Split the field path by dots
-	parts := strings.Split(fieldPath, ".")
-
-	// Convert each part to lowerCamelCase
-	for i, part := range parts {
-		parts[i] = strcase.ToLowerCamel(part)
-	}
-
-	// Join the parts back with dots
-	return strings.Join(parts, ".")
+	return valueStr
 }

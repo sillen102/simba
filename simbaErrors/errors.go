@@ -3,62 +3,69 @@ package simbaErrors
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaContext"
 )
 
-type HTTPError struct {
-	HttpStatusCode   int
-	PublicMessage    string
-	ValidationErrors ValidationErrors
-	err              error
+type StatusCodeProvider interface {
+	StatusCode() int
 }
 
-// Error implements the error interface and returns the full error details
-func (e *HTTPError) Error() string {
-	if e.err != nil {
-		if e.PublicMessage != "" {
-			return e.PublicMessage + ": " + e.err.Error()
-		} else {
-			return e.err.Error()
-		}
+type ErrorProvider interface {
+	ErrorCode() string
+}
+
+type PublicMessageProvider interface {
+	PublicMessage() string
+}
+
+type DetailProvider interface {
+	Details() any
+}
+
+type SimbaError struct {
+	statusCode    int
+	publicMessage string
+	err           error
+	details       any
+}
+
+func NewSimbaError(statusCode int, publicMessage string, err error) *SimbaError {
+	return &SimbaError{
+		statusCode:    statusCode,
+		publicMessage: publicMessage,
+		err:           err,
 	}
-	return e.PublicMessage
 }
 
-// WrapError wraps an error with an HTTP status code
-func WrapError(httpStatusCode int, err error, publicMessage string, validationErrors ...ValidationError) *HTTPError {
-	return &HTTPError{
-		HttpStatusCode:   httpStatusCode,
-		PublicMessage:    publicMessage,
-		ValidationErrors: validationErrors,
-		err:              err,
-	}
+func (e *SimbaError) WithDetails(details any) *SimbaError {
+	e.details = details
+	return e
 }
 
-// Unwrap returns the underlying error
-func (e *HTTPError) Unwrap() error {
+func (e *SimbaError) Unwrap() error {
 	return e.err
 }
 
-// HasValidationErrors checks if there are validation errors
-func (e *HTTPError) HasValidationErrors() bool {
-	return len(e.ValidationErrors) > 0
+func (e *SimbaError) Error() string {
+	if e.err == nil {
+		return e.publicMessage
+	}
+	return e.err.Error()
 }
 
-// NewHttpError creates a new ApiError
-func NewHttpError(httpStatusCode int, publicMessage string, err error, validationErrors ...ValidationError) *HTTPError {
-	return &HTTPError{
-		HttpStatusCode:   httpStatusCode,
-		PublicMessage:    publicMessage,
-		ValidationErrors: validationErrors,
-		err:              err,
-	}
+func (e *SimbaError) StatusCode() int {
+	return e.statusCode
+}
+
+func (e *SimbaError) PublicMessage() string {
+	return e.publicMessage
+}
+
+func (e *SimbaError) Details() any {
+	return e.details
 }
 
 // ErrorResponse defines the structure of an error message
@@ -75,133 +82,39 @@ type ErrorResponse struct {
 	Method string `json:"method" example:"GET"`
 	// Request ID
 	RequestID string `json:"requestId,omitempty" example:"123e4567-e89b-12d3-a456-426614174000" required:"false"`
+	// Error code
+	ErrorCode string `json:"errorCode,omitempty" example:"123-123" required:"false"`
 	// Error message
 	Message string `json:"message,omitempty" example:"Validation failed"`
 	// Validation errors
-	ValidationErrors []ValidationError `json:"validationErrors,omitempty" required:"false"`
-}
-
-// NewErrorResponse creates a new ErrorResponse instance with the given status and message
-func NewErrorResponse(r *http.Request, status int, message string, validationErrors ...ValidationError) *ErrorResponse {
-	// Safely get RequestID from context
-	var requestID string
-	if id := r.Context().Value(simbaContext.RequestIDKey); id != nil {
-		if strID, ok := id.(string); ok {
-			requestID = strID
-		}
-	}
-
-	return &ErrorResponse{
-		Timestamp:        time.Now().UTC(),
-		Status:           status,
-		Error:            http.StatusText(status),
-		Path:             r.URL.Path,
-		Method:           r.Method,
-		RequestID:        requestID,
-		Message:          message,
-		ValidationErrors: validationErrors,
-	}
-}
-
-type ParameterType string
-
-const (
-	ParameterTypeHeader ParameterType = "header"
-	ParameterTypeCookie ParameterType = "cookie"
-	ParameterTypePath   ParameterType = "path"
-	ParameterTypeQuery  ParameterType = "query"
-	ParameterTypeBody   ParameterType = "body"
-)
-
-func (p ParameterType) String() string {
-	return string(p)
-}
-
-// ValidationError defines the interface for a validation error
-type ValidationError struct {
-	// Parameter or field that failed validation
-	Parameter string `json:"parameter" example:"name"`
-	// Type indicates where the parameter was located (header, path, query, body)
-	Type ParameterType `json:"type" example:"query"`
-	// Error message describing the validation error
-	Message string `json:"message" example:"name is required"`
-}
-
-// ValidationErrors represents multiple validation errors
-type ValidationErrors []ValidationError
-
-// Error implements the error interface
-func (ve ValidationErrors) Error() string {
-	if len(ve) == 0 {
-		return "no validation errors"
-	}
-	return fmt.Sprintf("Request validation failed: %d errors", len(ve))
+	Details any `json:"details,omitempty" required:"false"`
 }
 
 // WriteError is a helper function for handling errors in HTTP handlers
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
-	logger := logging.From(r.Context())
-	if logger == nil {
-		logger = slog.Default()
+	statusCode := http.StatusInternalServerError
+	errorCode := ""
+	message := err.Error()
+	var details any
+
+	if statusCoder, ok := err.(StatusCodeProvider); ok {
+		statusCode = statusCoder.StatusCode()
 	}
 
-	var httpErr *HTTPError
-	if !errors.As(err, &httpErr) {
-		// Log unexpected errors as they are always serious
-		logger.Error("unexpected error encountered", "error", err)
-		err = writeJSONError(w, NewErrorResponse(r, http.StatusInternalServerError, "Internal server error"))
-		if err != nil {
-			logger.Error("failed to write error response", "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		return
+	if errorProvider, ok := err.(ErrorProvider); ok {
+		errorCode = errorProvider.ErrorCode()
 	}
 
-	errorMessage := httpErr.PublicMessage
-	if errorMessage == "" {
-		errorMessage = "an error occurred"
+	if msgProvider, ok := err.(PublicMessageProvider); ok {
+		message = msgProvider.PublicMessage()
 	}
 
-	switch httpErr.HttpStatusCode {
-	case http.StatusBadRequest,
-		http.StatusNotFound,
-		http.StatusMethodNotAllowed,
-		http.StatusConflict,
-		http.StatusUnprocessableEntity:
-		// Log debug for 400, 404, 405, 409 and 422 errors as they are not serious
-		// and, are returned before reaching the handler and can usually be fixed
-		// by the user.
-		logger.Debug(errorMessage, "error", httpErr.Unwrap())
-
-	case http.StatusUnauthorized:
-		// Log warnings for 401 errors
-		logger.Warn(errorMessage, "error", httpErr.Unwrap())
-		// Set error message to "unauthorized" for the response
-		// to hide details of the error to a potential attacker
-		// and reduce the amount of information that can be
-		// leaked. The error is logged above.
-		errorMessage = "unauthorized"
-
-	case http.StatusForbidden:
-		// Log warnings for 403 errors
-		logger.Warn(errorMessage, "error", httpErr.Unwrap())
-
-	default:
-		// Log errors for other HTTP status codes
-		logger.Error(errorMessage, "error", httpErr.Unwrap())
+	if detailProvider, ok := err.(DetailProvider); ok {
+		details = detailProvider.Details()
 	}
 
-	var errorResponse *ErrorResponse
-	if httpErr.HasValidationErrors() {
-		errorResponse = NewErrorResponse(r, httpErr.HttpStatusCode, errorMessage, httpErr.ValidationErrors...)
-	} else {
-		errorResponse = NewErrorResponse(r, httpErr.HttpStatusCode, errorMessage)
-	}
-
-	err = writeJSONError(w, errorResponse)
+	err = writeJSONError(w, newErrorResponse(r, statusCode, message, errorCode, details))
 	if err != nil {
-		logger.Error("failed to write error response", "error", err)
 		HandleUnexpectedError(w)
 		return
 	}
@@ -219,3 +132,34 @@ func writeJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
 	w.WriteHeader(errorResponse.Status)
 	return json.NewEncoder(w).Encode(errorResponse)
 }
+
+// newErrorResponse creates a new ErrorResponse instance with the given status and message
+func newErrorResponse(r *http.Request, status int, message string, errorCode string, details any) *ErrorResponse {
+	// Safely get RequestID from context
+	var requestID string
+	if id := r.Context().Value(simbaContext.RequestIDKey); id != nil {
+		if strID, ok := id.(string); ok {
+			requestID = strID
+		}
+	}
+
+	return &ErrorResponse{
+		Timestamp: time.Now().UTC(),
+		Status:    status,
+		Error:     http.StatusText(status),
+		Path:      r.URL.Path,
+		Method:    r.Method,
+		RequestID: requestID,
+		ErrorCode: errorCode,
+		Message:   message,
+		Details:   details,
+	}
+}
+
+// Predefined errors for common scenarios
+var (
+	ErrInvalidContentType = NewSimbaError(http.StatusBadRequest, "invalid content type", errors.New("invalid content type"))
+	ErrInvalidRequestBody = NewSimbaError(http.StatusBadRequest, "invalid request body", errors.New("failed to decode request body"))
+	ErrUnauthorized       = NewSimbaError(http.StatusUnauthorized, "unauthorized", errors.New("failed to authorize request"))
+	ErrUnexpected         = NewSimbaError(http.StatusInternalServerError, "unexpected error", errors.New("unexpected error occurred"))
+)

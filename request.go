@@ -17,12 +17,6 @@ import (
 	"github.com/sillen102/simba/simbaModels"
 )
 
-// TODO: Request process testing
-// 	1. Request timeouts
-//  2. Large request body
-//  3. Malformed JSON
-//  4. Header validation edge cases
-
 // closeRequestBody automatically closes the Request body after processing
 func closeRequestBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +61,11 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	contentType := r.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil || mediaType != "application/json" {
-		return simbaErrors.NewHttpError(http.StatusBadRequest, "invalid content type", nil)
+		return simbaErrors.NewSimbaError(
+			http.StatusBadRequest,
+			"invalid content type",
+			err,
+		)
 	}
 
 	requestSettings := getConfigurationFromContext(r.Context())
@@ -80,8 +78,12 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 		return err
 	}
 
-	if validationErrors := ValidateStruct(req, simbaErrors.ParameterTypeBody); len(validationErrors) > 0 {
-		return simbaErrors.NewHttpError(http.StatusBadRequest, "invalid request body", nil, validationErrors...)
+	if validationErrors := ValidateStruct(req); len(validationErrors) > 0 {
+		return simbaErrors.NewSimbaError(
+			http.StatusBadRequest,
+			"invalid request body",
+			nil,
+		).WithDetails(validationErrors)
 	}
 
 	return nil
@@ -95,57 +97,40 @@ func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) 
 	}
 	err := decoder.Decode(&model)
 	if err != nil {
+
 		var unmarshalTypeError *json.UnmarshalTypeError
 		if errors.As(err, &unmarshalTypeError) {
-			return simbaErrors.NewHttpError(
+			return simbaErrors.NewSimbaError(
 				http.StatusUnprocessableEntity,
 				"invalid request body",
-				err,
-				simbaErrors.ValidationError{
-					Parameter: unmarshalTypeError.Field,
-					Type:      simbaErrors.ParameterTypeBody,
-					Message:   "invalid type",
-				},
-			)
-		}
-		var jsonSyntaxError *json.SyntaxError
-		if errors.As(err, &jsonSyntaxError) {
-			return simbaErrors.NewHttpError(
-				http.StatusUnprocessableEntity,
-				"invalid request body",
-				err,
-				simbaErrors.ValidationError{
-					Parameter: strconv.Itoa(int(jsonSyntaxError.Offset)),
-					Type:      simbaErrors.ParameterTypeBody,
-					Message:   "invalid syntax",
-				},
-			)
-		}
-		var invalidUnmarshalError *time.ParseError
-		if errors.As(err, &invalidUnmarshalError) {
-			return simbaErrors.NewHttpError(
-				http.StatusUnprocessableEntity,
-				"invalid request body",
-				err,
-				simbaErrors.ValidationError{
-					Parameter: "datetime",
-					Type:      simbaErrors.ParameterTypeBody,
-					Message:   "invalid time format: " + invalidUnmarshalError.Value,
-				},
-			)
+				unmarshalTypeError,
+			).WithDetails("invalid type for field: " + unmarshalTypeError.Field + ", expected " + unmarshalTypeError.Type.String())
 		}
 
-		// Handle other types of errors
-		return simbaErrors.NewHttpError(
+		var jsonSyntaxError *json.SyntaxError
+		if errors.As(err, &jsonSyntaxError) {
+			return simbaErrors.NewSimbaError(
+				http.StatusUnprocessableEntity,
+				"invalid request body",
+				jsonSyntaxError,
+			).WithDetails("invalid syntax at offset: " + strconv.Itoa(int(jsonSyntaxError.Offset)))
+		}
+
+		var invalidUnmarshalError *time.ParseError
+		if errors.As(err, &invalidUnmarshalError) {
+			return simbaErrors.NewSimbaError(
+				http.StatusUnprocessableEntity,
+				"invalid request body",
+				invalidUnmarshalError,
+			).WithDetails("invalid time format: " + invalidUnmarshalError.Value)
+		}
+
+		// Default case for JSON decoding errors
+		return simbaErrors.NewSimbaError(
 			http.StatusUnprocessableEntity,
 			"invalid request body",
 			err,
-			simbaErrors.ValidationError{
-				Parameter: "body",
-				Type:      simbaErrors.ParameterTypeBody,
-				Message:   err.Error(),
-			},
-		)
+		).WithDetails("error decoding JSON")
 	}
 	return nil
 }

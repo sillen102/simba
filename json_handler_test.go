@@ -353,10 +353,5 @@ func TestReadJson_DisallowUnknownFields(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusUnprocessableEntity, errorResponse.Status)
 	assert.Equal(t, "invalid request body", errorResponse.Message)
-	assert.Equal(t, 1, len(errorResponse.ValidationErrors))
-
-	validationError := errorResponse.ValidationErrors[0]
-	assert.Equal(t, "body", validationError.Parameter)
-	assert.Equal(t, simbaErrors.ParameterTypeBody, validationError.Type)
-	assert.Equal(t, "json: unknown field \"unknown\"", validationError.Message)
+	assert.Equal(t, "error decoding JSON", errorResponse.Details)
 }

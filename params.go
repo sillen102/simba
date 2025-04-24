@@ -27,8 +27,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	}
 	v := reflect.ValueOf(&instance).Elem()
 
-	// NewLogger validation errors
-	var validationErrors []simbaErrors.ValidationError
+	validationErrors := make([]string, 0)
 
 	// Extract parameters from struct tags and set values
 	for i := 0; i < t.NumField(); i++ {
@@ -45,23 +44,22 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		if len(values) == 0 {
 			if err := setDefaultValue(fieldValue, field); err != nil {
 				// If the default values is not valid it's not a client error and should therefore return a 500
-				return instance, simbaErrors.NewHttpError(http.StatusInternalServerError, "invalid default values", err,
-					simbaErrors.ValidationError{Parameter: field.Name, Type: getParamType(field), Message: "invalid default values"})
+				return instance, simbaErrors.NewSimbaError(
+					http.StatusInternalServerError,
+					"invalid default values",
+					err,
+				).WithDetails(err.Error())
 			}
 			continue
 		}
 
 		if err := setFieldValue(fieldValue, values, field); err != nil {
-			validationErrors = append(validationErrors, simbaErrors.ValidationError{
-				Parameter: getParamName(field),
-				Type:      getParamType(field),
-				Message:   err.Error(),
-			})
+			validationErrors = append(validationErrors, err.Error())
 		}
 	}
 
 	if len(validationErrors) == 0 {
-		if valErrs := ValidateStruct(instance, getParamType(t.Field(0))); len(valErrs) > 0 {
+		if valErrs := ValidateStruct(instance); len(valErrs) > 0 {
 			validationErrors = append(validationErrors, valErrs...)
 		}
 	}
@@ -74,7 +72,11 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 			errorMessage = fmt.Sprintf("request validation failed, %d validation errors", len(validationErrors))
 		}
 
-		return instance, simbaErrors.NewHttpError(http.StatusBadRequest, errorMessage, nil, validationErrors...)
+		return instance, simbaErrors.NewSimbaError(
+			http.StatusBadRequest,
+			errorMessage,
+			nil,
+		).WithDetails(validationErrors)
 	}
 
 	return instance, nil
@@ -107,38 +109,6 @@ func getParamValues(r *http.Request, field reflect.StructField) []string {
 		return result
 	}
 	return nil
-}
-
-// getParamType returns the parameter type based on the struct tag
-func getParamType(field reflect.StructField) simbaErrors.ParameterType {
-	switch {
-	case field.Tag.Get("header") != "":
-		return simbaErrors.ParameterTypeHeader
-	case field.Tag.Get("cookie") != "":
-		return simbaErrors.ParameterTypeCookie
-	case field.Tag.Get("path") != "":
-		return simbaErrors.ParameterTypePath
-	case field.Tag.Get("query") != "":
-		return simbaErrors.ParameterTypeQuery
-	default:
-		return simbaErrors.ParameterTypeBody
-	}
-}
-
-// getParamName returns the parameter name based on the struct tag
-func getParamName(field reflect.StructField) string {
-	switch {
-	case field.Tag.Get("header") != "":
-		return field.Tag.Get("header")
-	case field.Tag.Get("cookie") != "":
-		return field.Tag.Get("cookie")
-	case field.Tag.Get("path") != "":
-		return field.Tag.Get("path")
-	case field.Tag.Get("query") != "":
-		return field.Tag.Get("query")
-	default:
-		return field.Name
-	}
 }
 
 func setFieldValue(fieldValue reflect.Value, values []string, field reflect.StructField) error {

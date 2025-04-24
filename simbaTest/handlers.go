@@ -2,6 +2,7 @@ package simbaTest
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/sillen102/simba"
@@ -122,7 +123,11 @@ func DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody
 
 func BasicAuthFunc(_ context.Context, username, password string) (*User, error) {
 	if username != "user" || password != "password" {
-		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid username or password", nil)
+		return nil, simbaErrors.NewSimbaError(
+			http.StatusUnauthorized,
+			simba.UnauthorizedErrMsg,
+			errors.New("invalid username or password"),
+		)
 	}
 
 	return &User{
@@ -146,7 +151,7 @@ var BasicAuthAuthenticationHandler = simba.BasicAuth[User](
 // description for the handler
 //
 // @Error 409 Resource already exists
-func BasicAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
+func BasicAuthHandler(_ context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
 	return &simbaModels.Response[simbaModels.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
@@ -154,9 +159,13 @@ func BasicAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels.
 
 // ApiKeyAuthFunc A dummy function to test the OpenAPI generation with api key auth.
 // @APIKeyAuth "User" "sessionid" "cookie" "Session cookie"
-func ApiKeyAuthFunc(ctx context.Context, apiKey string) (*User, error) {
+func ApiKeyAuthFunc(_ context.Context, apiKey string) (*User, error) {
 	if apiKey != "valid-key" {
-		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
+		return nil, simbaErrors.NewSimbaError(
+			http.StatusUnauthorized,
+			simba.UnauthorizedErrMsg,
+			errors.New("invalid api key"),
+		)
 	}
 
 	return &User{
@@ -182,7 +191,7 @@ var ApiKeyAuthAuthenticationHandler = simba.APIKeyAuth[User](
 // description for the handler
 //
 // @Error 409 Resource already exists
-func ApiKeyAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
+func ApiKeyAuthHandler(_ context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
 	return &simbaModels.Response[simbaModels.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
@@ -190,9 +199,13 @@ func ApiKeyAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels
 
 // BearerAuthFunc A dummy function to test the OpenAPI generation with bearer token auth.
 // @BearerAuth "admin" "jwt" "Bearer token"
-func BearerAuthFunc(ctx context.Context, token string) (*User, error) {
+func BearerAuthFunc(_ context.Context, token string) (*User, error) {
 	if token != "token" {
-		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid token", nil)
+		return nil, simbaErrors.NewSimbaError(
+			http.StatusUnauthorized,
+			simba.UnauthorizedErrMsg,
+			errors.New("invalid token"),
+		)
 	}
 
 	return &User{
