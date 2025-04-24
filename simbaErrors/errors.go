@@ -13,7 +13,7 @@ type StatusCodeProvider interface {
 	StatusCode() int
 }
 
-type ErrorProvider interface {
+type ErrorCodeProvider interface {
 	ErrorCode() string
 }
 
@@ -101,7 +101,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		statusCode = statusCoder.StatusCode()
 	}
 
-	if errorProvider, ok := err.(ErrorProvider); ok {
+	if errorProvider, ok := err.(ErrorCodeProvider); ok {
 		errorCode = errorProvider.ErrorCode()
 	}
 
