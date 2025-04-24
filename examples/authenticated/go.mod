@@ -2,10 +2,13 @@ module authenticated
 
 go 1.24
 
-require github.com/sillen102/simba v0.0.0-00010101000000-000000000000
+require (
+	github.com/sillen102/simba v0.0.0-00010101000000-000000000000
+	github.com/swaggest/openapi-go v0.2.57
+)
 
 require (
-	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.26.0 // indirect
@@ -13,8 +16,8 @@ require (
 	github.com/hashicorp/go-envparse v0.1.0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/sillen102/config-loader v0.1.1 // indirect
 	github.com/swaggest/jsonschema-go v0.3.73 // indirect
-	github.com/swaggest/openapi-go v0.2.57 // indirect
 	github.com/swaggest/refl v1.3.1 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/net v0.39.0 // indirect

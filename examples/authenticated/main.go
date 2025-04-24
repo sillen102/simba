@@ -27,7 +27,7 @@ type User struct {
 // in this example we just return a hard-coded user
 func authFunc(ctx context.Context, apiKey string) (*User, error) {
 	if apiKey != "valid-key" {
-		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
+		return nil, simbaErrors.NewSimbaError(http.StatusUnauthorized, "invalid api key", nil)
 	}
 
 	return &User{
