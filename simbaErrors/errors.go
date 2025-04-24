@@ -122,8 +122,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 
 // HandleUnexpectedError is a helper function for handling unexpected errors
 func HandleUnexpectedError(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusInternalServerError)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusInternalServerError)
 }
 
 // writeJSONError writes a JSON error response to the response writer
