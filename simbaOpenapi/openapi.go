@@ -26,6 +26,7 @@ import (
 )
 
 type OpenAPIGenerator struct {
+	fileCache *fileCache
 }
 
 type handlerInfo struct {
@@ -53,7 +54,9 @@ const (
 )
 
 func NewOpenAPIGenerator() *OpenAPIGenerator {
-	return &OpenAPIGenerator{}
+	return &OpenAPIGenerator{
+		fileCache: newFileCache(),
+	}
 }
 
 // GenerateDocumentation generates OpenAPI documentation for all routes
@@ -67,7 +70,7 @@ func (g *OpenAPIGenerator) GenerateDocumentation(_ context.Context, title string
 	reflector.SpecEns().Info.Version = version
 
 	for _, routeInfo := range routeInfos {
-		err = generateRouteDocumentation(reflector, &routeInfo)
+		err = g.generateRouteDocumentation(reflector, &routeInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate documentation for route: %w", err)
 		}
@@ -82,13 +85,13 @@ func (g *OpenAPIGenerator) GenerateDocumentation(_ context.Context, title string
 }
 
 // generateRouteDocumentation generates OpenAPI documentation for a route
-func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *openapiModels.RouteInfo) error {
+func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *openapiModels.RouteInfo) error {
 	operationContext, err := reflector.NewOperationContext(routeInfo.Method, routeInfo.Path)
 	if err != nil {
 		return err
 	}
 
-	info := getHandlerInfo(routeInfo.Handler)
+	info := g.getHandlerInfo(routeInfo.Handler)
 
 	operationContext.SetIsDeprecated(info.deprecated)
 	operationContext.SetID(info.id)
@@ -212,100 +215,96 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *opena
 }
 
 // getHandlerInfo extracts the handler information from the handler function
-func getHandlerInfo(handler any) handlerInfo {
-	functionPointer := getFunctionPointer(handler)
-	runTimeFunc := getFuncRuntime(functionPointer)
-	functionFullName := getFunctionFullName(runTimeFunc)
-	functionPackagePath := extractPackagePath(functionFullName)
-	functionFile := getFunctionASTFile(functionPackagePath)
-	methodName := extractMethodNameWithoutReceiver(functionFullName)
-	functionComment := extractCommentForFunction(functionFile, methodName)
+func (g *OpenAPIGenerator) getHandlerInfo(handler any) handlerInfo {
+	functionPointer := g.getFunctionPointer(handler)
+	runTimeFunc := g.getFuncRuntime(functionPointer)
+	functionFullName := g.getFunctionFullName(runTimeFunc)
+	functionPackagePath := g.extractPackagePath(functionFullName)
+	functionFile := g.getFunctionASTFile(functionPackagePath, functionFullName)
+	methodName := g.extractMethodNameWithoutReceiver(functionFullName)
+	functionComment := g.extractCommentForFunction(functionFile, methodName)
 
-	info := parseHandlerCommentTags(functionComment)
+	info := g.parseHandlerCommentTags(functionComment)
 
 	if info.id == "" {
 		info.id = strcase.ToKebab(methodName)
 	}
 
 	if len(info.tags) == 0 {
-		info.tags = []string{strcase.ToCamel(getPackageName(functionFullName))}
+		info.tags = []string{strcase.ToCamel(g.getPackageName(functionFullName))}
 	}
 
 	if info.summary == "" {
-		info.summary = camelToSpaced(strcase.ToCamel(methodName))
+		info.summary = g.camelToSpaced(strcase.ToCamel(methodName))
 	}
 
 	if info.description == "" {
-		info.description = getCommentStrippedFromTags(functionComment, methodName)
+		info.description = g.getCommentStrippedFromTags(functionComment, methodName)
 	}
 
 	if info.statusCode == 0 {
-		info.statusCode = findStatusInAST(functionFile, methodName)
+		info.statusCode = g.findStatusInAST(functionFile, methodName)
 	}
 
 	return info
 }
 
 // getFunctionPointer gets the function pointer for a handler
-func getFunctionPointer(handler any) uintptr {
+func (g *OpenAPIGenerator) getFunctionPointer(handler any) uintptr {
 	return reflect.ValueOf(handler).Pointer()
 }
 
 // getFuncRuntime gets the runtime function for a handler
-func getFuncRuntime(handlerPointer uintptr) *runtime.Func {
+func (g *OpenAPIGenerator) getFuncRuntime(handlerPointer uintptr) *runtime.Func {
 	return runtime.FuncForPC(handlerPointer)
 }
 
 // getFunctionFullName gets the full name of a function using its pointer
-func getFunctionFullName(fn *runtime.Func) string {
+func (g *OpenAPIGenerator) getFunctionFullName(fn *runtime.Func) string {
 	return fn.Name()
 }
 
 // getFunctionASTFile finds the Go source file containing a handler function
-func getFunctionASTFile(packagePath string) *ast.File {
+func (g *OpenAPIGenerator) getFunctionASTFile(packagePath string, functionName string) *ast.File {
 	if packagePath == "" {
 		return nil
 	}
 
-	// Get the physical path on disk for the package
-	pkgDir := findPackageDir(packagePath)
+	// Get the simple method name without package and receiver
+	simpleName := g.getSimpleMethodName(functionName)
+
+	// Check cache first
+	if file := g.fileCache.findFunction(simpleName); file != nil {
+		return file
+	}
+
+	pkgDir := g.findPackageDir(packagePath)
 	if pkgDir == "" {
 		return nil
 	}
 
-	// Search all Go files in this directory
 	files, err := filepath.Glob(filepath.Join(pkgDir, "*.go"))
 	if err != nil {
 		return nil
 	}
 
-	// Sort files to ensure consistent behavior
 	sort.Strings(files)
 
 	for _, file := range files {
-		// Skip test files
 		if strings.HasSuffix(file, "_test.go") {
 			continue
 		}
 
-		node, err := parseFile(file)
+		node, err := g.parseFile(file)
 		if err != nil {
 			continue
 		}
 
-		// Check if this file contains any function declarations
-		var hasTargetFunc bool
-		ast.Inspect(node, func(n ast.Node) bool {
-			if fd, ok := n.(*ast.FuncDecl); ok {
-				if fd.Doc != nil && len(fd.Doc.List) > 0 {
-					hasTargetFunc = true
-					return false
-				}
-			}
-			return true
-		})
+		// Add file to cache before searching
+		g.fileCache.add(file, node)
 
-		if hasTargetFunc {
+		// Check if the function is in this file
+		if g.fileCache.hasFunction(simpleName) {
 			return node
 		}
 	}
@@ -314,7 +313,7 @@ func getFunctionASTFile(packagePath string) *ast.File {
 }
 
 // parseFile parses a file and returns its AST
-func parseFile(fileName string) (*ast.File, error) {
+func (g *OpenAPIGenerator) parseFile(fileName string) (*ast.File, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, fileName, nil, parser.ParseComments)
 	if err != nil {
@@ -325,7 +324,7 @@ func parseFile(fileName string) (*ast.File, error) {
 }
 
 // extractPackagePath gets the package path from a full function name
-func extractPackagePath(fullName string) string {
+func (g *OpenAPIGenerator) extractPackagePath(fullName string) string {
 	lastDot := strings.LastIndex(fullName, ".")
 	if lastDot == -1 {
 		return ""
@@ -347,7 +346,7 @@ func extractPackagePath(fullName string) string {
 }
 
 // findPackageDir converts a Go import path to a filesystem path
-func findPackageDir(importPath string) string {
+func (g *OpenAPIGenerator) findPackageDir(importPath string) string {
 	// Try to use GOPATH first
 	gopath := os.Getenv("GOPATH")
 	if gopath != "" {
@@ -368,7 +367,7 @@ func findPackageDir(importPath string) string {
 }
 
 // extractMethodNameWithoutReceiver gets just the method name from a full function name
-func extractMethodNameWithoutReceiver(fullName string) string {
+func (g *OpenAPIGenerator) extractMethodNameWithoutReceiver(fullName string) string {
 	// Handle methods with receivers (with potential "-fm" suffix)
 	// e.g., "github.com/package.(*Type).Method-fm" -> "Method"
 	if idx := strings.LastIndex(fullName, "."); idx != -1 {
@@ -381,7 +380,7 @@ func extractMethodNameWithoutReceiver(fullName string) string {
 }
 
 // getSimpleMethodName extracts just the method name without any package or receiver info
-func getSimpleMethodName(fullName string) string {
+func (g *OpenAPIGenerator) getSimpleMethodName(fullName string) string {
 	// Get the part after the last dot, which should be the method name
 	if idx := strings.LastIndex(fullName, "."); idx >= 0 && idx < len(fullName)-1 {
 		name := fullName[idx+1:]
@@ -392,7 +391,7 @@ func getSimpleMethodName(fullName string) string {
 }
 
 // extractCommentForFunction extracts comment for a specific function
-func extractCommentForFunction(node *ast.File, methodName string) string {
+func (g *OpenAPIGenerator) extractCommentForFunction(node *ast.File, methodName string) string {
 	if node == nil {
 		return ""
 	}
@@ -400,7 +399,7 @@ func extractCommentForFunction(node *ast.File, methodName string) string {
 	var comment string
 
 	// Clean the method name to get just the base name
-	simpleName := getSimpleMethodName(methodName)
+	simpleName := g.getSimpleMethodName(methodName)
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		if funcDecl, ok := n.(*ast.FuncDecl); ok {
@@ -418,7 +417,7 @@ func extractCommentForFunction(node *ast.File, methodName string) string {
 }
 
 // parseHandlerCommentTags parses the comment for a handler function and extracts information from comment tags
-func parseHandlerCommentTags(comment string) handlerInfo {
+func (g *OpenAPIGenerator) parseHandlerCommentTags(comment string) handlerInfo {
 	lines := strings.Split(strings.TrimSpace(comment), "\n")
 
 	info := handlerInfo{
@@ -483,7 +482,7 @@ func parseHandlerCommentTags(comment string) handlerInfo {
 }
 
 // findStatusInAST looks for status codes in the AST
-func findStatusInAST(node *ast.File, methodName string) int {
+func (g *OpenAPIGenerator) findStatusInAST(node *ast.File, methodName string) int {
 	if node == nil {
 		return 0
 	}
@@ -543,7 +542,7 @@ func findStatusInAST(node *ast.File, methodName string) int {
 }
 
 // getPackageName extracts the package name for a handler function given its full name
-func getPackageName(fullName string) string {
+func (g *OpenAPIGenerator) getPackageName(fullName string) string {
 	// Split the full path into parts
 	parts := strings.Split(fullName, "/")
 	// Get the last part which contains package.function
@@ -560,7 +559,7 @@ func getPackageName(fullName string) string {
 }
 
 // getCommentStrippedFromTags removes tags from a comment so that only the description remains
-func getCommentStrippedFromTags(comment string, methodName string) string {
+func (g *OpenAPIGenerator) getCommentStrippedFromTags(comment string, methodName string) string {
 	lines := strings.Split(strings.TrimSpace(comment), "\n")
 	result := ""
 
@@ -580,7 +579,7 @@ func getCommentStrippedFromTags(comment string, methodName string) string {
 }
 
 // camelToSpaced converts a camel case string to a spaced string
-func camelToSpaced(s string) string {
+func (g *OpenAPIGenerator) camelToSpaced(s string) string {
 	words := strcase.ToDelimited(s, ' ')
 	words = strings.ToLower(words)
 	return strings.ToUpper(words[:1]) + words[1:]

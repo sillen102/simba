@@ -51,8 +51,9 @@ func (r *Router) GenerateOpenAPIDocumentation(ctx context.Context, title, versio
 			return fmt.Errorf("failed to generate OpenAPI documentation: %w", err)
 		}
 
-		// Clear routes after generating OpenAPI documentation to free up memory
+		// Clear routes and generator reference after successful generation to free up memory
 		r.routes = nil
+		r.openAPIGenerator = nil
 	}
 
 	return nil
