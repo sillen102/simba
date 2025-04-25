@@ -139,3 +139,47 @@ func TestBearerTokenAuthHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestSessionCookieAuthHandler(t *testing.T) {
+	t.Parallel()
+
+	app := simba.Default()
+	app.Router.POST("/test", simba.AuthJsonHandler(simbaTest.SessionCookieAuthHandler, simbaTest.SessionCookieAuthAuthenticationHandler))
+
+	testCases := []struct {
+		name           string
+		cookieValue    string
+		expectedStatus int
+	}{
+		{
+			name:           "valid cookie",
+			cookieValue:    "valid-cookie",
+			expectedStatus: http.StatusAccepted,
+		},
+		{
+			name:           "invalid cookie",
+			cookieValue:    "invalid-cookie",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "missing cookie",
+			cookieValue:    "",
+			expectedStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/test", nil)
+			if tc.cookieValue != "" {
+				req.AddCookie(&http.Cookie{Name: "session", Value: tc.cookieValue})
+			}
+
+			w := httptest.NewRecorder()
+			app.Router.ServeHTTP(w, req)
+
+			resp := w.Result()
+			assert.Equal(t, tc.expectedStatus, resp.StatusCode)
+		})
+	}
+}

@@ -6,4 +6,5 @@ const (
 	AuthTypeBasic AuthType = iota
 	AuthTypeAPIKey
 	AuthTypeBearer
+	AuthTypeSessionCookie
 )

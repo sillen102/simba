@@ -177,6 +177,17 @@ func generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *opena
 					authHandler.GetFormat(),
 					authHandler.GetDescription(),
 				)
+			case openapiModels.AuthTypeSessionCookie:
+				reflector.SpecEns().ComponentsEns().WithSecuritySchemesItem(
+					authHandler.GetName(),
+					openapi31.SecuritySchemeOrReference{
+						SecurityScheme: (&openapi31.SecurityScheme{
+							APIKey: (&openapi31.SecuritySchemeAPIKey{}).
+								WithName(authHandler.GetName()).
+								WithIn(openapi31.SecuritySchemeAPIKeyIn(authHandler.GetIn())),
+						}).WithDescription(authHandler.GetDescription()),
+					},
+				)
 			}
 
 			operationContext.AddSecurity(authHandler.GetName())

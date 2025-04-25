@@ -235,3 +235,40 @@ func BearerTokenAuthHandler(ctx context.Context, req *simbaModels.Request[simbaM
 		Status: http.StatusAccepted,
 	}, nil
 }
+
+func SessionCookieAuthFunc(_ context.Context, sessionID string) (*User, error) {
+	if sessionID != "valid-cookie" {
+		return nil, simbaErrors.NewSimbaError(
+			http.StatusUnauthorized,
+			simba.UnauthorizedErrMsg,
+			errors.New("invalid session cookie"),
+		)
+	}
+
+	return &User{
+		ID:   1,
+		Name: "John Doe",
+	}, nil
+}
+
+var SessionCookieAuthAuthenticationHandler = simba.SessionCookieAuth[User](
+	SessionCookieAuthFunc,
+	simba.SessionCookieAuthConfig[User]{
+		CookieName:  "session",
+		Description: "Session cookie",
+	},
+)
+
+// SessionCookieAuthHandler A dummy function to test the OpenAPI generation with session cookie auth.
+// @ID sessionCookieAuthHandler
+// @Summary session cookie handler
+// @Description this is a multiline
+//
+// description for the handler
+//
+// @Error 409 Resource already exists
+func SessionCookieAuthHandler(_ context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
+	return &simbaModels.Response[simbaModels.NoBody]{
+		Status: http.StatusAccepted,
+	}, nil
+}

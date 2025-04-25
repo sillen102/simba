@@ -278,6 +278,81 @@ func (t BearerAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 	}
 }
 
+type SessionCookieAuthConfig[AuthModel any] struct {
+	CookieName  string
+	Description string
+}
+
+// SessionCookieAuthHandlerFunc is a function that handles session cookie authentication.
+// This is the function that should be implemented by the user.
+// It should return the user model if the API key is valid, otherwise it should return an error.
+type SessionCookieAuthHandlerFunc[AuthModel any] func(ctx context.Context, cookie string) (*AuthModel, error)
+
+// SessionCookieAuth creates a session cookie auth handler with configuration
+func SessionCookieAuth[AuthModel any](
+	handler SessionCookieAuthHandlerFunc[AuthModel],
+	config SessionCookieAuthConfig[AuthModel],
+) AuthHandler[AuthModel] {
+	return SessionCookieAuthType[AuthModel]{
+		CookieName:  config.CookieName,
+		Description: config.Description,
+		Handler:     handler,
+	}
+}
+
+type SessionCookieAuthType[AuthModel any] struct {
+	CookieName  string
+	Description string
+	Handler     SessionCookieAuthHandlerFunc[AuthModel]
+}
+
+func (t SessionCookieAuthType[AuthModel]) GetType() openapiModels.AuthType {
+	return openapiModels.AuthTypeSessionCookie
+}
+
+func (t SessionCookieAuthType[AuthModel]) GetName() string {
+	return "SessionCookie"
+}
+
+func (t SessionCookieAuthType[AuthModel]) GetFieldName() string {
+	return t.CookieName
+}
+
+func (t SessionCookieAuthType[AuthModel]) GetFormat() string {
+	return ""
+}
+
+func (t SessionCookieAuthType[AuthModel]) GetDescription() string {
+	return t.Description
+}
+
+func (t SessionCookieAuthType[AuthModel]) GetIn() oapi.In {
+	return oapi.InCookie
+}
+
+func (t SessionCookieAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
+	return func(r *http.Request) (*AuthModel, error) {
+		cookie, err := r.Cookie(t.CookieName)
+		if err != nil || cookie == nil {
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("missing session cookie"),
+			)
+		}
+		if cookie.Value == "" {
+			return nil, simbaErrors.NewSimbaError(
+				http.StatusUnauthorized,
+				UnauthorizedErrMsg,
+				errors.New("empty session cookie"),
+			)
+		}
+		token := cookie.Value
+
+		return t.Handler(r.Context(), token)
+	}
+}
+
 // AuthHandlerFunc is a function that handles authentication for a route.
 type AuthHandlerFunc[AuthModel any] func(r *http.Request) (*AuthModel, error)
 
