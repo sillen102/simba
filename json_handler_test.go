@@ -198,9 +198,9 @@ func TestHandlerErrors(t *testing.T) {
 			path:           "/test",
 			contentType:    "application/json",
 			body:           `{}`,
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  "Bad Request",
-			expectedMsg:    "invalid request body",
+			expectedStatus: http.StatusUnprocessableEntity,
+			expectedError:  "Unprocessable Entity",
+			expectedMsg:    "invalid request",
 		},
 	}
 

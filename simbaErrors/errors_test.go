@@ -71,8 +71,8 @@ func TestPredefinedErrors(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, simbaErrors.ErrInvalidContentType.StatusCode())
 	assert.Equal(t, "invalid content type", simbaErrors.ErrInvalidContentType.PublicMessage())
 
-	assert.Equal(t, http.StatusBadRequest, simbaErrors.ErrInvalidRequestBody.StatusCode())
-	assert.Equal(t, "invalid request body", simbaErrors.ErrInvalidRequestBody.PublicMessage())
+	assert.Equal(t, http.StatusUnprocessableEntity, simbaErrors.ErrInvalidRequest.StatusCode())
+	assert.Equal(t, "invalid request", simbaErrors.ErrInvalidRequest.PublicMessage())
 
 	assert.Equal(t, http.StatusUnauthorized, simbaErrors.ErrUnauthorized.StatusCode())
 	assert.Equal(t, "unauthorized", simbaErrors.ErrUnauthorized.PublicMessage())

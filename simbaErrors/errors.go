@@ -159,7 +159,7 @@ func newErrorResponse(r *http.Request, status int, message string, errorCode str
 // Predefined errors for common scenarios
 var (
 	ErrInvalidContentType = NewSimbaError(http.StatusBadRequest, "invalid content type", errors.New("invalid content type"))
-	ErrInvalidRequestBody = NewSimbaError(http.StatusBadRequest, "invalid request body", errors.New("failed to decode request body"))
+	ErrInvalidRequest     = NewSimbaError(http.StatusUnprocessableEntity, "invalid request", errors.New("failed to decode request body"))
 	ErrUnauthorized       = NewSimbaError(http.StatusUnauthorized, "unauthorized", errors.New("failed to authorize request"))
 	ErrUnexpected         = NewSimbaError(http.StatusInternalServerError, "unexpected error", errors.New("unexpected error occurred"))
 )

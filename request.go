@@ -61,11 +61,8 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	contentType := r.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil || mediaType != "application/json" {
-		return simbaErrors.NewSimbaError(
-			http.StatusBadRequest,
-			"invalid content type",
-			err,
-		)
+		return simbaErrors.ErrInvalidContentType.
+			WithDetails("expected application/json, got: " + contentType)
 	}
 
 	requestSettings := getConfigurationFromContext(r.Context())
@@ -79,11 +76,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	}
 
 	if validationErrors := ValidateStruct(req); len(validationErrors) > 0 {
-		return simbaErrors.NewSimbaError(
-			http.StatusBadRequest,
-			"invalid request body",
-			nil,
-		).WithDetails(validationErrors)
+		return simbaErrors.ErrInvalidRequest.WithDetails(validationErrors)
 	}
 
 	return nil

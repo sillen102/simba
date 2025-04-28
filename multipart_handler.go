@@ -261,7 +261,7 @@ func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.Multipart
 
 	multipartReader, err := r.MultipartReader()
 	if err != nil {
-		return nil, simbaErrors.ErrInvalidRequestBody.WithDetails(err.Error())
+		return nil, simbaErrors.ErrInvalidRequest.WithDetails(err.Error())
 	}
 
 	return &simbaModels.MultipartRequest[Params]{
