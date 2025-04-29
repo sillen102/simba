@@ -76,7 +76,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	}
 
 	if validationErrors := ValidateStruct(req); len(validationErrors) > 0 {
-		return simbaErrors.ErrInvalidRequest.WithDetails(validationErrors)
+		return simbaErrors.ErrValidationError.WithDetails(validationErrors)
 	}
 
 	return nil
