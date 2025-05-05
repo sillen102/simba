@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaContext"
 )
 
@@ -112,6 +113,11 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	if detailProvider, ok := err.(DetailProvider); ok {
 		details = detailProvider.Details()
 	}
+
+	logging.From(r.Context()).Error(err.Error(),
+		"statusCode", statusCode,
+		"error", err,
+	)
 
 	err = writeJSONError(w, newErrorResponse(r, statusCode, message, errorCode, details))
 	if err != nil {
