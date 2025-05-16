@@ -33,7 +33,7 @@ func ValidateStruct(request any) []string {
 	if len(validationErrors) > 0 {
 		validationErrorsData := make([]string, len(validationErrors))
 		for i, e := range validationErrors {
-			validationErrorsData[i] = mapValidationMessage(e)
+			validationErrorsData[i] = MapValidationMessage(e)
 		}
 		return validationErrorsData
 	}
@@ -42,7 +42,7 @@ func ValidateStruct(request any) []string {
 }
 
 // MapValidationMessage returns appropriate error message based on the validation tag
-func mapValidationMessage(e validator.FieldError) string {
+func MapValidationMessage(e validator.FieldError) string {
 	value := getValueString(e)
 
 	switch e.Tag() {
