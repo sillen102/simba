@@ -65,18 +65,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	}
 
 	if len(validationErrors) > 0 {
-		var errorMessage string
-		if len(validationErrors) == 1 {
-			errorMessage = "request validation failed, 1 validation error"
-		} else {
-			errorMessage = fmt.Sprintf("request validation failed, %d validation errors", len(validationErrors))
-		}
-
-		return instance, simbaErrors.NewSimbaError(
-			http.StatusBadRequest,
-			errorMessage,
-			nil,
-		).WithDetails(validationErrors)
+		return instance, mapValidationErrors(validationErrors)
 	}
 
 	return instance, nil

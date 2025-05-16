@@ -3,9 +3,11 @@ package simba
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/iancoleman/strcase"
+	"github.com/sillen102/simba/simbaErrors"
 )
 
 var validate = validator.New(validator.WithRequiredStructEnabled())
@@ -39,6 +41,21 @@ func ValidateStruct(request any) []string {
 	}
 
 	return nil
+}
+
+func mapValidationErrors(validationErrors []string) *simbaErrors.SimbaError {
+	var errorMessage string
+	if len(validationErrors) == 1 {
+		errorMessage = "request validation failed, 1 validation error"
+	} else {
+		errorMessage = fmt.Sprintf("request validation failed, %d validation errors", len(validationErrors))
+	}
+
+	return simbaErrors.NewSimbaError(
+		http.StatusBadRequest,
+		errorMessage,
+		nil,
+	).WithDetails(validationErrors)
 }
 
 // MapValidationMessage returns appropriate error message based on the validation tag
