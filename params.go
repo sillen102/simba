@@ -1,6 +1,7 @@
 package simba
 
 import (
+	"encoding"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -156,6 +157,17 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 		}
 		fieldValue.Set(reflect.ValueOf(uuidVal))
 		return nil
+	}
+
+	// Check if the type implements TextUnmarshaler (except time.Time and uuid.UUID which are handled separately)
+	if fieldValue.CanAddr() && fieldValue.Type().String() != "time.Time" {
+		ptrVal := fieldValue.Addr()
+		if unmarshaler, ok := ptrVal.Interface().(encoding.TextUnmarshaler); ok {
+			if err := unmarshaler.UnmarshalText([]byte(value)); err != nil {
+				return fmt.Errorf("error unmarshaling text: %w", err)
+			}
+			return nil
+		}
 	}
 
 	switch fieldValue.Kind() {

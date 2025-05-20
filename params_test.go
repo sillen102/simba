@@ -1,6 +1,7 @@
 package simba_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -456,6 +457,66 @@ func TestTimeParameters(t *testing.T) {
 	app.Router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// CustomID is a type that implements TextMarshaler and TextUnmarshaler
+type CustomID string
+
+// MarshalText implements the TextMarshaler interface
+func (c CustomID) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("custom-%s", string(c))), nil
+}
+
+// UnmarshalText implements the TextUnmarshaler interface
+func (c *CustomID) UnmarshalText(text []byte) error {
+	if !bytes.HasPrefix(text, []byte("custom-")) {
+		return fmt.Errorf("invalid CustomID format: %s", text)
+	}
+	*c = CustomID(bytes.TrimPrefix(text, []byte("custom-")))
+	return nil
+}
+
+func TestTextUnmarshalerParameters(t *testing.T) {
+	t.Parallel()
+
+	type TextUnmarshalerParams struct {
+		ID CustomID `query:"id"`
+	}
+
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, TextUnmarshalerParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		assert.Equal(t, CustomID("123"), req.Params.ID)
+		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
+	}
+
+	// Test valid format
+	t.Run("valid custom format", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test?id=custom-123", nil)
+		w := httptest.NewRecorder()
+
+		app := simba.New()
+		app.Router.GET("/test", simba.JsonHandler(handler))
+		app.Router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	// Test invalid format
+	t.Run("invalid custom format", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test?id=invalid-123", nil)
+		w := httptest.NewRecorder()
+
+		app := simba.New()
+		app.Router.GET("/test", simba.JsonHandler(handler))
+		app.Router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var errorResponse simbaErrors.ErrorResponse
+		err := json.NewDecoder(w.Body).Decode(&errorResponse)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
+		assert.Contains(t, "request validation failed, 1 validation error", errorResponse.Message)
+	})
 }
 
 func TestCookieParams(t *testing.T) {
