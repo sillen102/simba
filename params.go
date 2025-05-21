@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/iancoleman/strcase"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 )
@@ -101,6 +102,20 @@ func getParamValues(r *http.Request, field reflect.StructField) []string {
 	return nil
 }
 
+// getParamName returns the parameter name from struct tags
+func getParamName(field reflect.StructField) string {
+	if header := field.Tag.Get("header"); header != "" {
+		return header
+	} else if path := field.Tag.Get("path"); path != "" {
+		return path
+	} else if query := field.Tag.Get("query"); query != "" {
+		return query
+	} else if cookie := field.Tag.Get("cookie"); cookie != "" {
+		return cookie
+	}
+	return strcase.ToCamel(field.Name) // Default to camel case of field name
+}
+
 func setFieldValue(fieldValue reflect.Value, values []string, field reflect.StructField) error {
 	if len(values) == 0 {
 		return nil
@@ -160,11 +175,12 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 	}
 
 	// Check if the type implements TextUnmarshaler (except time.Time and uuid.UUID which are handled separately)
-	if fieldValue.CanAddr() && fieldValue.Type().String() != "time.Time" {
+	if fieldValue.CanAddr() {
 		ptrVal := fieldValue.Addr()
 		if unmarshaler, ok := ptrVal.Interface().(encoding.TextUnmarshaler); ok {
-			if err := unmarshaler.UnmarshalText([]byte(value)); err != nil {
-				return fmt.Errorf("error unmarshaling text: %w", err)
+			if err = unmarshaler.UnmarshalText([]byte(value)); err != nil {
+				paramName := getParamName(field)
+				return fmt.Errorf("invalid value %s for %s", value, paramName)
 			}
 			return nil
 		}

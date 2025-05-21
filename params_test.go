@@ -515,7 +515,8 @@ func TestTextUnmarshalerParameters(t *testing.T) {
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-		assert.Contains(t, "request validation failed, 1 validation error", errorResponse.Message)
+		assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+		assert.Equal(t, []any{"invalid value invalid-123 for id"}, errorResponse.Details.([]any))
 	})
 }
 
