@@ -36,6 +36,15 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 		field := t.Field(i)
 		fieldValue := v.Field(i)
 
+		// Handle embedded structs
+		if field.Anonymous && field.Type.Kind() == reflect.Struct {
+			embeddedInstance := fieldValue.Addr().Interface()
+			if err := parseEmbeddedParams(r, embeddedInstance); err != nil {
+				return instance, err
+			}
+			continue
+		}
+
 		if !fieldValue.CanSet() {
 			continue
 		}
@@ -71,6 +80,49 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	}
 
 	return instance, nil
+}
+
+// parseEmbeddedParams processes embedded struct fields recursively
+func parseEmbeddedParams(r *http.Request, embeddedInstance interface{}) error {
+	t := reflect.TypeOf(embeddedInstance).Elem()
+	v := reflect.ValueOf(embeddedInstance).Elem()
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		fieldValue := v.Field(i)
+
+		// Handle nested embedded structs
+		if field.Anonymous && field.Type.Kind() == reflect.Struct {
+			if err := parseEmbeddedParams(r, fieldValue.Addr().Interface()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if !fieldValue.CanSet() {
+			continue
+		}
+
+		values := getParamValues(r, field)
+
+		// If no values were provided, try to set default values
+		if len(values) == 0 {
+			if err := setDefaultValue(fieldValue, field); err != nil {
+				return simbaErrors.NewSimbaError(
+					http.StatusInternalServerError,
+					"invalid default values",
+					err,
+				).WithDetails(err.Error())
+			}
+			continue
+		}
+
+		if err := setFieldValue(fieldValue, values, field); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // getParamValues returns the parameter value based on the struct tag

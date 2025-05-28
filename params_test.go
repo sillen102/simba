@@ -15,6 +15,7 @@ import (
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/simbaTest"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
 
@@ -94,7 +95,7 @@ func TestParamParsing(t *testing.T) {
 
 		w := httptest.NewRecorder()
 
-		app := simba.New()
+		app := simbaTest.New()
 		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
@@ -115,8 +116,33 @@ func TestParamParsing(t *testing.T) {
 
 		w := httptest.NewRecorder()
 
-		app := simba.New()
+		app := simbaTest.New()
 		app.Router.GET("/test/{uuid}/{id}/{slug}", simba.JsonHandler(handler))
+		app.Router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("embedded struct parameters", func(t *testing.T) {
+		type EmbeddedParams struct {
+			QueryParam   string `query:"queryParam" validate:"required"`
+			DefaultParam string `query:"defaultParam" default:"default-value"`
+		}
+
+		handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, struct {
+			EmbeddedParams
+		}]) (*simbaModels.Response[simbaModels.NoBody], error) {
+			assert.Equal(t, "test-param", req.Params.QueryParam)
+			assert.Equal(t, "default-value", req.Params.DefaultParam)
+			return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/test/"+uuid.New().String()+"?queryParam=test-param", nil)
+
+		w := httptest.NewRecorder()
+
+		app := simbaTest.New()
+		app.Router.GET("/test/{uuid}", simba.JsonHandler(handler))
 		app.Router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
