@@ -183,7 +183,17 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 
 	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
-		simbaErrors.WriteError(w, r, simbaErrors.ErrUnauthorized)
+		statusCode := http.StatusUnauthorized // Default status code for unauthorized access
+		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
+			statusCode = statusCoder.StatusCode()
+		}
+
+		errorMessage := "unauthorized" // Default error message for unauthorized access
+		if msgProvider, ok := err.(simbaErrors.PublicMessageProvider); ok {
+			errorMessage = msgProvider.PublicMessage()
+		}
+
+		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(statusCode, errorMessage, err))
 		return
 	}
 

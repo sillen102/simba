@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sillen102/simba/errutil"
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaContext"
 )
@@ -98,20 +99,28 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	message := err.Error()
 	var details any
 
-	if statusCoder, ok := err.(StatusCodeProvider); ok {
-		statusCode = statusCoder.StatusCode()
-	}
+	var simbaErr *SimbaError
+	if errutil.As(err, &simbaErr) {
+		// If the error is a SimbaError, extract its properties
+		statusCode = simbaErr.StatusCode()
+		message = simbaErr.PublicMessage()
+		details = simbaErr.Details()
+	} else {
+		if statusCoder, ok := err.(StatusCodeProvider); ok {
+			statusCode = statusCoder.StatusCode()
+		}
 
-	if errorProvider, ok := err.(ErrorCodeProvider); ok {
-		errorCode = errorProvider.ErrorCode()
-	}
+		if errorProvider, ok := err.(ErrorCodeProvider); ok {
+			errorCode = errorProvider.ErrorCode()
+		}
 
-	if msgProvider, ok := err.(PublicMessageProvider); ok {
-		message = msgProvider.PublicMessage()
-	}
+		if msgProvider, ok := err.(PublicMessageProvider); ok {
+			message = msgProvider.PublicMessage()
+		}
 
-	if detailProvider, ok := err.(DetailProvider); ok {
-		details = detailProvider.Details()
+		if detailProvider, ok := err.(DetailProvider); ok {
+			details = detailProvider.Details()
+		}
 	}
 
 	logging.From(r.Context()).Error(err.Error(),
@@ -166,6 +175,4 @@ func newErrorResponse(r *http.Request, status int, message string, errorCode str
 var (
 	ErrInvalidContentType = NewSimbaError(http.StatusBadRequest, "invalid content type", errors.New("invalid content type"))
 	ErrInvalidRequest     = NewSimbaError(http.StatusUnprocessableEntity, "invalid request", errors.New("failed to decode request body"))
-	ErrUnauthorized       = NewSimbaError(http.StatusUnauthorized, "unauthorized", errors.New("failed to authorize request"))
-	ErrUnexpected         = NewSimbaError(http.StatusInternalServerError, "unexpected error", errors.New("unexpected error occurred"))
 )

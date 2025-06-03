@@ -238,6 +238,14 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		Handler: errorAuthFunc,
 	}
 
+	customAuthFunc := func(ctx context.Context, token string) (*simbaTest.User, error) {
+		return nil, simbaErrors.NewSimbaError(http.StatusForbidden, "forbidden", nil)
+	}
+
+	customAuthHandler := simba.BearerAuthType[simbaTest.User]{
+		Handler: customAuthFunc,
+	}
+
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	_ = writer.WriteField("lastName", "Connor")
@@ -275,6 +283,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		}
 
 		req := httptest.NewRequest(http.MethodPost, "/test/1", body)
+		req.Header.Set("Authorization", "Bearer token")
 		req.Header.Set("Content-Type", writer.FormDataContentType())
 		w := httptest.NewRecorder()
 
@@ -290,5 +299,29 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
 		assert.NoError(t, err)
 		assert.Equal(t, "unauthorized", errorResponse.Message)
+	})
+
+	t.Run("authenticated multipart handler with custom error", func(t *testing.T) {
+		handler := func(ctx context.Context, req *simbaModels.MultipartRequest[simbaTest.Params], user *simbaTest.User) (*simbaModels.Response[simbaModels.NoBody], error) {
+			return &simbaModels.Response[simbaModels.NoBody]{}, nil
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/test/1", body)
+		req.Header.Set("Authorization", "Bearer token")
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		w := httptest.NewRecorder()
+
+		logBuffer := &bytes.Buffer{}
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.New(settings.WithLogger(logger))
+		app.Router.POST("/test/{id}", simba.AuthMultipartHandler(handler, customAuthHandler))
+		app.Router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+
+		var errorResponse simbaErrors.ErrorResponse
+		err := json.NewDecoder(w.Body).Decode(&errorResponse)
+		assert.NoError(t, err)
+		assert.Equal(t, "forbidden", errorResponse.Message)
 	})
 }

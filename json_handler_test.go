@@ -265,6 +265,14 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 		Handler: errorAuthFunc,
 	}
 
+	customErrorAuthFunc := func(ctx context.Context, token string) (*simbaTest.User, error) {
+		return nil, simbaErrors.NewSimbaError(http.StatusForbidden, "forbidden", nil)
+	}
+
+	customErrorAuthHandler := simba.BearerAuthType[simbaTest.User]{
+		Handler: customErrorAuthFunc,
+	}
+
 	id := uuid.NewString()
 
 	t.Run("authenticated handler", func(t *testing.T) {
@@ -307,6 +315,7 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 
 		body := strings.NewReader(`{"test": "test"}`)
 		req := httptest.NewRequest(http.MethodPost, "/test/1", body)
+		req.Header.Set("Authorization", "Bearer token")
 		w := httptest.NewRecorder()
 
 		logBuffer := &bytes.Buffer{}
@@ -321,6 +330,30 @@ func TestAuthenticatedJsonHandler(t *testing.T) {
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
 		assert.NoError(t, err)
 		assert.Equal(t, "unauthorized", errorResponse.Message)
+	})
+
+	t.Run("auth func returns custom error", func(t *testing.T) {
+		handler := func(ctx context.Context, req *simbaModels.Request[simbaTest.RequestBody, simbaTest.Params], user *simbaTest.User) (*simbaModels.Response[simbaModels.NoBody], error) {
+			return &simbaModels.Response[simbaModels.NoBody]{}, nil
+		}
+
+		body := strings.NewReader(`{"test": "test"}`)
+		req := httptest.NewRequest(http.MethodPost, "/test/1", body)
+		req.Header.Set("Authorization", "Bearer token")
+		w := httptest.NewRecorder()
+
+		logBuffer := &bytes.Buffer{}
+		logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+		app := simba.New(settings.WithLogger(logger))
+		app.Router.POST("/test/{id}", simba.AuthJsonHandler(handler, customErrorAuthHandler))
+		app.Router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+
+		var errorResponse simbaErrors.ErrorResponse
+		err := json.NewDecoder(w.Body).Decode(&errorResponse)
+		assert.NoError(t, err)
+		assert.Equal(t, "forbidden", errorResponse.Message)
 	})
 }
 
