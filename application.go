@@ -47,10 +47,6 @@ func New(opts ...settings.Option) *Application {
 		return injectRequestSettings(next, &cfg.Request)
 	})
 
-	if cfg.Cors.AllowedOrigins != "" {
-		router.Use(middleware.CORS(cfg.Cors))
-	}
-
 	return &Application{
 		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), Handler: router},
 		Router:   router,

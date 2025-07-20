@@ -70,28 +70,3 @@ func TestNewApplication(t *testing.T) {
 		assert.Equal(t, "localhost:8080", app.Server.Addr)
 	})
 }
-
-func TestApplicationWithCORS(t *testing.T) {
-	t.Parallel()
-
-	t.Run("creates application with CORS settings", func(t *testing.T) {
-		opts := []settings.Option{
-			settings.WithCORS(settings.Cors{
-				AllowedOrigins:   "http://example.com",
-				AllowedMethods:   "GET,POST",
-				AllowedHeaders:   "Content-Type,Authorization",
-				AllowCredentials: true,
-			}),
-		}
-		app := simba.New(opts...)
-
-		assert.Assert(t, app != nil)
-		assert.Assert(t, app.Router != nil)
-		assert.Assert(t, app.Router.Mux != nil)
-		assert.Assert(t, app.Settings.Cors.AllowedOrigins == "http://example.com")
-		assert.Assert(t, app.Settings.Cors.AllowedMethods == "GET,POST")
-		assert.Assert(t, app.Settings.Cors.AllowedHeaders == "Content-Type,Authorization")
-		assert.Assert(t, app.Settings.Cors.AllowCredentials == true)
-	})
-
-}

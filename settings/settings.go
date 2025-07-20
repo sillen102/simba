@@ -23,9 +23,6 @@ type Simba struct {
 	// Docs settings
 	Docs `yaml:"docs"`
 
-	// Cors settings
-	Cors `yaml:"cors"`
-
 	// Logger settings
 	Logger *slog.Logger `yaml:"-" env:"-"`
 
@@ -79,13 +76,6 @@ type Docs struct {
 
 	// ServiceName is the name of the service
 	ServiceName string
-}
-
-type Cors struct {
-	AllowedOrigins   string `yaml:"allowed-origins" env:"CORS_ALLOWED_ORIGINS" default:""`
-	AllowedMethods   string `yaml:"allowed-methods" env:"CORS_ALLOWED_METHODS" default:"GET,POST,PUT,PATCH,DELETE,OPTIONS"`
-	AllowedHeaders   string `yaml:"allowed-headers" env:"CORS_ALLOWED_HEADERS" default:"Content-Type,Authorization"`
-	AllowCredentials bool   `yaml:"allow-credentials" env:"CORS_ALLOW_CREDENTIALS" default:"true"`
 }
 
 // Option is a function that configures a Simba application settings struct.
@@ -165,16 +155,6 @@ func WithOpenAPIFilePath(path string) Option {
 func WithDocsUIPath(path string) Option {
 	return func(s *Simba) {
 		s.DocsUIPath = path
-	}
-}
-
-// WithCORS sets the CORS configuration
-func WithCORS(cors Cors) Option {
-	return func(s *Simba) {
-		s.AllowedOrigins = cors.AllowedOrigins
-		s.AllowedMethods = cors.AllowedMethods
-		s.AllowedHeaders = cors.AllowedHeaders
-		s.AllowCredentials = cors.AllowCredentials
 	}
 }
 
