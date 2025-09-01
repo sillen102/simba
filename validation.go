@@ -13,6 +13,10 @@ import (
 
 var validate = validator.New(validator.WithRequiredStructEnabled())
 
+func Validator() *validator.Validate {
+	return validate
+}
+
 // ValidateStruct is a helper function for validating requests using the validator
 // package. If the request is nil, it will return nil. If the request is valid, it
 // will return an empty slice of ValidationErrors. If the request is invalid, it
