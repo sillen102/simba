@@ -270,7 +270,7 @@ func ValidateStruct(request any) []ValidationError {
 	if len(validationErrors) > 0 {
 		validationErrorsData := make([]ValidationError, len(validationErrors))
 		for i, e := range validationErrors {
-			validationErrorsData[i] = mapValidationError(e, request)
+			validationErrorsData[i] = MapValidationError(e, request)
 		}
 		return validationErrorsData
 	}
@@ -278,7 +278,7 @@ func ValidateStruct(request any) []ValidationError {
 	return nil
 }
 
-func mapValidationError(err validator.FieldError, request any) ValidationError {
+func MapValidationError(err validator.FieldError, request any) ValidationError {
 	fieldName := err.StructField()
 	typ := reflect.TypeOf(request)
 	if typ.Kind() == reflect.Ptr {
