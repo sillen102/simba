@@ -250,7 +250,7 @@ func TestUUIDParameters(t *testing.T) {
 			}
 			assert.Equal(t, expectedPath, errorResponse.Path)
 			assert.Equal(t, http.MethodGet, errorResponse.Method)
-			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+			assert.Equal(t, "request validation failed", errorResponse.Message)
 		})
 	}
 }
@@ -285,7 +285,7 @@ func TestFloatParameters(t *testing.T) {
 	assert.Equal(t, "Bad Request", errorResponse.Error)
 	assert.Equal(t, "/test/1", errorResponse.Path)
 	assert.Equal(t, http.MethodGet, errorResponse.Method)
-	assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+	assert.Equal(t, "request validation failed", errorResponse.Message)
 }
 
 func TestInvalidParameterTypes(t *testing.T) {
@@ -371,7 +371,7 @@ func TestInvalidParameterTypes(t *testing.T) {
 			}
 			assert.Equal(t, expectedPath, errorResponse.Path)
 			assert.Equal(t, http.MethodGet, errorResponse.Method)
-			assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
+			assert.Equal(t, "request validation failed", errorResponse.Message)
 		})
 	}
 }
@@ -459,8 +459,11 @@ func TestTextUnmarshalerParameters(t *testing.T) {
 		err := json.NewDecoder(w.Body).Decode(&errorResponse)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
-		assert.Equal(t, "request validation failed, 1 validation error", errorResponse.Message)
-		assert.Equal(t, []any{"invalid value invalid-123 for id"}, errorResponse.Details.([]any))
+		assert.Equal(t, "request validation failed", errorResponse.Message)
+		detailsBytes, _ := json.Marshal(errorResponse.Details)
+		var details []simba.ValidationError
+		_ = json.Unmarshal(detailsBytes, &details)
+		assert.Equal(t, []simba.ValidationError{{Field: "id", Err: "invalid value invalid-123 for id"}}, details)
 	})
 }
 

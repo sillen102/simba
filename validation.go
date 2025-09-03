@@ -3,93 +3,243 @@ package simba
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"reflect"
 
+	"github.com/go-playground/locales/en"
+	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	en_translations "github.com/go-playground/validator/v10/translations/en"
 	"github.com/iancoleman/strcase"
-	"github.com/sillen102/simba/simbaErrors"
 )
 
-var validate = validator.New(validator.WithRequiredStructEnabled())
+type ValidationError struct {
+	Field string `json:"field"`
+	Err   string `json:"error"`
+}
 
-var messageGenerators = map[string]func(validator.FieldError) string{
+func (e ValidationError) Error() string {
+	return fmt.Sprintf("Validation failed on field '%s': %s", e.Field, e.Err)
+}
+
+var (
+	uni      *ut.UniversalTranslator
+	trans    ut.Translator
+	validate *validator.Validate
+)
+
+func init() {
+	enLocale := en.New()
+	uni = ut.New(enLocale, enLocale)
+	trans, _ = uni.GetTranslator("en")
+
+	validate = validator.New(validator.WithRequiredStructEnabled())
+	en_translations.RegisterDefaultTranslations(validate, trans)
+
+	// Register custom translations for each tag
+
 	// Comparisons
-	"gte": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be greater than or equal to %s", strcase.ToLowerCamel(e.Field()), e.Param())
-	},
-	"lte": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be less than or equal to %s", strcase.ToLowerCamel(e.Field()), e.Param())
-	},
-	"gt": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be greater than %s", strcase.ToLowerCamel(e.Field()), e.Param())
-	},
-	"lt": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be less than %s", strcase.ToLowerCamel(e.Field()), e.Param())
-	},
+	_ = validate.RegisterTranslation("gte", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("gte", "{0} must be greater than or equal to {1}", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be greater than or equal to %s", field, fe.Param())
+		},
+	)
+
+	_ = validate.RegisterTranslation("lte", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("lte", "{0} must be less than or equal to {1}", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be less than or equal to %s", field, fe.Param())
+		},
+	)
+
+	_ = validate.RegisterTranslation("gt", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("gt", "{0} must be greater than {1}", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be greater than %s", field, fe.Param())
+		},
+	)
+
+	_ = validate.RegisterTranslation("lt", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("lt", "{0} must be less than {1}", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be less than %s", field, fe.Param())
+		},
+	)
 
 	// Strings
-	"alpha": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must contain only letters", strcase.ToLowerCamel(e.Field()))
-	},
-	"alphanum": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must contain only letters and numbers", strcase.ToLowerCamel(e.Field()))
-	},
-	"alphanumunicode": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must contain only letters and numbers that are part of unicode", strcase.ToLowerCamel(e.Field()))
-	},
-	"alphaunicode": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must contain only letters (no numbers allowed) that are part of unicode", strcase.ToLowerCamel(e.Field()))
-	},
-	"number": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be a valid number", strcase.ToLowerCamel(e.Field()))
-	},
-	"numeric": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be a numeric value", strcase.ToLowerCamel(e.Field()))
-	},
+	_ = validate.RegisterTranslation("alpha", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("alpha", "{0} must contain only letters", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must contain only letters", field)
+		},
+	)
+
+	_ = validate.RegisterTranslation("alphanum", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("alphanum", "{0} must contain only letters and numbers", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must contain only letters and numbers", field)
+		},
+	)
+
+	_ = validate.RegisterTranslation("alphanumunicode", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("alphanumunicode", "{0} must contain only letters and numbers that are part of unicode", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must contain only letters and numbers that are part of unicode", field)
+		},
+	)
+
+	_ = validate.RegisterTranslation("alphaunicode", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("alphaunicode", "{0} must contain only letters (no numbers allowed) that are part of unicode", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must contain only letters (no numbers allowed) that are part of unicode", field)
+		},
+	)
+
+	_ = validate.RegisterTranslation("number", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("number", "{0} must be a valid number", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be a valid number", field)
+		},
+	)
+
+	_ = validate.RegisterTranslation("numeric", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("numeric", "{0} must be a numeric value", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be a numeric value", field)
+		},
+	)
 
 	// Format
-	"base64": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be a valid base64 encoded string", strcase.ToLowerCamel(e.Field()))
-	},
-	"e164": func(e validator.FieldError) string {
-		return fmt.Sprintf("'%s' must be a valid E.164 formatted phone number", getValueString(e))
-	},
-	"email": func(e validator.FieldError) string {
-		return fmt.Sprintf("'%s' is not a valid email address", getValueString(e))
-	},
-	"jwt": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be a valid JWT token", strcase.ToLowerCamel(e.Field()))
-	},
-	"uuid": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be a valid UUID", strcase.ToLowerCamel(e.Field()))
-	},
+	_ = validate.RegisterTranslation("base64", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("base64", "{0} must be a valid base64 encoded string", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be a valid base64 encoded string", field)
+		},
+	)
+
+	_ = validate.RegisterTranslation("e164", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("e164", "'{0}' must be a valid E.164 formatted phone number", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			return fmt.Sprintf("'%s' must be a valid E.164 formatted phone number", getValueString(fe))
+		},
+	)
+
+	_ = validate.RegisterTranslation("email", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("email", "'{0}' is not a valid email address", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			return fmt.Sprintf("'%s' is not a valid email address", getValueString(fe))
+		},
+	)
+
+	_ = validate.RegisterTranslation("jwt", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("jwt", "{0} must be a valid JWT token", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be a valid JWT token", field)
+		},
+	)
+
+	_ = validate.RegisterTranslation("uuid", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("uuid", "{0} must be a valid UUID", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be a valid UUID", field)
+		},
+	)
 
 	// Other
-	"len": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s must be exactly %s characters long", strcase.ToLowerCamel(e.Field()), e.Param())
-	},
-	"max": func(e validator.FieldError) string {
-		if isNumeric(e.Kind()) {
-			return fmt.Sprintf("%s must not exceed %s", strcase.ToLowerCamel(e.Field()), e.Param())
-		} else if e.Kind() == reflect.Slice || e.Kind() == reflect.Array || e.Kind() == reflect.Map {
-			return fmt.Sprintf("%s must not contain more than %s items", strcase.ToLowerCamel(e.Field()), e.Param())
-		} else {
-			return fmt.Sprintf("%s must not exceed %s characters", strcase.ToLowerCamel(e.Field()), e.Param())
-		}
-	},
-	"min": func(e validator.FieldError) string {
-		if isNumeric(e.Kind()) {
-			return fmt.Sprintf("%s must be at least %s", strcase.ToLowerCamel(e.Field()), e.Param())
-		} else if e.Kind() == reflect.Slice || e.Kind() == reflect.Array || e.Kind() == reflect.Map {
-			return fmt.Sprintf("%s must contain at least %s items", strcase.ToLowerCamel(e.Field()), e.Param())
-		} else {
-			return fmt.Sprintf("%s must be at least %s characters long", strcase.ToLowerCamel(e.Field()), e.Param())
-		}
-	},
-	"required": func(e validator.FieldError) string {
-		return fmt.Sprintf("%s is required", strcase.ToLowerCamel(e.Field()))
-	},
+	_ = validate.RegisterTranslation("len", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("len", "{0} must be exactly {1} characters long", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s must be exactly %s characters long", field, fe.Param())
+		},
+	)
+
+	_ = validate.RegisterTranslation("max", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("max", "{0} must not exceed {1}", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			if isNumeric(fe.Kind()) {
+				return fmt.Sprintf("%s must not exceed %s", field, fe.Param())
+			} else if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array || fe.Kind() == reflect.Map {
+				return fmt.Sprintf("%s must not contain more than %s items", field, fe.Param())
+			} else {
+				return fmt.Sprintf("%s must not exceed %s characters", field, fe.Param())
+			}
+		},
+	)
+
+	_ = validate.RegisterTranslation("min", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("min", "{0} must be at least {1}", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			if isNumeric(fe.Kind()) {
+				return fmt.Sprintf("%s must be at least %s", field, fe.Param())
+			} else if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array || fe.Kind() == reflect.Map {
+				return fmt.Sprintf("%s must contain at least %s items", field, fe.Param())
+			} else {
+				return fmt.Sprintf("%s must be at least %s characters long", field, fe.Param())
+			}
+		},
+	)
+
+	_ = validate.RegisterTranslation("required", trans,
+		func(ut ut.Translator) error {
+			return ut.Add("required", "{0} is required", true)
+		},
+		func(ut ut.Translator, fe validator.FieldError) string {
+			field := strcase.ToLowerCamel(fe.Field())
+			return fmt.Sprintf("%s is required", field)
+		},
+	)
 }
 
 // Validator returns the validator instance for the application.
@@ -102,7 +252,7 @@ func Validator() *validator.Validate {
 // will return an empty slice of ValidationErrors. If the request is invalid, it
 // will return a slice of ValidationErrors containing the validation errors for
 // each field.
-func ValidateStruct(request any) []string {
+func ValidateStruct(request any) []ValidationError {
 	if request == nil {
 		return nil
 	}
@@ -114,13 +264,13 @@ func ValidateStruct(request any) []string {
 
 	var validationErrors validator.ValidationErrors
 	if !errors.As(err, &validationErrors) {
-		return []string{"validation failed"}
+		return []ValidationError{{Field: "unknown", Err: "validation failed"}}
 	}
 
 	if len(validationErrors) > 0 {
-		validationErrorsData := make([]string, len(validationErrors))
+		validationErrorsData := make([]ValidationError, len(validationErrors))
 		for i, e := range validationErrors {
-			validationErrorsData[i] = mapValidationMessage(e)
+			validationErrorsData[i] = mapValidationError(e, request)
 		}
 		return validationErrorsData
 	}
@@ -128,27 +278,25 @@ func ValidateStruct(request any) []string {
 	return nil
 }
 
-func mapValidationMessage(e validator.FieldError) string {
-	// Look up the generator and call it, or use default
-	if generator, exists := messageGenerators[e.Tag()]; exists {
-		return generator(e)
+func mapValidationError(err validator.FieldError, request any) ValidationError {
+	fieldName := err.StructField()
+	typ := reflect.TypeOf(request)
+	if typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
 	}
-	return fmt.Sprintf("'%s' is invalid as input for %s", getValueString(e), strcase.ToLowerCamel(e.Field()))
-}
 
-func mapValidationErrors(validationErrors []string) *simbaErrors.SimbaError {
-	var errorMessage string
-	if len(validationErrors) == 1 {
-		errorMessage = "request validation failed, 1 validation error"
+	field, ok := typ.FieldByName(fieldName)
+	fieldNameOut := ""
+	if ok {
+		fieldNameOut = getFieldName(field)
 	} else {
-		errorMessage = fmt.Sprintf("request validation failed, %d validation errors", len(validationErrors))
+		fieldNameOut = err.Field()
 	}
 
-	return simbaErrors.NewSimbaError(
-		http.StatusBadRequest,
-		errorMessage,
-		nil,
-	).WithDetails(validationErrors)
+	return ValidationError{
+		Field: fieldNameOut,
+		Err:   err.Translate(trans),
+	}
 }
 
 func getValueString(e validator.FieldError) string {

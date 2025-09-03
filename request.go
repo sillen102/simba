@@ -76,7 +76,11 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 	}
 
 	if validationErrors := ValidateStruct(req); len(validationErrors) > 0 {
-		return mapValidationErrors(validationErrors)
+		return simbaErrors.NewSimbaError(
+			http.StatusBadRequest,
+			"request validation failed",
+			nil,
+		).WithDetails(validationErrors)
 	}
 
 	return nil

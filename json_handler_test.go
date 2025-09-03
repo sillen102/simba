@@ -200,7 +200,7 @@ func TestHandlerErrors(t *testing.T) {
 			body:           `{}`,
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "Bad Request",
-			expectedMsg:    "request validation failed, 1 validation error",
+			expectedMsg:    "request validation failed",
 		},
 	}
 
