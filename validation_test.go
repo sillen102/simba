@@ -28,7 +28,7 @@ func TestValidateStruct_Gte_Int(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be greater than or equal to 0", errors[0].Err)
+	assert.Equal(t, "must be greater than or equal to 0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructGte{
@@ -61,7 +61,7 @@ func TestValidateStruct_Gte_Float(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be greater than or equal to 0.0", errors[0].Err)
+	assert.Equal(t, "must be greater than or equal to 0.0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructGte{
@@ -94,7 +94,7 @@ func TestValidateStruct_Lte_Int(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be less than or equal to 0", errors[0].Err)
+	assert.Equal(t, "must be less than or equal to 0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructLte{
@@ -127,7 +127,7 @@ func TestValidateStruct_Lte_Float(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be less than or equal to 0.0", errors[0].Err)
+	assert.Equal(t, "must be less than or equal to 0.0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructLte{
@@ -160,7 +160,7 @@ func TestValidateStruct_Gt_Int(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be greater than 0", errors[0].Err)
+	assert.Equal(t, "must be greater than 0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructGt{
@@ -193,7 +193,7 @@ func TestValidateStruct_Gt_Float(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be greater than 0.0", errors[0].Err)
+	assert.Equal(t, "must be greater than 0.0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructGt{
@@ -226,7 +226,7 @@ func TestValidateStruct_Lt_Int(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be less than 0", errors[0].Err)
+	assert.Equal(t, "must be less than 0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructLt{
@@ -259,7 +259,7 @@ func TestValidateStruct_Lt_Float(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be less than 0.0", errors[0].Err)
+	assert.Equal(t, "must be less than 0.0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructLt{
@@ -294,7 +294,7 @@ func TestValidateStruct_Alpha(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "name", errors[0].Field)
-	assert.Equal(t, "name must contain only letters", errors[0].Err)
+	assert.Equal(t, "must contain only letters", errors[0].Err)
 
 	// Given
 	testStruct = TestStructAlpha{
@@ -327,7 +327,7 @@ func TestValidateStruct_Alphanum(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "name", errors[0].Field)
-	assert.Equal(t, "name must contain only letters and numbers", errors[0].Err)
+	assert.Equal(t, "must contain only letters and numbers", errors[0].Err)
 
 	// Given
 	testStruct = TestStructAlphanum{
@@ -360,7 +360,7 @@ func TestValidateStruct_Alphanumunicode(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "name", errors[0].Field)
-	assert.Equal(t, "name must contain only letters and numbers that are part of unicode", errors[0].Err)
+	assert.Equal(t, "must contain only letters and numbers that are part of unicode", errors[0].Err)
 
 	// Given
 	testStruct = TestStructAlphanumunicode{
@@ -393,7 +393,7 @@ func TestValidateStruct_Alphaunicode(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "name", errors[0].Field)
-	assert.Equal(t, "name must contain only letters (no numbers allowed) that are part of unicode", errors[0].Err)
+	assert.Equal(t, "must contain only letters (no numbers allowed) that are part of unicode", errors[0].Err)
 
 	// Given
 	testStruct = TestStructAlphaunicode{
@@ -426,7 +426,7 @@ func TestValidateStruct_Numeric(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be a numeric value", errors[0].Err)
+	assert.Equal(t, "must be a numeric value", errors[0].Err)
 
 	// Given
 	testStruct = TestStructNumeric{
@@ -460,7 +460,7 @@ func TestValidateStruct_Base64(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "data", errors[0].Field)
-	assert.Equal(t, "data must be a valid base64 encoded string", errors[0].Err)
+	assert.Equal(t, "must be a valid base64 encoded string", errors[0].Err)
 
 	// Given
 	testStruct = TestStructBase64{
@@ -492,7 +492,7 @@ func TestValidateStruct_E164(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "phoneNumber", errors[0].Field)
-	assert.Equal(t, "'invalid-phone' must be a valid E.164 formatted phone number", errors[0].Err)
+	assert.Equal(t, "invalid-phone is not a valid E.164 formatted phone number", errors[0].Err)
 
 	// Given
 	testStruct = TestStructE164{
@@ -525,7 +525,7 @@ func TestValidateStruct_Email(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "email", errors[0].Field)
-	assert.Equal(t, "'invalid-email' is not a valid email address", errors[0].Err)
+	assert.Equal(t, "invalid-email is not a valid email address", errors[0].Err)
 
 	// Given
 	testStruct = TestStructEmail{
@@ -544,10 +544,10 @@ func TestValidateStruct_Jwt(t *testing.T) {
 
 	// Given
 	type TestStructJwt struct {
-		Token string `json:"token" validate:"jwt"`
+		IDToken string `json:"id_token" validate:"jwt"`
 	}
 	testStruct := TestStructJwt{
-		Token: "invalid-jwt",
+		IDToken: "invalid-jwt",
 	}
 
 	// When
@@ -556,12 +556,12 @@ func TestValidateStruct_Jwt(t *testing.T) {
 	// Then
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
-	assert.Equal(t, "token", errors[0].Field)
-	assert.Equal(t, "token must be a valid JWT token", errors[0].Err)
+	assert.Equal(t, "id_token", errors[0].Field)
+	assert.Equal(t, "must be a valid JWT token", errors[0].Err)
 
 	// Given
 	testStruct = TestStructJwt{
-		Token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+		IDToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
 	}
 
 	// When
@@ -589,7 +589,7 @@ func TestValidateStruct_Uuid(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "id", errors[0].Field)
-	assert.Equal(t, "id must be a valid UUID", errors[0].Err)
+	assert.Equal(t, "must be a valid UUID", errors[0].Err)
 
 	// Given
 	testStruct = TestStructUuid{
@@ -624,7 +624,7 @@ func TestValidateStruct_Len_String(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "name", errors[0].Field)
-	assert.Equal(t, "name must be exactly 3 characters long", errors[0].Err)
+	assert.Equal(t, "must be exactly 3 characters long", errors[0].Err)
 
 	// Given
 	testStruct = TestStructLen{
@@ -657,7 +657,7 @@ func TestValidateStruct_Max_Int(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must not exceed 130", errors[0].Err)
+	assert.Equal(t, "must not exceed 130", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMax{
@@ -690,7 +690,7 @@ func TestValidateStruct_Max_Float(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "price", errors[0].Field)
-	assert.Equal(t, "price must not exceed 100.34", errors[0].Err)
+	assert.Equal(t, "must not exceed 100.34", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMax{
@@ -723,7 +723,7 @@ func TestValidateStruct_Max_Slice(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "tags", errors[0].Field)
-	assert.Equal(t, "tags must not contain more than 3 items", errors[0].Err)
+	assert.Equal(t, "must not contain more than 3 items", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMax{
@@ -756,7 +756,7 @@ func TestValidateStruct_Max_Map(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "meta", errors[0].Field)
-	assert.Equal(t, "meta must not contain more than 1 items", errors[0].Err)
+	assert.Equal(t, "must not contain more than 1 items", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMax{
@@ -789,7 +789,7 @@ func TestValidateStruct_Max_String(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "name", errors[0].Field)
-	assert.Equal(t, "name must not exceed 2 characters", errors[0].Err)
+	assert.Equal(t, "must not exceed 2 characters", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMax{
@@ -822,7 +822,7 @@ func TestValidateStruct_Min_Int(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "age", errors[0].Field)
-	assert.Equal(t, "age must be at least 0", errors[0].Err)
+	assert.Equal(t, "must be at least 0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMin{
@@ -855,7 +855,7 @@ func TestValidateStruct_Min_Float(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "price", errors[0].Field)
-	assert.Equal(t, "price must be at least 0.0", errors[0].Err)
+	assert.Equal(t, "must be at least 0.0", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMin{
@@ -888,7 +888,7 @@ func TestValidateStruct_Min_Slice(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "tags", errors[0].Field)
-	assert.Equal(t, "tags must contain at least 2 items", errors[0].Err)
+	assert.Equal(t, "must contain at least 2 items", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMin{
@@ -921,7 +921,7 @@ func TestValidateStruct_Min_Map(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "meta", errors[0].Field)
-	assert.Equal(t, "meta must contain at least 1 items", errors[0].Err)
+	assert.Equal(t, "must contain at least 1 items", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMin{
@@ -954,7 +954,7 @@ func TestValidateStruct_Min_String(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 1, len(errors))
 	assert.Equal(t, "name", errors[0].Field)
-	assert.Equal(t, "name must be at least 2 characters long", errors[0].Err)
+	assert.Equal(t, "must be at least 2 characters long", errors[0].Err)
 
 	// Given
 	testStruct = TestStructMin{

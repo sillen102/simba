@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -75,6 +76,15 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 		return err
 	}
 
+	errs := setDefaultsFromTags(req)
+	if len(errs) > 0 {
+		return simbaErrors.NewSimbaError(
+			http.StatusInternalServerError,
+			"invalid default value(s)",
+			nil,
+		).WithDetails(errs)
+	}
+
 	if validationErrors := ValidateStruct(req); len(validationErrors) > 0 {
 		return simbaErrors.NewSimbaError(
 			http.StatusBadRequest,
@@ -130,4 +140,24 @@ func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) 
 		).WithDetails("error decoding JSON")
 	}
 	return nil
+}
+
+// setDefaultsFromTags sets default values for all zero-valued fields in a struct.
+func setDefaultsFromTags(model any) []ValidationError {
+	var errs []ValidationError
+	v := reflect.ValueOf(model)
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		fieldValue := v.Field(i)
+		structField := t.Field(i)
+		if fieldValue.CanSet() && fieldValue.IsZero() {
+			if err := setDefaultValue(fieldValue, structField); err != nil {
+				errs = append(errs, *err)
+			}
+		}
+	}
+	return errs
 }

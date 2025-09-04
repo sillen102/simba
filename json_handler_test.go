@@ -388,3 +388,38 @@ func TestReadJson_DisallowUnknownFields(t *testing.T) {
 	assert.Equal(t, "invalid request body", errorResponse.Message)
 	assert.Equal(t, "error decoding JSON", errorResponse.Details)
 }
+
+type DefaultBody struct {
+	Name   string  `json:"name"`
+	Age    int     `json:"age" default:"42"`
+	Active bool    `json:"active" default:"true"`
+	Score  float64 `json:"score" default:"99.5"`
+}
+
+func TestDefaultValuesOnRequestBody(t *testing.T) {
+	t.Parallel()
+
+	handler := func(ctx context.Context, req *simbaModels.Request[DefaultBody, simbaModels.NoParams]) (*simbaModels.Response[map[string]any], error) {
+		assert.Equal(t, "John", req.Body.Name)
+		assert.Equal(t, 42, req.Body.Age)      // default value
+		assert.Equal(t, true, req.Body.Active) // default value
+		assert.Equal(t, 99.5, req.Body.Score)  // default value
+		return &simbaModels.Response[map[string]any]{
+			Status: http.StatusOK,
+		}, nil
+	}
+
+	body := strings.NewReader(`{"name": "John"}`)
+	req := httptest.NewRequest(http.MethodPost, "/test-default-body", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	logBuffer := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{}))
+	app := simba.New(settings.WithLogger(logger))
+	app.Router.POST("/test-default-body", simba.JsonHandler(handler))
+	app.Router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+}

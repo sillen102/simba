@@ -43,8 +43,7 @@ func init() {
 			return ut.Add("gte", "{0} must be greater than or equal to {1}", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be greater than or equal to %s", field, fe.Param())
+			return fmt.Sprintf("must be greater than or equal to %s", fe.Param())
 		},
 	)
 
@@ -53,8 +52,7 @@ func init() {
 			return ut.Add("lte", "{0} must be less than or equal to {1}", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be less than or equal to %s", field, fe.Param())
+			return fmt.Sprintf("must be less than or equal to %s", fe.Param())
 		},
 	)
 
@@ -63,8 +61,7 @@ func init() {
 			return ut.Add("gt", "{0} must be greater than {1}", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be greater than %s", field, fe.Param())
+			return fmt.Sprintf("must be greater than %s", fe.Param())
 		},
 	)
 
@@ -73,8 +70,7 @@ func init() {
 			return ut.Add("lt", "{0} must be less than {1}", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be less than %s", field, fe.Param())
+			return fmt.Sprintf("must be less than %s", fe.Param())
 		},
 	)
 
@@ -84,8 +80,7 @@ func init() {
 			return ut.Add("alpha", "{0} must contain only letters", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must contain only letters", field)
+			return "must contain only letters"
 		},
 	)
 
@@ -94,8 +89,7 @@ func init() {
 			return ut.Add("alphanum", "{0} must contain only letters and numbers", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must contain only letters and numbers", field)
+			return "must contain only letters and numbers"
 		},
 	)
 
@@ -104,8 +98,7 @@ func init() {
 			return ut.Add("alphanumunicode", "{0} must contain only letters and numbers that are part of unicode", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must contain only letters and numbers that are part of unicode", field)
+			return "must contain only letters and numbers that are part of unicode"
 		},
 	)
 
@@ -114,8 +107,7 @@ func init() {
 			return ut.Add("alphaunicode", "{0} must contain only letters (no numbers allowed) that are part of unicode", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must contain only letters (no numbers allowed) that are part of unicode", field)
+			return "must contain only letters (no numbers allowed) that are part of unicode"
 		},
 	)
 
@@ -124,8 +116,7 @@ func init() {
 			return ut.Add("number", "{0} must be a valid number", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be a valid number", field)
+			return "must be a valid number"
 		},
 	)
 
@@ -134,8 +125,7 @@ func init() {
 			return ut.Add("numeric", "{0} must be a numeric value", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be a numeric value", field)
+			return "must be a numeric value"
 		},
 	)
 
@@ -145,17 +135,16 @@ func init() {
 			return ut.Add("base64", "{0} must be a valid base64 encoded string", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be a valid base64 encoded string", field)
+			return "must be a valid base64 encoded string"
 		},
 	)
 
 	_ = validate.RegisterTranslation("e164", trans,
 		func(ut ut.Translator) error {
-			return ut.Add("e164", "'{0}' must be a valid E.164 formatted phone number", true)
+			return ut.Add("e164", "{0} is not a valid E.164 formatted phone number", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			return fmt.Sprintf("'%s' must be a valid E.164 formatted phone number", getValueString(fe))
+			return fmt.Sprintf("%s is not a valid E.164 formatted phone number", getValueString(fe))
 		},
 	)
 
@@ -164,7 +153,7 @@ func init() {
 			return ut.Add("email", "'{0}' is not a valid email address", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			return fmt.Sprintf("'%s' is not a valid email address", getValueString(fe))
+			return fmt.Sprintf("%s is not a valid email address", getValueString(fe))
 		},
 	)
 
@@ -173,8 +162,7 @@ func init() {
 			return ut.Add("jwt", "{0} must be a valid JWT token", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be a valid JWT token", field)
+			return "must be a valid JWT token"
 		},
 	)
 
@@ -183,8 +171,7 @@ func init() {
 			return ut.Add("uuid", "{0} must be a valid UUID", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be a valid UUID", field)
+			return "must be a valid UUID"
 		},
 	)
 
@@ -194,8 +181,7 @@ func init() {
 			return ut.Add("len", "{0} must be exactly {1} characters long", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
-			return fmt.Sprintf("%s must be exactly %s characters long", field, fe.Param())
+			return fmt.Sprintf("must be exactly %s characters long", fe.Param())
 		},
 	)
 
@@ -204,13 +190,12 @@ func init() {
 			return ut.Add("max", "{0} must not exceed {1}", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
 			if isNumeric(fe.Kind()) {
-				return fmt.Sprintf("%s must not exceed %s", field, fe.Param())
+				return fmt.Sprintf("must not exceed %s", fe.Param())
 			} else if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array || fe.Kind() == reflect.Map {
-				return fmt.Sprintf("%s must not contain more than %s items", field, fe.Param())
+				return fmt.Sprintf("must not contain more than %s items", fe.Param())
 			} else {
-				return fmt.Sprintf("%s must not exceed %s characters", field, fe.Param())
+				return fmt.Sprintf("must not exceed %s characters", fe.Param())
 			}
 		},
 	)
@@ -220,13 +205,12 @@ func init() {
 			return ut.Add("min", "{0} must be at least {1}", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
 			if isNumeric(fe.Kind()) {
-				return fmt.Sprintf("%s must be at least %s", field, fe.Param())
+				return fmt.Sprintf("must be at least %s", fe.Param())
 			} else if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array || fe.Kind() == reflect.Map {
-				return fmt.Sprintf("%s must contain at least %s items", field, fe.Param())
+				return fmt.Sprintf("must contain at least %s items", fe.Param())
 			} else {
-				return fmt.Sprintf("%s must be at least %s characters long", field, fe.Param())
+				return fmt.Sprintf("must be at least %s characters long", fe.Param())
 			}
 		},
 	)
@@ -236,7 +220,7 @@ func init() {
 			return ut.Add("required", "{0} is required", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToLowerCamel(fe.Field())
+			field := strcase.ToDelimited(fe.Field(), ' ')
 			return fmt.Sprintf("%s is required", field)
 		},
 	)
