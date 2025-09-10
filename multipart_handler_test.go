@@ -226,7 +226,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		}, nil
 	}
 
-	authHandler := simba.BearerAuthType[simbaTest.User]{
+	authHandler := simba.BearerAuthType[*simbaTest.User]{
 		Handler: authFunc,
 	}
 
@@ -234,7 +234,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		return nil, errors.New("user not found")
 	}
 
-	errorAuthHandler := simba.BearerAuthType[simbaTest.User]{
+	errorAuthHandler := simba.BearerAuthType[*simbaTest.User]{
 		Handler: errorAuthFunc,
 	}
 
@@ -242,7 +242,7 @@ func TestAuthenticatedMultipartHandler(t *testing.T) {
 		return nil, simbaErrors.NewSimbaError(http.StatusForbidden, "forbidden", nil)
 	}
 
-	customAuthHandler := simba.BearerAuthType[simbaTest.User]{
+	customAuthHandler := simba.BearerAuthType[*simbaTest.User]{
 		Handler: customAuthFunc,
 	}
 

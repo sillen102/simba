@@ -15,7 +15,7 @@ import (
 type Receiver struct{}
 
 // NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
-func (h *Receiver) NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+func (h *Receiver) NoTagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
@@ -39,7 +39,7 @@ func (h *Receiver) NoTagsHandler(ctx context.Context, req *simbaModels.Request[R
 //
 // description for the handler
 // @Error 409 Resource already exists
-func (h *Receiver) TagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+func (h *Receiver) TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
@@ -93,7 +93,7 @@ func NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Pa
 //
 // description for the handler
 // @Error 409 Resource already exists
-func TagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+func TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
@@ -136,7 +136,7 @@ func BasicAuthFunc(_ context.Context, username, password string) (*User, error) 
 	}, nil
 }
 
-var BasicAuthAuthenticationHandler = simba.BasicAuth[User](
+var BasicAuthAuthenticationHandler = simba.BasicAuth[*User](
 	BasicAuthFunc,
 	simba.BasicAuthConfig{
 		Name:        "admin",
@@ -174,7 +174,7 @@ func ApiKeyAuthFunc(_ context.Context, apiKey string) (*User, error) {
 	}, nil
 }
 
-var ApiKeyAuthAuthenticationHandler = simba.APIKeyAuth[User](
+var ApiKeyAuthAuthenticationHandler = simba.APIKeyAuth[*User](
 	ApiKeyAuthFunc,
 	simba.APIKeyAuthConfig{
 		Name:        "User",
@@ -214,7 +214,7 @@ func BearerAuthFunc(_ context.Context, token string) (*User, error) {
 	}, nil
 }
 
-var BearerAuthAuthenticationHandler = simba.BearerAuth[User](
+var BearerAuthAuthenticationHandler = simba.BearerAuth[*User](
 	BearerAuthFunc,
 	simba.BearerAuthConfig{
 		Name:        "admin",
@@ -251,9 +251,9 @@ func SessionCookieAuthFunc(_ context.Context, sessionID string) (*User, error) {
 	}, nil
 }
 
-var SessionCookieAuthAuthenticationHandler = simba.SessionCookieAuth[User](
+var SessionCookieAuthAuthenticationHandler = simba.SessionCookieAuth[*User](
 	SessionCookieAuthFunc,
-	simba.SessionCookieAuthConfig[User]{
+	simba.SessionCookieAuthConfig[*User]{
 		CookieName:  "session",
 		Description: "Session cookie",
 	},

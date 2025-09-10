@@ -14,7 +14,7 @@ type JsonHandlerFunc[RequestBody, Params, ResponseBody any] func(ctx context.Con
 
 // AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
 type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody any] struct {
-	handler     func(ctx context.Context, req *simbaModels.Request[RequestBody, Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error)
+	handler     func(ctx context.Context, req *simbaModels.Request[RequestBody, Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error)
 	authHandler AuthHandler[AuthModel]
 }
 
@@ -148,7 +148,7 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthHandler() any
 //
 // Define a handler function:
 //
-//	func(ctx context.Context, req *simba.Request[RequestBody, Params], authModel *AuthModel) (*simba.Response[map[string]string], error) {
+//	func(ctx context.Context, req *simba.Request[RequestBody, Params], authModel AuthModel) (*simba.Response[map[string]string], error) {
 //		// Access the Request body and params fields
 //		req.Body.Test
 //		req.Params.Name
@@ -174,7 +174,7 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthHandler() any
 //
 //	Mux.POST("/test/{id}", simba.AuthJsonHandler(handler))
 func AuthJsonHandler[RequestBody, Params, AuthModel, ResponseBody any](
-	handler func(ctx context.Context, req *simbaModels.Request[RequestBody, Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error),
+	handler func(ctx context.Context, req *simbaModels.Request[RequestBody, Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error),
 	authHandler AuthHandler[AuthModel],
 ) Handler {
 	return AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]{

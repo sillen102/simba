@@ -17,7 +17,7 @@ type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context
 
 // AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
 type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] struct {
-	handler     func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error)
+	handler     func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error)
 	authHandler AuthHandler[AuthModel]
 }
 
@@ -143,7 +143,7 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
 //
 // Define a handler function:
 //
-//	func(ctx context.Context, req *simba.MultipartRequest[Params], authModel *AuthModel) (*simba.Response[map[string]string], error) {
+//	func(ctx context.Context, req *simba.MultipartRequest[Params], authModel AuthModel) (*simba.Response[map[string]string], error) {
 //		// Access the Multipart reader and params fields
 //		req.Params.Name
 //		req.Params.ID
@@ -169,7 +169,7 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
 func AuthMultipartHandler[Params, AuthModel, ResponseBody any](
-	handler func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel *AuthModel) (*simbaModels.Response[ResponseBody], error),
+	handler func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error),
 	authHandler AuthHandler[AuthModel],
 ) Handler {
 	return AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]{
