@@ -25,6 +25,17 @@ import (
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
+// Tags for parsing comments
+const (
+	idTag          = "@ID"
+	tagTag         = "@Tag"
+	summaryTag     = "@Summary"
+	descriptionTag = "@Description"
+	statusCodeTag  = "@StatusCode"
+	errorTag       = "@Error"
+	deprecatedTag  = "@Deprecated"
+)
+
 type OpenAPIGenerator struct {
 	fileCache *fileCache
 }
@@ -41,17 +52,6 @@ type handlerInfo struct {
 		Message string
 	}
 }
-
-// Tags for parsing comments
-const (
-	idTag          = "@ID"
-	tagTag         = "@Tag"
-	summaryTag     = "@Summary"
-	descriptionTag = "@Description"
-	statusCodeTag  = "@StatusCode"
-	errorTag       = "@Error"
-	deprecatedTag  = "@Deprecated"
-)
 
 func NewOpenAPIGenerator() *OpenAPIGenerator {
 	return &OpenAPIGenerator{

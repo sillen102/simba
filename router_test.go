@@ -2,6 +2,7 @@ package simba_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -228,5 +229,230 @@ func TestRouter_PATCH(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	})
+}
+
+func TestRouter_OPTIONS(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[map[string]string], error) {
+		return &simbaModels.Response[map[string]string]{
+			Body:   map[string]string{"message": "options handled"},
+			Status: http.StatusOK,
+		}, nil
+	}
+
+	router.OPTIONS("/test-options", simba.JsonHandler(handler))
+
+	t.Run("success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodOptions, "/test-options", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, `{"message":"options handled"}`, strings.Trim(w.Body.String(), "\n"))
+	})
+
+	t.Run("method not allowed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test-options", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	})
+}
+
+func TestRouter_HEAD(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
+		return &simbaModels.Response[simbaModels.NoBody]{}, nil
+	}
+
+	router.HEAD("/test-head", simba.JsonHandler(handler))
+
+	t.Run("success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodHead, "/test-head", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("method not allowed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test-head", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	})
+}
+
+func TestRouter_Use(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	// Middleware to add a custom header
+	middleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-Test-Middleware", "true")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	router.Use(middleware)
+
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, struct {
+		TestMiddleware string `header:"X-Test-Middleware"`
+	}]) (*simbaModels.Response[map[string]string], error) {
+		return &simbaModels.Response[map[string]string]{
+			Body: map[string]string{"middleware": req.Params.TestMiddleware},
+		}, nil
+	}
+
+	router.GET("/test-middleware", simba.JsonHandler(handler))
+
+	t.Run("middleware applied", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test-middleware", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, `{"middleware":"true"}`, strings.Trim(w.Body.String(), "\n"))
+	})
+}
+
+func TestRouter_Extend(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	// Middleware to add a custom header
+	middleware1 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-Middleware-1", "true")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	middleware2 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-Middleware-2", "true")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	router.Extend([]func(http.Handler) http.Handler{middleware1, middleware2})
+
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, struct {
+		Middleware1 string `header:"X-Middleware-1"`
+		Middleware2 string `header:"X-Middleware-2"`
+	}]) (*simbaModels.Response[map[string]string], error) {
+		return &simbaModels.Response[map[string]string]{
+			Body: map[string]string{
+				"middleware1": req.Params.Middleware1,
+				"middleware2": req.Params.Middleware2,
+			},
+		}, nil
+	}
+
+	router.GET("/test-extend", simba.JsonHandler(handler))
+
+	t.Run("extended middleware applied", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test-extend", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, `{"middleware1":"true","middleware2":"true"}`, strings.Trim(w.Body.String(), "\n"))
+	})
+}
+
+func TestRouter_WithMiddleware(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	type TestBody struct {
+		Middleware1 string `json:"middleware1"`
+		Middleware2 string `json:"middleware2"`
+	}
+
+	middleware1 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-Test-Middleware", "one")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	middleware2 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-Another-Middleware", "two")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, struct {
+		TestMiddleware    string `header:"X-Test-Middleware"`
+		AnotherMiddleware string `header:"X-Another-Middleware"`
+	}]) (*simbaModels.Response[TestBody], error) {
+		return &simbaModels.Response[TestBody]{
+			Body: TestBody{
+				Middleware1: req.Params.TestMiddleware,
+				Middleware2: req.Params.AnotherMiddleware,
+			},
+		}, nil
+	}
+
+	router.WithMiddleware("GET", "/with-one", simba.JsonHandler(handler), middleware1)
+	router.WithMiddleware("GET", "/with-both", simba.JsonHandler(handler), middleware1, middleware2)
+	router.GET("/with-none", simba.JsonHandler(handler))
+
+	t.Run("one middleware applied", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/with-one", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		var body TestBody
+		err := json.Unmarshal(w.Body.Bytes(), &body)
+		assert.Nil(t, err)
+		assert.Equal(t, "one", body.Middleware1)
+		assert.Equal(t, "", body.Middleware2)
+	})
+
+	t.Run("both middleware applied", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/with-both", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		var body TestBody
+		err := json.Unmarshal(w.Body.Bytes(), &body)
+		assert.Nil(t, err)
+		assert.Equal(t, "one", body.Middleware1)
+		assert.Equal(t, "two", body.Middleware2)
+	})
+
+	t.Run("no middleware applied", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/with-none", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var body TestBody
+		err := json.Unmarshal(w.Body.Bytes(), &body)
+		assert.Nil(t, err)
+		assert.Equal(t, "", body.Middleware1)
+		assert.Equal(t, "", body.Middleware2)
 	})
 }
