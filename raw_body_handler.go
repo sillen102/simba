@@ -48,7 +48,7 @@ func (h RawBodyHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWrite
 }
 
 func (h RawBodyHandlerFunc[Params, ResponseBody]) getRequestBody() any {
-	var rb io.ReadCloser
+	var rb []byte
 	return rb
 }
 
@@ -133,7 +133,7 @@ func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) ServeH
 }
 
 func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getRequestBody() any {
-	var rb io.ReadCloser
+	var rb []byte
 	return rb
 }
 
