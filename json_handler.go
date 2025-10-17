@@ -68,7 +68,7 @@ func JsonHandler[RequestBody, Params, ResponseBody any](h JsonHandlerFunc[Reques
 func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	req, err := handleRequest[RequestBody, Params](r)
+	req, err := handleJsonRequest[RequestBody, Params](r)
 	if err != nil {
 		simbaErrors.WriteError(w, r, err)
 		return
@@ -203,7 +203,7 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 		return
 	}
 
-	req, err := handleRequest[RequestBody, Params](r)
+	req, err := handleJsonRequest[RequestBody, Params](r)
 	if err != nil {
 		simbaErrors.WriteError(w, r, err)
 		return
@@ -254,8 +254,8 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 	return h.authHandler
 }
 
-// handleRequest handles extracting body and params from the Request
-func handleRequest[RequestBody any, Params any](r *http.Request) (*simbaModels.Request[RequestBody, Params], error) {
+// handleJsonRequest handles extracting body and params from the Request
+func handleJsonRequest[RequestBody any, Params any](r *http.Request) (*simbaModels.Request[RequestBody, Params], error) {
 	params, err := parseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
