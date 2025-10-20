@@ -49,7 +49,7 @@ func TestDefaultApplication(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		// Check if the middleware is applied by verifying the presence of a request ID header
-		assert.Assert(t, w.Header().Get(simbaContext.RequestIDHeader) != "")
+		assert.Assert(t, w.Header().Get(simbaContext.TraceIDHeader) != "")
 	})
 }
 

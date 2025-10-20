@@ -1,12 +1,12 @@
 package simbaModels
 
-type RequestIdMode string
+type TraceIDMode string
 
 const (
-	AcceptFromHeader RequestIdMode = "AcceptFromHeader"
-	AlwaysGenerate   RequestIdMode = "AlwaysGenerate"
+	AcceptFromHeader TraceIDMode = "AcceptFromHeader"
+	AlwaysGenerate   TraceIDMode = "AlwaysGenerate"
 )
 
-func (r RequestIdMode) String() string {
+func (r TraceIDMode) String() string {
 	return string(r)
 }

@@ -152,7 +152,7 @@ func writeJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
 func newErrorResponse(r *http.Request, status int, message string, errorCode string, details any) *ErrorResponse {
 	// Safely get RequestID from context
 	var requestID string
-	if id := r.Context().Value(simbaContext.RequestIDKey); id != nil {
+	if id := r.Context().Value(simbaContext.TraceIDKey); id != nil {
 		if strID, ok := id.(string); ok {
 			requestID = strID
 		}

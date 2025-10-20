@@ -57,7 +57,7 @@ func New(opts ...settings.Option) *Application {
 // defaultMiddleware returns the middleware chain used in the default [Application] application
 func (a *Application) defaultMiddleware() []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{
-		middleware.RequestID,
+		middleware.TraceID,
 		middleware.Logger{Logger: a.Settings.Logger}.ContextLogger,
 		middleware.PanicRecovery,
 		middleware.LogRequests,
