@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -28,7 +27,7 @@ func TraceID(next http.Handler) http.Handler {
 			}
 		}
 
-		ctx := context.WithValue(r.Context(), simbaContext.TraceIDKey, traceID)
+		ctx := simbaContext.WithTraceID(r.Context(), traceID)
 		w.Header().Set(simbaContext.TraceIDHeader, traceID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
