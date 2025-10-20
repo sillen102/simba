@@ -12,23 +12,16 @@ import (
 
 func TraceID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var traceID string
+		var ctx context.Context
 
 		requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.Request)
 		if ok && requestSettings.TraceIDMode == simbaModels.AcceptFromHeader {
-			traceID = r.Header.Get(simbaContext.TraceIDHeader)
+			ctx = getWithNewTraceIDOrDefaultIfPresent(r.Context(), r.Header.Get(simbaContext.TraceIDHeader))
+		} else {
+			ctx = GetWithTraceID(r.Context())
 		}
 
-		if traceID == "" {
-			id, err := uuid.NewV7()
-			if err != nil || id == uuid.Nil {
-				traceID = uuid.NewString()
-			}
-			traceID = id.String()
-		}
-		
-		ctx := context.WithValue(r.Context(), simbaContext.TraceIDKey, traceID)
-		w.Header().Set(simbaContext.TraceIDHeader, traceID)
+		w.Header().Set(simbaContext.TraceIDHeader, ctx.Value(simbaContext.TraceIDKey).(string))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -37,12 +30,20 @@ func TraceID(next http.Handler) http.Handler {
 func GetWithTraceID(ctx context.Context) context.Context {
 	var traceID string
 	traceID, ok := ctx.Value(simbaContext.TraceIDKey).(string)
-	if !ok {
+	if !ok || traceID == "" {
 		id, err := uuid.NewV7()
 		if err != nil || id == uuid.Nil {
 			traceID = uuid.NewString()
+		} else {
+			traceID = id.String()
 		}
-		traceID = id.String()
 	}
 	return context.WithValue(ctx, simbaContext.TraceIDKey, traceID)
+}
+
+func getWithNewTraceIDOrDefaultIfPresent(ctx context.Context, defaultTraceID string) context.Context {
+	if defaultTraceID == "" {
+		return GetWithTraceID(ctx)
+	}
+	return context.WithValue(ctx, simbaContext.TraceIDKey, defaultTraceID)
 }
