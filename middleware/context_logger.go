@@ -18,7 +18,7 @@ func (c Logger) ContextLogger(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), simbaContext.LoggerKey, c.Logger.With(
 			"method", r.Method,
 			"path", r.URL.Path,
-			"requestId", r.Context().Value(simbaContext.RequestIDKey),
+			"requestId", r.Context().Value(simbaContext.TraceIDKey),
 		))
 
 		next.ServeHTTP(w, r.WithContext(ctx))

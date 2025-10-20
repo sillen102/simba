@@ -2,11 +2,11 @@ package simbaContext
 
 type LoggerContextKey string
 type RequestContextKey string
-type RequestIdContextKey string
+type TraceIDContextKey string
 
 const (
-	LoggerKey          LoggerContextKey    = "logger"
-	RequestIDKey       RequestIdContextKey = "requestId"
-	RequestIDHeader    string              = "X-Request-Id"
-	RequestSettingsKey RequestContextKey   = "requestSettings"
+	LoggerKey          LoggerContextKey  = "logger"
+	TraceIDKey         TraceIDContextKey = "requestId"
+	TraceIDHeader      string            = "X-Trace-Id"
+	RequestSettingsKey RequestContextKey = "requestSettings"
 )

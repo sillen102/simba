@@ -56,8 +56,8 @@ type Request struct {
 	// If set to "disabled", the Request body will not be logged, which is also the default
 	LogRequestBody bool `yaml:"log-request-body" env:"SIMBA_REQUEST_LOG_REQUEST_BODY" default:"false"`
 
-	// RequestIdMode determines how the Request ID will be handled
-	RequestIdMode simbaModels.RequestIdMode `yaml:"request-id-mode" env:"SIMBA_REQUEST_ID_MODE" default:"AcceptFromHeader"`
+	// TraceIDMode determines how the Trace ID will be handled
+	TraceIDMode simbaModels.TraceIDMode `yaml:"trace-id-mode" env:"SIMBA_TRACE_ID_MODE" default:"AcceptFromHeader"`
 }
 
 type Docs struct {
@@ -123,10 +123,10 @@ func WithLogRequestBody(log bool) Option {
 	}
 }
 
-// WithRequestIdMode sets the request ID mode
-func WithRequestIdMode(mode simbaModels.RequestIdMode) Option {
+// WithTraceIDMode sets the trace ID mode
+func WithTraceIDMode(mode simbaModels.TraceIDMode) Option {
 	return func(s *Simba) {
-		s.RequestIdMode = mode
+		s.TraceIDMode = mode
 	}
 }
 

@@ -136,25 +136,25 @@ func TestWithLogRequestBody(t *testing.T) {
 	assert.True(t, s.LogRequestBody)
 }
 
-func TestLoadRequestIdModeDefault(t *testing.T) {
+func TestLoadTraceIDModeDefault(t *testing.T) {
 	t.Parallel()
 	s, err := settings.Load()
 	assert.NoError(t, err)
-	assert.Equal(t, "AcceptFromHeader", s.RequestIdMode.String())
+	assert.Equal(t, "AcceptFromHeader", s.TraceIDMode.String())
 }
 
-func TestLoadRequestIdModeFromEnvironment(t *testing.T) {
+func TestLoadTraceIDModeFromEnvironment(t *testing.T) {
 	t.Parallel()
-	s, err := settings.Load(settings.WithEnvGetter(mockEnvGetter("SIMBA_REQUEST_ID_MODE", "AcceptFromQuery")))
+	s, err := settings.Load(settings.WithEnvGetter(mockEnvGetter("SIMBA_TRACE_ID_MODE", "AcceptFromQuery")))
 	assert.NoError(t, err)
-	assert.Equal(t, "AcceptFromQuery", s.RequestIdMode.String())
+	assert.Equal(t, "AcceptFromQuery", s.TraceIDMode.String())
 }
 
-func TestWithRequestIdMode(t *testing.T) {
+func TestWithTraceIDMode(t *testing.T) {
 	t.Parallel()
-	s, err := settings.Load(settings.WithRequestIdMode(simbaModels.AlwaysGenerate))
+	s, err := settings.Load(settings.WithTraceIDMode(simbaModels.AlwaysGenerate))
 	assert.NoError(t, err)
-	assert.Equal(t, "AlwaysGenerate", s.RequestIdMode.String())
+	assert.Equal(t, "AlwaysGenerate", s.TraceIDMode.String())
 }
 
 func TestLoadGenerateOpenAPIDocsDefault(t *testing.T) {

@@ -47,7 +47,7 @@ func TestContextLogger(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
-		req = req.WithContext(context.WithValue(req.Context(), simbaContext.RequestIDKey, "12345"))
+		req = req.WithContext(context.WithValue(req.Context(), simbaContext.TraceIDKey, "12345"))
 		w := httptest.NewRecorder()
 
 		contextLogger.ContextLogger(handler).ServeHTTP(w, req)
