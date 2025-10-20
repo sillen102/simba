@@ -41,6 +41,15 @@ func GetWithTraceID(ctx context.Context) context.Context {
 	return context.WithValue(ctx, simbaContext.TraceIDKey, traceID)
 }
 
+// GetTraceID retrieves the trace ID from the context. If no trace ID is present, it returns an empty string.
+func GetTraceID(ctx context.Context) string {
+	traceID, ok := ctx.Value(simbaContext.TraceIDKey).(string)
+	if !ok {
+		return ""
+	}
+	return traceID
+}
+
 func getWithNewTraceIDOrDefaultIfPresent(ctx context.Context, defaultTraceID string) context.Context {
 	if defaultTraceID == "" {
 		return GetWithTraceID(ctx)

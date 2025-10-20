@@ -97,3 +97,20 @@ func TestGetWithTraceID(t *testing.T) {
 		assert.Equal(t, existingTraceID, traceID)
 	})
 }
+
+func TestGetTraceID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns empty string if no trace ID", func(t *testing.T) {
+		ctx := context.Background()
+		traceID := middleware.GetTraceID(ctx)
+		assert.Equal(t, "", traceID)
+	})
+
+	t.Run("returns existing trace ID", func(t *testing.T) {
+		existingTraceID := "existing-trace-id"
+		ctx := context.WithValue(context.Background(), simbaContext.TraceIDKey, existingTraceID)
+		traceID := middleware.GetTraceID(ctx)
+		assert.Equal(t, existingTraceID, traceID)
+	})
+}
