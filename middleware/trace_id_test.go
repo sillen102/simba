@@ -14,7 +14,7 @@ import (
 	"github.com/sillen102/simba/simbaTest/assert"
 )
 
-func TestRequestID(t *testing.T) {
+func TestTraceID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("generates new trace ID", func(t *testing.T) {

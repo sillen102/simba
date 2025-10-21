@@ -9,13 +9,13 @@ type User struct {
 }
 
 type Params struct {
-	ID        uuid.UUID `path:"id" description:"ID of the user" example:"1"`
-	Gender    string    `query:"gender" description:"Gender of the user" example:"male"`
-	RequestID string    `header:"X-Request-ID" description:"Request ID" example:"1234"`
-	Active    bool      `query:"active" description:"Active status of the user" example:"true"`
-	Page      int       `query:"page" description:"Page number" example:"1" default:"1"`
-	Size      int64     `query:"size" description:"Page size" example:"10" default:"10"`
-	Score     float64   `query:"score" description:"User score" example:"9.5" default:"10.0"`
+	ID      uuid.UUID `path:"id" description:"ID of the user" example:"1"`
+	Gender  string    `query:"gender" description:"Gender of the user" example:"male"`
+	TraceID string    `header:"X-TRACE-ID" description:"Request ID" example:"1234"`
+	Active  bool      `query:"active" description:"Active status of the user" example:"true"`
+	Page    int       `query:"page" description:"Page number" example:"1" default:"1"`
+	Size    int64     `query:"size" description:"Page size" example:"10" default:"10"`
+	Score   float64   `query:"score" description:"User score" example:"9.5" default:"10.0"`
 }
 
 type RequestBody struct {

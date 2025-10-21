@@ -18,7 +18,7 @@ type Receiver struct{}
 func (h *Receiver) NoTagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
-		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
 			ID:          req.Params.ID,
 			Name:        req.Body.Name,
@@ -42,7 +42,7 @@ func (h *Receiver) NoTagsHandler(_ context.Context, req *simbaModels.Request[Req
 func (h *Receiver) TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
-		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
 			ID:          req.Params.ID,
 			Name:        req.Body.Name,
@@ -58,7 +58,7 @@ func (h *Receiver) TagsHandler(_ context.Context, req *simbaModels.Request[Reque
 func (h *Receiver) DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
-		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
 			ID:          req.Params.ID,
 			Name:        req.Body.Name,
@@ -72,7 +72,7 @@ func (h *Receiver) DeprecatedHandler(ctx context.Context, req *simbaModels.Reque
 func NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
-		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
 			ID:          req.Params.ID,
 			Name:        req.Body.Name,
@@ -96,7 +96,7 @@ func NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Pa
 func TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
-		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
 			ID:          req.Params.ID,
 			Name:        req.Body.Name,
@@ -111,7 +111,7 @@ func TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params
 func DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
 	return &simbaModels.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
-		Headers: http.Header{"X-Request-ID": []string{req.Params.RequestID}},
+		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
 			ID:          req.Params.ID,
 			Name:        req.Body.Name,

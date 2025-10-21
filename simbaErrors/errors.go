@@ -150,11 +150,11 @@ func writeJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
 
 // newErrorResponse creates a new ErrorResponse instance with the given status and message
 func newErrorResponse(r *http.Request, status int, message string, errorCode string, details any) *ErrorResponse {
-	// Safely get RequestID from context
-	var requestID string
+	// Safely get TraceID from context
+	var traceID string
 	if id := r.Context().Value(simbaContext.TraceIDKey); id != nil {
 		if strID, ok := id.(string); ok {
-			requestID = strID
+			traceID = strID
 		}
 	}
 
@@ -164,7 +164,7 @@ func newErrorResponse(r *http.Request, status int, message string, errorCode str
 		Error:     http.StatusText(status),
 		Path:      r.URL.Path,
 		Method:    r.Method,
-		RequestID: requestID,
+		RequestID: traceID,
 		ErrorCode: errorCode,
 		Message:   message,
 		Details:   details,

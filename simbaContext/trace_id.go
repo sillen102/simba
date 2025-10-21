@@ -2,6 +2,7 @@ package simbaContext
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/google/uuid"
 )
@@ -33,4 +34,18 @@ func GetTraceID(ctx context.Context) string {
 		return ""
 	}
 	return traceID
+}
+
+// WithTraceIDLogger returns a context with a logger that includes the trace ID.
+func WithTraceIDLogger(ctx context.Context) context.Context {
+	logger := slog.Default().With(
+		"traceId", GetTraceID(ctx),
+	)
+	return context.WithValue(ctx, LoggerKey, logger)
+}
+
+// WithTraceIDAndLogger returns a context with a trace ID (existing or new) and a logger that includes the trace ID.
+func WithTraceIDAndLogger(ctx context.Context) context.Context {
+	ctx = WithExistingOrNewTraceID(ctx)
+	return WithTraceIDLogger(ctx)
 }
