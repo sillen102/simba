@@ -24,6 +24,11 @@ func LogRequests(next http.Handler) http.Handler {
 		logging.From(r.Context()).Info("request processed",
 			"remoteIp", r.RemoteAddr,
 			"userAgent", r.UserAgent(),
+			"method", r.Method,
+			"path", r.URL.Path,
+			"protocol", r.Proto,
+			"host", r.Host,
+			"referer", r.Referer(),
 			"status", wrapped.Status(),
 			"duration (ms)", duration,
 		)

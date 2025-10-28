@@ -16,6 +16,12 @@ func PanicRecovery(next http.Handler) http.Handler {
 				logging.From(r.Context()).Error("recovered from panic",
 					"error", fmt.Sprint(err),
 					"stacktrace", string(stack),
+					"remoteIp", r.RemoteAddr,
+					"method", r.Method,
+					"path", r.URL.Path,
+					"protocol", r.Proto,
+					"host", r.Host,
+					"referer", r.Referer(),
 				)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
