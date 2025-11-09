@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"math"
 	"net/http"
 	"time"
@@ -8,9 +9,23 @@ import (
 	"github.com/sillen102/simba/logging"
 )
 
+var (
+	excludePaths  = map[string]struct{}{}
+	pathLogLevels = map[string]slog.Level{
+		"/health": slog.LevelDebug,
+	}
+)
+
 // LogRequests logs the incoming requests
 func LogRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Skip logging for excluded paths
+		if _, ok := excludePaths[r.URL.Path]; ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		start := time.Now()
 		wrapped := wrapResponseWriter(w)
 
@@ -21,18 +36,45 @@ func LogRequests(next http.Handler) http.Handler {
 		duration := roundDuration(time.Since(start))
 
 		// Log request details after processing
-		logging.From(r.Context()).Info("request processed",
-			"remoteIp", r.RemoteAddr,
-			"userAgent", r.UserAgent(),
-			"method", r.Method,
-			"path", r.URL.Path,
-			"protocol", r.Proto,
-			"host", r.Host,
-			"referer", r.Referer(),
-			"status", wrapped.Status(),
-			"duration (ms)", duration,
-		)
+		logLevel := slog.LevelInfo // Default log level
+		if level, ok := pathLogLevels[r.URL.Path]; ok {
+			logLevel = level
+		}
+
+		logging.From(r.Context()).
+			Log(r.Context(), logLevel, "request processed",
+				"remoteIp", r.RemoteAddr,
+				"userAgent", r.UserAgent(),
+				"method", r.Method,
+				"path", r.URL.Path,
+				"protocol", r.Proto,
+				"host", r.Host,
+				"referer", r.Referer(),
+				"status", wrapped.Status(),
+				"duration (ms)", duration,
+			)
 	})
+}
+
+// ExcludePaths adds paths to the exclusion list for request logging
+func ExcludePaths(paths ...string) {
+	for _, path := range paths {
+		excludePaths[path] = struct{}{}
+	}
+}
+
+// ExcludePath adds a single path to the exclusion list for request logging
+func ExcludePath(path string) {
+	excludePaths[path] = struct{}{}
+}
+
+// SetPathLogLevel sets the log level for a specific path other than the default info level
+func SetPathLogLevel(path string, level slog.Level) {
+	if level == slog.LevelInfo {
+		delete(pathLogLevels, path)
+		return
+	}
+	pathLogLevels[path] = level
 }
 
 // roundDuration returns the duration in milliseconds rounded to 3 decimal places
