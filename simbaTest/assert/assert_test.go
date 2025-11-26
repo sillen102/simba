@@ -12,10 +12,10 @@ import (
 type mockT struct {
 	failed    bool
 	errorMsg  string
-	errorArgs []interface{}
+	errorArgs []any
 }
 
-func (m *mockT) Errorf(format string, args ...interface{}) {
+func (m *mockT) Errorf(format string, args ...any) {
 	m.failed = true
 	m.errorMsg = format
 	m.errorArgs = args
@@ -98,8 +98,8 @@ func TestEqual(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		expected   interface{}
-		actual     interface{}
+		expected   any
+		actual     any
 		message    string
 		shouldPass bool
 	}{
@@ -142,13 +142,13 @@ func TestEqualWithNestedStructs(t *testing.T) {
 	type Outer struct {
 		Name  string
 		Inner Inner
-		Data  map[string]interface{}
+		Data  map[string]any
 	}
 
 	testCases := []struct {
 		name       string
-		expected   interface{}
-		actual     interface{}
+		expected   any
+		actual     any
 		shouldPass bool
 	}{
 		{
@@ -159,7 +159,7 @@ func TestEqualWithNestedStructs(t *testing.T) {
 					Value: "inner",
 					Count: 42,
 				},
-				Data: map[string]interface{}{"key": "value"},
+				Data: map[string]any{"key": "value"},
 			},
 			actual: Outer{
 				Name: "test",
@@ -167,7 +167,7 @@ func TestEqualWithNestedStructs(t *testing.T) {
 					Value: "inner",
 					Count: 42,
 				},
-				Data: map[string]interface{}{"key": "value"},
+				Data: map[string]any{"key": "value"},
 			},
 			shouldPass: true,
 		},
@@ -194,12 +194,12 @@ func TestEqualWithNestedStructs(t *testing.T) {
 			expected: Outer{
 				Name:  "test",
 				Inner: Inner{Value: "inner", Count: 42},
-				Data:  map[string]interface{}{"key": "value"},
+				Data:  map[string]any{"key": "value"},
 			},
 			actual: Outer{
 				Name:  "test",
 				Inner: Inner{Value: "inner", Count: 42},
-				Data:  map[string]interface{}{"key": "different"},
+				Data:  map[string]any{"key": "different"},
 			},
 			shouldPass: false,
 		},
@@ -245,8 +245,8 @@ func TestNotEqual(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		expected   interface{}
-		actual     interface{}
+		expected   any
+		actual     any
 		message    string
 		shouldPass bool
 	}{
@@ -285,13 +285,13 @@ func TestNotEqualWithNestedStructs(t *testing.T) {
 	type Outer struct {
 		Name  string
 		Inner Inner
-		Data  map[string]interface{}
+		Data  map[string]any
 	}
 
 	testCases := []struct {
 		name       string
-		expected   interface{}
-		actual     interface{}
+		expected   any
+		actual     any
 		shouldPass bool
 	}{
 		{
@@ -302,7 +302,7 @@ func TestNotEqualWithNestedStructs(t *testing.T) {
 					Value: "inner",
 					Count: 42,
 				},
-				Data: map[string]interface{}{"key": "value"},
+				Data: map[string]any{"key": "value"},
 			},
 			actual: Outer{
 				Name: "test",
@@ -310,7 +310,7 @@ func TestNotEqualWithNestedStructs(t *testing.T) {
 					Value: "inner",
 					Count: 42,
 				},
-				Data: map[string]interface{}{"key": "value"},
+				Data: map[string]any{"key": "value"},
 			},
 			shouldPass: false, // NotEqual should fail for identical structs
 		},
@@ -474,7 +474,7 @@ func TestNil(t *testing.T) {
 
 	// Test passing case with nil interface
 	mock := &mockT{}
-	var nilInterface interface{} = nil
+	var nilInterface any = nil
 	result := assert.Nil(mock, nilInterface)
 	if !result || mock.failed {
 		t.Error("Nil should pass for nil interface value")
@@ -535,7 +535,7 @@ func TestNotNil(t *testing.T) {
 
 	// Test failing case with nil interface
 	mock = &mockT{}
-	var nilInterface interface{} = nil
+	var nilInterface any = nil
 	result = assert.NotNil(mock, nilInterface)
 	if result || !mock.failed {
 		t.Error("NotNil should fail for nil interface")

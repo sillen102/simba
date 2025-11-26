@@ -9,9 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
+
+	"github.com/google/uuid"
 )
 
 // parseAndValidateParams creates a new instance of the parameter struct,
@@ -86,7 +87,7 @@ func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
 }
 
 // parseEmbeddedParams processes embedded struct fields recursively
-func parseEmbeddedParams(r *http.Request, embeddedInstance interface{}) error {
+func parseEmbeddedParams(r *http.Request, embeddedInstance any) error {
 	t := reflect.TypeOf(embeddedInstance).Elem()
 	v := reflect.ValueOf(embeddedInstance).Elem()
 

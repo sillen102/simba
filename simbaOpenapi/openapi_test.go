@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/sillen102/simba/mimetypes"
 	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaOpenapi"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/sillen102/simba/simbaTest"
 	"github.com/sillen102/simba/simbaTest/assert"
+
+	"github.com/go-playground/validator/v10"
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
@@ -807,17 +808,17 @@ func TestValidateMinField(t *testing.T) {
 	assert.Equal(
 		t,
 		5.0,
-		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["size"].(map[string]interface{})["minimum"],
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]any)["size"].(map[string]any)["minimum"],
 	)
 	assert.Equal(
 		t,
 		5.0,
-		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["length"].(map[string]interface{})["minLength"],
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]any)["length"].(map[string]any)["minLength"],
 	)
 	assert.Equal(
 		t,
 		5.0,
-		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["items"].(map[string]interface{})["minItems"],
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]any)["items"].(map[string]any)["minItems"],
 	)
 
 	valid := reqBody{Size: 5, Length: "12345", Items: []string{"1", "2", "3", "4", "5"}}
@@ -863,17 +864,17 @@ func TestValidateMaxField(t *testing.T) {
 	assert.Equal(
 		t,
 		5.0,
-		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["size"].(map[string]interface{})["maximum"],
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]any)["size"].(map[string]any)["maximum"],
 	)
 	assert.Equal(
 		t,
 		5.0,
-		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["length"].(map[string]interface{})["maxLength"],
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]any)["length"].(map[string]any)["maxLength"],
 	)
 	assert.Equal(
 		t,
 		5.0,
-		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]interface{})["items"].(map[string]interface{})["maxItems"],
+		doc.Components.Schemas["SimbaOpenapiTestReqBody"]["properties"].(map[string]any)["items"].(map[string]any)["maxItems"],
 	)
 
 	valid := reqBody{Size: 5, Length: "12345", Items: []string{"1", "2", "3", "4", "5"}}

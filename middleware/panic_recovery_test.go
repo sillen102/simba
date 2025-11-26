@@ -88,7 +88,7 @@ func TestPanicRecovery(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 
 		// Parse the JSON log output
-		var logEntry map[string]interface{}
+		var logEntry map[string]any
 		err := json.Unmarshal(buf.Bytes(), &logEntry)
 		assert.NoError(t, err, "Should be valid JSON")
 
