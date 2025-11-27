@@ -64,5 +64,16 @@ func (a *Application) Start() {
 func (a *Application) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Shutdown telemetry provider first to ensure all spans and metrics are exported
+	if a.telemetryProvider != nil {
+		if err := a.telemetryProvider.Shutdown(ctx); err != nil {
+			a.Settings.Logger.Error("Failed to shutdown telemetry provider", "error", err)
+		} else {
+			a.Settings.Logger.Debug("Telemetry provider shutdown successfully")
+		}
+	}
+
+	// Then shutdown the HTTP server
 	return a.Server.Shutdown(ctx)
 }
