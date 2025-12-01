@@ -1,0 +1,41 @@
+# Simba Telemetry Example Configuration
+# This file shows how to configure telemetry using YAML instead of environment variables
+
+application:
+  name: simba-telemetry-demo
+  version: 1.0.0
+
+server:
+  host: 0.0.0.0
+  port: 9999
+
+telemetry:
+  enabled: true
+  service-name: simba-telemetry-demo  # Defaults to application.name if not set
+  service-version: 1.0.0              # Defaults to application.version if not set
+  environment: demo                    # development, staging, production, etc.
+
+  tracing:
+    enabled: true
+    exporter: otlp                     # Options: otlp, stdout
+    endpoint: localhost:4317           # OTLP gRPC endpoint
+    insecure: true                     # Use insecure connection (for local dev)
+    sampling-rate: 1.0                 # 1.0 = 100% sampling, 0.1 = 10% sampling
+
+  metrics:
+    enabled: true
+    exporter: otlp                     # Options: otlp, stdout
+    endpoint: localhost:4317           # OTLP gRPC endpoint
+    insecure: true                     # Use insecure connection (for local dev)
+    export-interval: 60                # Export metrics every 60 seconds
+
+request:
+  allow-unknown-fields: true
+  log-request-body: false
+  trace-id-mode: AcceptFromHeader      # Options: AcceptFromHeader, GenerateNew
+
+docs:
+  generate-docs: true
+  mount-docs-endpoint: true
+  open-api-file-path: /openapi.json
+  docs-path: /docs
