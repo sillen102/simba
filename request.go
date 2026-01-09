@@ -76,6 +76,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 		return err
 	}
 
+	// Handle setting defaults on request body fields
 	errs := setDefaultsFromTags(req)
 	if len(errs) > 0 {
 		return simbaErrors.NewSimbaError(
@@ -85,7 +86,16 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 		).WithDetails(errs)
 	}
 
-	if validationErrors := ValidateStruct(req); len(validationErrors) > 0 {
+	var validationTarget any = req
+	v := reflect.ValueOf(req)
+	if v.Kind() == reflect.Ptr && !v.IsNil() {
+		elem := v.Elem()
+		if elem.Kind() == reflect.Ptr {
+			validationTarget = elem.Interface()
+		}
+	}
+
+	if validationErrors := ValidateStruct(validationTarget); len(validationErrors) > 0 {
 		return simbaErrors.NewSimbaError(
 			http.StatusBadRequest,
 			"request validation failed",
@@ -146,9 +156,20 @@ func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) 
 func setDefaultsFromTags(model any) []ValidationError {
 	var errs []ValidationError
 	v := reflect.ValueOf(model)
-	if v.Kind() == reflect.Pointer {
+
+	// Dereference all pointer levels until we reach the struct
+	for v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return errs
+		}
 		v = v.Elem()
 	}
+
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return errs
+	}
+
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		fieldValue := v.Field(i)
