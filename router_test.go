@@ -456,3 +456,105 @@ func TestRouter_WithMiddleware(t *testing.T) {
 		assert.Equal(t, "", body.Middleware2)
 	})
 }
+
+func TestRouter_HandlerWithPointerRequestBody(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	type PatchBody struct {
+		Name   *string  `json:"name"`
+		Active *bool    `json:"active" default:"true"`
+		Count  *int     `json:"count" default:"10"`
+		Rate   *float64 `json:"rate" default:"3.14"`
+		Status *string  `json:"status" default:"pending"`
+	}
+
+	handler := func(ctx context.Context, req *simbaModels.Request[*PatchBody, simbaModels.NoParams]) (*simbaModels.Response[PatchBody], error) {
+		// Return the body to verify defaults were applied
+		return &simbaModels.Response[PatchBody]{
+			Body: PatchBody{
+				Name:   req.Body.Name,
+				Active: req.Body.Active,
+				Count:  req.Body.Count,
+				Rate:   req.Body.Rate,
+				Status: req.Body.Status,
+			},
+		}, nil
+	}
+
+	router.PATCH("/test-pointer-body", simba.JsonHandler(handler))
+
+	t.Run("pointer request body with defaults applied", func(t *testing.T) {
+		body := `{"name":"test"}`
+		req := httptest.NewRequest(http.MethodPatch, "/test-pointer-body", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp PatchBody
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Nil(t, err)
+		assert.NotNil(t, resp.Name)
+		assert.Equal(t, "test", *resp.Name)
+		assert.NotNil(t, resp.Active)
+		assert.Equal(t, true, *resp.Active)
+		assert.NotNil(t, resp.Count)
+		assert.Equal(t, 10, *resp.Count)
+		assert.NotNil(t, resp.Rate)
+		assert.Equal(t, 3.14, *resp.Rate)
+		assert.NotNil(t, resp.Status)
+		assert.Equal(t, "pending", *resp.Status)
+	})
+
+	t.Run("pointer request body empty with all defaults", func(t *testing.T) {
+		body := `{}`
+		req := httptest.NewRequest(http.MethodPatch, "/test-pointer-body", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp PatchBody
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Nil(t, err)
+		assert.Nil(t, resp.Name)
+		assert.NotNil(t, resp.Active)
+		assert.Equal(t, true, *resp.Active)
+		assert.NotNil(t, resp.Count)
+		assert.Equal(t, 10, *resp.Count)
+		assert.NotNil(t, resp.Rate)
+		assert.Equal(t, 3.14, *resp.Rate)
+		assert.NotNil(t, resp.Status)
+		assert.Equal(t, "pending", *resp.Status)
+	})
+
+	t.Run("pointer request body with partial overrides", func(t *testing.T) {
+		body := `{"active":false,"count":20}`
+		req := httptest.NewRequest(http.MethodPatch, "/test-pointer-body", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp PatchBody
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Nil(t, err)
+		assert.Nil(t, resp.Name)
+		assert.NotNil(t, resp.Active)
+		assert.Equal(t, false, *resp.Active)
+		assert.NotNil(t, resp.Count)
+		assert.Equal(t, 20, *resp.Count)
+		assert.NotNil(t, resp.Rate)
+		assert.Equal(t, 3.14, *resp.Rate)
+		assert.NotNil(t, resp.Status)
+		assert.Equal(t, "pending", *resp.Status)
+	})
+}

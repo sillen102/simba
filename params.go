@@ -299,6 +299,22 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 
 // setDefaultValue sets the default value from struct tag if available
 func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) *ValidationError {
+	if fieldValue.Kind() == reflect.Ptr {
+		if defaultValue := field.Tag.Get("default"); defaultValue != "" {
+			// Create a new instance of the pointer's element type
+			newValue := reflect.New(fieldValue.Type().Elem())
+
+			// Set the default value on the dereferenced pointer
+			if err := setDefaultValue(newValue.Elem(), field); err != nil {
+				return err
+			}
+
+			// Set the pointer to point to the new value
+			fieldValue.Set(newValue)
+			return nil
+		}
+	}
+
 	defaultVal := field.Tag.Get("default")
 	if defaultVal == "" {
 		return nil
