@@ -33,7 +33,10 @@ func init() {
 	trans, _ = uni.GetTranslator("en")
 
 	validate = validator.New(validator.WithRequiredStructEnabled())
-	en_translations.RegisterDefaultTranslations(validate, trans)
+	err := en_translations.RegisterDefaultTranslations(validate, trans)
+	if err != nil {
+		panic("failed to register default translations for validator: " + err.Error())
+	}
 
 	// Register custom translations for each tag
 
