@@ -264,7 +264,7 @@ func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.Multipart
 	if _, params, err := mime.ParseMediaType(contentType); err != nil || params["boundary"] == "" {
 		e := simbaErrors.ErrInvalidContentType
 		if err != nil {
-			e.WithDetails(err.Error())
+			e = e.WithDetails(err.Error())
 		}
 		return nil, e
 	}

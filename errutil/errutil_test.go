@@ -217,7 +217,7 @@ func BenchmarkFind(b *testing.B) {
 		f := func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				errutil.Find[simpleError](bc.err)
+				_, _ = errutil.Find[simpleError](bc.err)
 			}
 		}
 		b.Run(bc.desc, f)
@@ -229,7 +229,7 @@ func BenchmarkFindAgainstErrorsPkg(b *testing.B) {
 		f := func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				findErrorsPkg[simpleError](bc.err)
+				_, _ = findErrorsPkg[simpleError](bc.err)
 			}
 		}
 		b.Run("v=errors/"+bc.desc, f)
@@ -237,7 +237,7 @@ func BenchmarkFindAgainstErrorsPkg(b *testing.B) {
 		f = func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				errutil.Find[simpleError](bc.err)
+				_, _ = errutil.Find[simpleError](bc.err)
 			}
 		}
 		b.Run("v=errutil/"+bc.desc, f)

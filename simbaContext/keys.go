@@ -6,7 +6,7 @@ type TraceIDContextKey string
 
 const (
 	LoggerKey          LoggerContextKey  = "logger"
-	TraceIDKey         TraceIDContextKey = "requestId"
+	TraceIDKey         TraceIDContextKey = "traceId"
 	TraceIDHeader      string            = "X-Trace-Id"
 	RequestSettingsKey RequestContextKey = "requestSettings"
 )

@@ -17,6 +17,8 @@ import (
 
 // writeResponse writes the response to the client
 func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, resp *simbaModels.Response[ResponseBody], err error) {
+	logger := logging.From(r.Context())
+
 	if err != nil {
 		simbaErrors.WriteError(w, r, err)
 		return
@@ -25,7 +27,7 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 	// Check if resp is nil
 	if resp == nil {
 		// Log this unexpected condition
-		logging.From(r.Context()).Error("unexpected nil response")
+		logger.Error("unexpected nil response")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -55,6 +57,7 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 
 	err = writeJSON(w, status, resp.Body)
 	if err != nil {
+		logger.Error("failed to write JSON response", "error", err)
 		simbaErrors.HandleUnexpectedError(w)
 		return
 	}
