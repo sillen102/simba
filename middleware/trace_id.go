@@ -3,27 +3,37 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaModels"
+
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TraceID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var traceID string
 
-		requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.Request)
-		if ok && requestSettings.TraceIDMode == simbaModels.AcceptFromHeader {
-			traceID = r.Header.Get(simbaContext.TraceIDHeader)
-		}
+		// Check if OTEL trace ID exists in span context
+		// This takes precedence when telemetry is enabled
+		spanCtx := trace.SpanContextFromContext(r.Context())
+		if spanCtx.IsValid() {
+			traceID = spanCtx.TraceID().String()
+		} else {
+			// Fallback to existing Simba trace ID logic
+			requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.Request)
+			if ok && requestSettings.TraceIDMode == simbaModels.AcceptFromHeader {
+				traceID = r.Header.Get(simbaContext.TraceIDHeader)
+			}
 
-		if traceID == "" {
-			id, err := uuid.NewV7()
-			if err != nil || id == uuid.Nil {
-				traceID = uuid.NewString()
-			} else {
-				traceID = id.String()
+			if traceID == "" {
+				id, err := uuid.NewV7()
+				if err != nil || id == uuid.Nil {
+					traceID = uuid.NewString()
+				} else {
+					traceID = id.String()
+				}
 			}
 		}
 

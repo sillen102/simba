@@ -1,11 +1,13 @@
 package simba
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/settings"
+	"github.com/sillen102/simba/telemetry"
 )
 
 // Application is the main application struct that holds the Mux and other application Settings
@@ -25,6 +27,9 @@ type Application struct {
 
 	// Settings is the application Settings
 	Settings *settings.Simba
+
+	// telemetryProvider manages OpenTelemetry tracer and meter providers
+	telemetryProvider *telemetry.Provider
 }
 
 // Default returns a new [Application] application with default Simba
@@ -47,19 +52,40 @@ func New(opts ...settings.Option) *Application {
 		return injectRequestSettings(next, &cfg.Request)
 	})
 
+	// Initialize telemetry provider if enabled
+	var telemetryProvider *telemetry.Provider
+	if cfg.Telemetry.Enabled {
+		provider, err := telemetry.NewProvider(context.Background(), cfg)
+		if err != nil {
+			cfg.Logger.Error("Failed to initialize telemetry", "error", err)
+		} else {
+			telemetryProvider = provider
+			cfg.Logger.Info("Telemetry initialized successfully",
+				"tracing", cfg.Telemetry.Tracing.Enabled,
+				"metrics", cfg.Telemetry.Metrics.Enabled,
+			)
+		}
+	}
+
 	return &Application{
-		Server:   &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), Handler: router},
-		Router:   router,
-		Settings: cfg,
+		Server:            &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), Handler: router},
+		Router:            router,
+		Settings:          cfg,
+		telemetryProvider: telemetryProvider,
 	}
 }
 
 // defaultMiddleware returns the middleware chain used in the default [Application] application
 func (a *Application) defaultMiddleware() []func(http.Handler) http.Handler {
-	return []func(http.Handler) http.Handler{
+	// Telemetry middleware is added first (outermost) to capture complete request lifecycle
+	middlewares := []func(http.Handler) http.Handler{
+		middleware.OtelTracing(a.telemetryProvider, &a.Settings.Telemetry),
+		middleware.OtelMetrics(a.telemetryProvider, &a.Settings.Telemetry),
 		middleware.TraceID,
 		middleware.Logger{Logger: a.Settings.Logger}.ContextLogger,
 		middleware.PanicRecovery,
 		middleware.LogRequests,
 	}
+
+	return middlewares
 }
