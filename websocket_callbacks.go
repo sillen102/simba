@@ -11,14 +11,14 @@ import (
 // Multiple connections can have their callbacks called concurrently
 type WebSocketCallbacks[Params any] struct {
 	// OnConnect is called after the WebSocket upgrade succeeds (optional)
-	// Use this to send welcome messages, initialize state, join groups, etc.
+	// Use this to send welcome messages, initialize state, etc.
 	// If an error is returned, the connection is closed and OnDisconnect is called
-	OnConnect func(ctx context.Context, conn *WebSocketConnection, registry ConnectionRegistry, params Params) error
+	OnConnect func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, params Params) error
 
 	// OnMessage is called for each incoming message from the client (required)
 	// The messageType indicates if this is text (ws.OpText) or binary (ws.OpBinary)
 	// If an error is returned, OnError is called (if provided), otherwise connection closes
-	OnMessage func(ctx context.Context, conn *WebSocketConnection, registry ConnectionRegistry, messageType ws.OpCode, data []byte) error
+	OnMessage func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, messageType ws.OpCode, data []byte) error
 
 	// OnDisconnect is called when the connection is closed (optional)
 	// This is ALWAYS called, even if OnConnect or OnMessage returns an error
@@ -39,12 +39,13 @@ type AuthWebSocketCallbacks[Params, AuthModel any] struct {
 	// OnConnect is called after the WebSocket upgrade succeeds (optional)
 	// The auth parameter contains the authenticated user model
 	// If an error is returned, the connection is closed and OnDisconnect is called
-	OnConnect func(ctx context.Context, conn *WebSocketConnection, registry ConnectionRegistry, params Params, auth AuthModel) error
+	OnConnect func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, params Params, auth AuthModel) error
 
 	// OnMessage is called for each incoming message from the client (required)
 	// The messageType indicates if this is text (ws.OpText) or binary (ws.OpBinary)
+	// The auth parameter contains the authenticated user model
 	// If an error is returned, OnError is called (if provided), otherwise connection closes
-	OnMessage func(ctx context.Context, conn *WebSocketConnection, registry ConnectionRegistry, messageType ws.OpCode, data []byte) error
+	OnMessage func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, messageType ws.OpCode, data []byte, auth AuthModel) error
 
 	// OnDisconnect is called when the connection is closed (optional)
 	// This is ALWAYS called, even if OnConnect or OnMessage returns an error

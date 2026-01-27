@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -15,98 +16,49 @@ import (
 
 // WebSocketCallbackHandlerFunc is a function type for handling WebSocket connections with callbacks
 type WebSocketCallbackHandlerFunc[Params any] struct {
-	callbacks WebSocketCallbacks[Params]
-	registry  ConnectionRegistryInternal
+	callbacks   WebSocketCallbacks[Params]
+	connections map[string]*WebSocketConnection
+	mu          sync.RWMutex
 }
 
 // WebSocketHandler creates a handler that uses callbacks for WebSocket lifecycle events.
-// The callbacks can be defined in a separate function for better organization.
-//
-// An optional custom registry can be provided for distributed deployments.
-// If no registry is provided, a default in-memory registry will be used.
 //
 // Example usage:
 //
-//	// Define callbacks in a separate function
 //	func chatCallbacks() simba.WebSocketCallbacks[Params] {
 //		return simba.WebSocketCallbacks[Params]{
-//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params) error {
-//				registry.Join(conn.ID, params.Room)
+//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, params Params) error {
 //				return conn.WriteText("Welcome!")
 //			},
-//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
-//				params := conn.Params.(Params)
-//				return registry.BroadcastToGroup(params.Room, data)
-//			},
-//			OnDisconnect: func(ctx context.Context, params Params, err error) {
-//				// Cleanup logic here
+//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, msgType ws.OpCode, data []byte) error {
+//				// Broadcast to all connections
+//				for _, c := range connections {
+//					c.WriteText(string(data))
+//				}
+//				return nil
 //			},
 //		}
 //	}
 //
-//	// Register the handler with default registry
-//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandler(chatCallbacks()))
-//
-//	// Or pass the function directly (without calling it)
-//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFunc(chatCallbacks))
-//
-//	// Or with a custom registry for distributed deployments
-//	redisRegistry := myapp.NewRedisConnectionRegistry(redisClient)
-//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandler(chatCallbacks(), redisRegistry))
-func WebSocketHandler[Params any](callbacks WebSocketCallbacks[Params], registry ...ConnectionRegistryInternal) Handler {
+//	app.Router.GET("/ws/chat", simba.WebSocketHandler(chatCallbacks))
+func WebSocketHandler[Params any](callbacks WebSocketCallbacks[Params]) Handler {
 	if callbacks.OnMessage == nil {
 		panic("OnMessage callback is required")
 	}
 
-	// Use provided registry or default to in-memory
-	var reg ConnectionRegistryInternal
-	if len(registry) > 0 {
-		reg = registry[0]
-	} else {
-		reg = newConnectionRegistry()
-	}
-
-	return WebSocketCallbackHandlerFunc[Params]{
-		callbacks: callbacks,
-		registry:  reg,
+	return &WebSocketCallbackHandlerFunc[Params]{
+		callbacks:   callbacks,
+		connections: make(map[string]*WebSocketConnection),
 	}
 }
 
 // WebSocketHandlerFunc creates a handler from a function that returns WebSocket callbacks.
-// This allows passing the callback function directly without calling it.
-//
-// Example usage:
-//
-//	func chatCallbacks() simba.WebSocketCallbacks[Params] {
-//		return simba.WebSocketCallbacks[Params]{
-//			OnMessage: func(...) error { ... },
-//		}
-//	}
-//
-//	// Pass function directly (cleaner syntax)
-//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFunc(chatCallbacks))
-//
-//	// With custom registry
-//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFuncWithRegistry(chatCallbacks, customRegistry))
 func WebSocketHandlerFunc[Params any](callbacksFunc func() WebSocketCallbacks[Params]) Handler {
 	return WebSocketHandler(callbacksFunc())
 }
 
-// WebSocketHandlerFuncWithRegistry creates a handler from a callback function with a custom registry.
-//
-// Example usage:
-//
-//	customRegistry := myapp.NewRedisConnectionRegistry(client)
-//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFuncWithRegistry(chatCallbacks, customRegistry))
-func WebSocketHandlerFuncWithRegistry[Params any](
-	callbacksFunc func() WebSocketCallbacks[Params],
-	registry ConnectionRegistryInternal,
-) Handler {
-	return WebSocketHandler(callbacksFunc(), registry)
-}
-
 // ServeHTTP implements the http.Handler interface for WebSocketCallbackHandlerFunc
-func (h WebSocketCallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *WebSocketCallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Parse and validate params before upgrading connection
@@ -132,7 +84,7 @@ func (h WebSocketCallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r
 }
 
 // handleConnection manages the lifecycle of a WebSocket connection
-func (h WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth any) {
+func (h *WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth any) {
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -140,16 +92,22 @@ func (h WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Conte
 	// Create connection wrapper
 	wsConn := &WebSocketConnection{
 		ID:     generateConnID(),
+		Params: params,
 		conn:   rawConn,
 		ctx:    ctx,
 		cancel: cancel,
-		Params: params,
-		Auth:   auth,
 	}
 
 	// Track connection
-	h.registry.AddConnection(wsConn)
-	defer h.registry.RemoveConnection(wsConn.ID)
+	h.mu.Lock()
+	h.connections[wsConn.ID] = wsConn
+	h.mu.Unlock()
+
+	defer func() {
+		h.mu.Lock()
+		delete(h.connections, wsConn.ID)
+		h.mu.Unlock()
+	}()
 
 	// Always cleanup
 	var handlerErr error
@@ -163,7 +121,11 @@ func (h WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Conte
 
 	// Call OnConnect
 	if h.callbacks.OnConnect != nil {
-		if err := h.callbacks.OnConnect(ctx, wsConn, h.registry, params); err != nil {
+		h.mu.RLock()
+		connectionsSnapshot := h.connections
+		h.mu.RUnlock()
+
+		if err := h.callbacks.OnConnect(ctx, wsConn, connectionsSnapshot, params); err != nil {
 			handlerErr = err
 			return
 		}
@@ -188,7 +150,11 @@ func (h WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Conte
 			}
 
 			// Call OnMessage
-			if err := h.callbacks.OnMessage(ctx, wsConn, h.registry, op, msg); err != nil {
+			h.mu.RLock()
+			connectionsSnapshot := h.connections
+			h.mu.RUnlock()
+
+			if err := h.callbacks.OnMessage(ctx, wsConn, connectionsSnapshot, op, msg); err != nil {
 				// Check if OnError wants to continue
 				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
 					continue
@@ -200,36 +166,36 @@ func (h WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Conte
 	}
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getRequestBody() any {
+func (h *WebSocketCallbackHandlerFunc[Params]) getRequestBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getResponseBody() any {
+func (h *WebSocketCallbackHandlerFunc[Params]) getResponseBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getParams() any {
+func (h *WebSocketCallbackHandlerFunc[Params]) getParams() any {
 	var p Params
 	return p
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getAccepts() string {
+func (h *WebSocketCallbackHandlerFunc[Params]) getAccepts() string {
 	return ""
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getProduces() string {
+func (h *WebSocketCallbackHandlerFunc[Params]) getProduces() string {
 	return ""
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getHandler() any {
+func (h *WebSocketCallbackHandlerFunc[Params]) getHandler() any {
 	return h.callbacks
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getAuthModel() any {
+func (h *WebSocketCallbackHandlerFunc[Params]) getAuthModel() any {
 	return nil
 }
 
-func (h WebSocketCallbackHandlerFunc[Params]) getAuthHandler() any {
+func (h *WebSocketCallbackHandlerFunc[Params]) getAuthHandler() any {
 	return nil
 }
 
@@ -237,85 +203,47 @@ func (h WebSocketCallbackHandlerFunc[Params]) getAuthHandler() any {
 type AuthWebSocketCallbackHandlerFunc[Params, AuthModel any] struct {
 	callbacks   AuthWebSocketCallbacks[Params, AuthModel]
 	authHandler AuthHandler[AuthModel]
-	registry    ConnectionRegistryInternal
+	connections map[string]*WebSocketConnection
+	mu          sync.RWMutex
 }
 
 // AuthWebSocketHandler creates an authenticated handler that uses callbacks for WebSocket lifecycle events.
-// The callbacks can be defined in a separate function for better organization.
-//
-// An optional custom registry can be provided for distributed deployments.
-// If no registry is provided, a default in-memory registry will be used.
 //
 // Example usage:
 //
-//	// Define callbacks in a separate function
 //	func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
 //		return simba.AuthWebSocketCallbacks[Params, AuthModel]{
-//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params, auth AuthModel) error {
-//				registry.Join(conn.ID, params.Room)
+//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, params Params, auth AuthModel) error {
 //				return conn.WriteText(fmt.Sprintf("Welcome %s!", auth.Name))
 //			},
-//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
-//				params := conn.Params.(Params)
-//				auth := conn.Auth.(AuthModel)
+//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, msgType ws.OpCode, data []byte, auth AuthModel) error {
 //				message := fmt.Sprintf("[%s]: %s", auth.Name, string(data))
-//				return registry.BroadcastToGroup(params.Room, []byte(message))
+//				for _, c := range connections {
+//					c.WriteText(message)
+//				}
+//				return nil
 //			},
 //		}
 //	}
 //
-//	// Register the handler with default registry
 //	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
-//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandler(chatCallbacks(), bearerAuth))
-//
-//	// Or pass the function directly (without calling it)
-//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFunc(chatCallbacks, bearerAuth))
-//
-//	// Or with a custom registry for distributed deployments
-//	redisRegistry := myapp.NewRedisConnectionRegistry(redisClient)
-//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandler(chatCallbacks(), bearerAuth, redisRegistry))
+//	app.Router.GET("/ws/chat", simba.AuthWebSocketHandler(chatCallbacks, bearerAuth))
 func AuthWebSocketHandler[Params, AuthModel any](
 	callbacks AuthWebSocketCallbacks[Params, AuthModel],
 	authHandler AuthHandler[AuthModel],
-	registry ...ConnectionRegistryInternal,
 ) Handler {
 	if callbacks.OnMessage == nil {
 		panic("OnMessage callback is required")
 	}
 
-	// Use provided registry or default to in-memory
-	var reg ConnectionRegistryInternal
-	if len(registry) > 0 {
-		reg = registry[0]
-	} else {
-		reg = newConnectionRegistry()
-	}
-
-	return AuthWebSocketCallbackHandlerFunc[Params, AuthModel]{
+	return &AuthWebSocketCallbackHandlerFunc[Params, AuthModel]{
 		callbacks:   callbacks,
 		authHandler: authHandler,
-		registry:    reg,
+		connections: make(map[string]*WebSocketConnection),
 	}
 }
 
 // AuthWebSocketHandlerFunc creates an authenticated handler from a function that returns WebSocket callbacks.
-// This allows passing the callback function directly without calling it.
-//
-// Example usage:
-//
-//	func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
-//		return simba.AuthWebSocketCallbacks[Params, AuthModel]{
-//			OnMessage: func(...) error { ... },
-//		}
-//	}
-//
-//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
-//
-//	// Pass function directly (cleaner syntax)
-//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFunc(chatCallbacks, bearerAuth))
-//
-//	// With custom registry
-//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFuncWithRegistry(chatCallbacks, bearerAuth, customRegistry))
 func AuthWebSocketHandlerFunc[Params, AuthModel any](
 	callbacksFunc func() AuthWebSocketCallbacks[Params, AuthModel],
 	authHandler AuthHandler[AuthModel],
@@ -323,23 +251,8 @@ func AuthWebSocketHandlerFunc[Params, AuthModel any](
 	return AuthWebSocketHandler(callbacksFunc(), authHandler)
 }
 
-// AuthWebSocketHandlerFuncWithRegistry creates an authenticated handler from a callback function with a custom registry.
-//
-// Example usage:
-//
-//	customRegistry := myapp.NewRedisConnectionRegistry(client)
-//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
-//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFuncWithRegistry(chatCallbacks, bearerAuth, customRegistry))
-func AuthWebSocketHandlerFuncWithRegistry[Params, AuthModel any](
-	callbacksFunc func() AuthWebSocketCallbacks[Params, AuthModel],
-	authHandler AuthHandler[AuthModel],
-	registry ConnectionRegistryInternal,
-) Handler {
-	return AuthWebSocketHandler(callbacksFunc(), authHandler, registry)
-}
-
 // ServeHTTP implements the http.Handler interface for AuthWebSocketCallbackHandlerFunc
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Authenticate before upgrading connection
@@ -382,7 +295,7 @@ func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.Re
 }
 
 // handleConnection manages the lifecycle of an authenticated WebSocket connection
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth AuthModel) {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth AuthModel) {
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -390,16 +303,22 @@ func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ct
 	// Create connection wrapper
 	wsConn := &WebSocketConnection{
 		ID:     generateConnID(),
+		Params: params,
 		conn:   rawConn,
 		ctx:    ctx,
 		cancel: cancel,
-		Params: params,
-		Auth:   auth,
 	}
 
 	// Track connection
-	h.registry.AddConnection(wsConn)
-	defer h.registry.RemoveConnection(wsConn.ID)
+	h.mu.Lock()
+	h.connections[wsConn.ID] = wsConn
+	h.mu.Unlock()
+
+	defer func() {
+		h.mu.Lock()
+		delete(h.connections, wsConn.ID)
+		h.mu.Unlock()
+	}()
 
 	// Always cleanup
 	var handlerErr error
@@ -413,7 +332,11 @@ func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ct
 
 	// Call OnConnect
 	if h.callbacks.OnConnect != nil {
-		if err := h.callbacks.OnConnect(ctx, wsConn, h.registry, params, auth); err != nil {
+		h.mu.RLock()
+		connectionsSnapshot := h.connections
+		h.mu.RUnlock()
+
+		if err := h.callbacks.OnConnect(ctx, wsConn, connectionsSnapshot, params, auth); err != nil {
 			handlerErr = err
 			return
 		}
@@ -438,7 +361,11 @@ func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ct
 			}
 
 			// Call OnMessage
-			if err := h.callbacks.OnMessage(ctx, wsConn, h.registry, op, msg); err != nil {
+			h.mu.RLock()
+			connectionsSnapshot := h.connections
+			h.mu.RUnlock()
+
+			if err := h.callbacks.OnMessage(ctx, wsConn, connectionsSnapshot, op, msg, auth); err != nil {
 				// Check if OnError wants to continue
 				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
 					continue
@@ -450,37 +377,37 @@ func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ct
 	}
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getRequestBody() any {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getRequestBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getResponseBody() any {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getResponseBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getParams() any {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAccepts() string {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAccepts() string {
 	return ""
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getProduces() string {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getProduces() string {
 	return ""
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getHandler() any {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getHandler() any {
 	return h.callbacks
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAuthModel() any {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAuthHandler() any {
+func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAuthHandler() any {
 	return h.authHandler
 }
 

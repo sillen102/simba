@@ -11,11 +11,6 @@ import (
 	"github.com/sillen102/simba/simbaModels"
 )
 
-// Params defines the WebSocket endpoint parameters
-type Params struct {
-	Room string `path:"room" validate:"required"`
-}
-
 // AuthModel represents the authenticated user
 type AuthModel struct {
 	ID   int
@@ -24,7 +19,6 @@ type AuthModel struct {
 
 // Simple bearer token auth handler for demonstration
 func authHandler(ctx context.Context, token string) (AuthModel, error) {
-	// In a real application, validate the token against a database or JWT
 	if token == "valid-token" {
 		return AuthModel{
 			ID:   1,
@@ -34,28 +28,22 @@ func authHandler(ctx context.Context, token string) (AuthModel, error) {
 	return AuthModel{}, fmt.Errorf("invalid token")
 }
 
-// echoCallbacks returns WebSocket callbacks for the echo handler.
-// This demonstrates how to structure handlers in separate functions or files.
-func echoCallbacks() simba.WebSocketCallbacks[Params] {
-	return simba.WebSocketCallbacks[Params]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params) error {
-			slog.Info("Connection established", "room", params.Room, "connID", conn.ID)
-			// Join the room automatically
-			registry.Join(conn.ID, params.Room)
-			// Send welcome message
-			return conn.WriteText(fmt.Sprintf("Welcome to %s!", params.Room))
+// echoCallbacks returns WebSocket callbacks for a simple echo handler
+func echoCallbacks() simba.WebSocketCallbacks[simbaModels.NoParams] {
+	return simba.WebSocketCallbacks[simbaModels.NoParams]{
+		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, params simbaModels.NoParams) error {
+			slog.Info("Connection established", "connID", conn.ID, "totalConns", len(connections))
+			return conn.WriteText("Welcome! Send me messages and I'll echo them back.")
 		},
 
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
-			params := conn.Params.(Params)
-			slog.Info("Received message", "room", params.Room, "message", string(data))
-
-			// Broadcast to everyone in the room
-			return registry.BroadcastToGroup(params.Room, data)
+		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, msgType ws.OpCode, data []byte) error {
+			slog.Info("Received message", "message", string(data))
+			// Echo back to sender
+			return conn.WriteText(fmt.Sprintf("Echo: %s", string(data)))
 		},
 
-		OnDisconnect: func(ctx context.Context, params Params, err error) {
-			slog.Info("Connection closed", "room", params.Room, "error", err)
+		OnDisconnect: func(ctx context.Context, params simbaModels.NoParams, err error) {
+			slog.Info("Connection closed", "error", err)
 		},
 
 		OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
@@ -65,48 +53,45 @@ func echoCallbacks() simba.WebSocketCallbacks[Params] {
 	}
 }
 
-// chatCallbacks returns authenticated WebSocket callbacks for the chat handler.
-// This demonstrates how to structure authenticated handlers in separate functions or files.
-func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
-	return simba.AuthWebSocketCallbacks[Params, AuthModel]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params, auth AuthModel) error {
+// broadcastCallbacks demonstrates authenticated WebSocket with broadcasting
+func broadcastCallbacks() simba.AuthWebSocketCallbacks[simbaModels.NoParams, AuthModel] {
+	return simba.AuthWebSocketCallbacks[simbaModels.NoParams, AuthModel]{
+		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, params simbaModels.NoParams, auth AuthModel) error {
 			slog.Info("Authenticated user connected",
-				"room", params.Room,
 				"user", auth.Name,
 				"connID", conn.ID,
 			)
 
-			// Join the room
-			registry.Join(conn.ID, params.Room)
-
 			// Send welcome to the user
-			conn.WriteText(fmt.Sprintf("Welcome %s to %s!", auth.Name, params.Room))
+			conn.WriteText(fmt.Sprintf("Welcome %s!", auth.Name))
 
-			// Notify others in the room
-			msg := fmt.Sprintf("%s joined the room", auth.Name)
-			registry.BroadcastToGroup(params.Room, []byte(msg))
+			// Notify all other connections
+			msg := fmt.Sprintf("%s joined the chat", auth.Name)
+			for _, c := range connections {
+				if c.ID != conn.ID {
+					c.WriteText(msg)
+				}
+			}
 
 			return nil
 		},
 
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
-			params := conn.Params.(Params)
-			auth := conn.Auth.(AuthModel)
-
+		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, msgType ws.OpCode, data []byte, auth AuthModel) error {
 			slog.Info("Chat message",
-				"room", params.Room,
 				"user", auth.Name,
 				"message", string(data),
 			)
 
-			// Format message with username and broadcast to room
+			// Format message with username and broadcast to all
 			message := fmt.Sprintf("[%s]: %s", auth.Name, string(data))
-			return registry.BroadcastToGroupText(params.Room, message)
+			for _, c := range connections {
+				c.WriteText(message)
+			}
+			return nil
 		},
 
-		OnDisconnect: func(ctx context.Context, params Params, auth AuthModel, err error) {
+		OnDisconnect: func(ctx context.Context, params simbaModels.NoParams, auth AuthModel, err error) {
 			slog.Info("User disconnected",
-				"room", params.Room,
 				"user", auth.Name,
 				"error", err,
 			)
@@ -119,26 +104,9 @@ func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
 	}
 }
 
-// simpleEchoCallbacks returns WebSocket callbacks for a simple echo handler without params.
-// This demonstrates how to structure handlers without path parameters.
-func simpleEchoCallbacks() simba.WebSocketCallbacks[simbaModels.NoParams] {
-	return simba.WebSocketCallbacks[simbaModels.NoParams]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params simbaModels.NoParams) error {
-			slog.Info("Simple connection", "connID", conn.ID)
-			return conn.WriteText("Connected! Send me messages.")
-		},
-
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
-			slog.Info("Simple message", "message", string(data))
-			// Echo back with prefix
-			return conn.WriteText(fmt.Sprintf("You said: %s", string(data)))
-		},
-	}
-}
-
 func main() {
 	// Set up logging
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 
 	app := simba.Default()
@@ -150,27 +118,20 @@ func main() {
 		Description: "Bearer token authentication",
 	})
 
-	// Echo handler with room support and broadcasting
-	// Usage: ws://localhost:8080/ws/echo/{room}
-	// Uses default in-memory registry
-	app.Router.GET("/ws/echo/{room}", simba.WebSocketHandlerFunc(echoCallbacks))
+	// Simple echo endpoint (no authentication)
+	// Usage: ws://localhost:8080/ws/echo
+	app.Router.GET("/ws/echo", simba.WebSocketHandlerFunc(echoCallbacks))
 
-	// Authenticated chat handler with broadcasting
-	// Usage: ws://localhost:8080/ws/chat/{room}
-	// Requires: Authorization: Bearer valid-token
-	// Uses default in-memory registry
-	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFunc(chatCallbacks, bearerAuth))
-
-	// Simple WebSocket without params
-	// Usage: ws://localhost:8080/ws/simple
-	app.Router.GET("/ws/simple", simba.WebSocketHandlerFunc(simpleEchoCallbacks))
+	// Broadcast chat endpoint (requires authentication)
+	// Usage: ws://localhost:8080/ws/broadcast with header "Authorization: Bearer valid-token"
+	app.Router.GET("/ws/broadcast", simba.AuthWebSocketHandlerFunc(broadcastCallbacks, bearerAuth))
 
 	slog.Info("Starting server with WebSocket support on :8080")
 	slog.Info("")
 	slog.Info("Available endpoints:")
-	slog.Info("  Echo with rooms: ws://localhost:8080/ws/echo/{room}")
-	slog.Info("  Authenticated chat: ws://localhost:8080/ws/chat/{room} (requires Bearer token)")
-	slog.Info("  Simple echo: ws://localhost:8080/ws/simple")
+	slog.Info("  Echo: ws://localhost:8080/ws/echo")
+	slog.Info("  Broadcast chat: ws://localhost:8080/ws/broadcast (requires Bearer token)")
+	slog.Info("")
 
 	app.Start()
 }
