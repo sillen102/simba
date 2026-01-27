@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/sillen102/config-loader"
+	configloader "github.com/sillen102/config-loader"
 	"github.com/sillen102/simba/simbaModels"
 )
 
@@ -22,6 +22,9 @@ type Simba struct {
 
 	// Docs settings
 	Docs `yaml:"docs"`
+
+	// Telemetry settings
+	Telemetry `yaml:"telemetry"`
 
 	// Logger settings
 	Logger *slog.Logger `yaml:"-" env:"-"`
@@ -76,6 +79,63 @@ type Docs struct {
 
 	// ServiceName is the name of the service
 	ServiceName string
+}
+
+// Telemetry holds the settings for OpenTelemetry integration
+type Telemetry struct {
+	// Enabled determines if telemetry is enabled (opt-in, default: false)
+	Enabled bool `yaml:"enabled" env:"SIMBA_TELEMETRY_ENABLED" default:"false"`
+
+	// Tracing configuration
+	Tracing TracingConfig `yaml:"tracing"`
+
+	// Metrics configuration
+	Metrics MetricsConfig `yaml:"metrics"`
+
+	// ServiceName is the name of the service for telemetry (defaults to Application.Name)
+	ServiceName string `yaml:"service-name" env:"SIMBA_TELEMETRY_SERVICE_NAME"`
+
+	// ServiceVersion is the version of the service for telemetry (defaults to Application.Version)
+	ServiceVersion string `yaml:"service-version" env:"SIMBA_TELEMETRY_SERVICE_VERSION"`
+
+	// Environment is the deployment environment (development, staging, production, etc.)
+	Environment string `yaml:"environment" env:"SIMBA_TELEMETRY_ENVIRONMENT" default:"development"`
+}
+
+// TracingConfig holds the configuration for distributed tracing
+type TracingConfig struct {
+	// Enabled determines if tracing is enabled (default: true when telemetry is enabled)
+	Enabled bool `yaml:"enabled" env:"SIMBA_TELEMETRY_TRACING_ENABLED" default:"true"`
+
+	// Exporter is the type of exporter to use (otlp, stdout)
+	Exporter string `yaml:"exporter" env:"SIMBA_TELEMETRY_TRACING_EXPORTER" default:"otlp"`
+
+	// Endpoint is the endpoint for the trace exporter
+	Endpoint string `yaml:"endpoint" env:"SIMBA_TELEMETRY_TRACING_ENDPOINT" default:"localhost:4317"`
+
+	// Insecure determines if the connection should be insecure (default: true for local development)
+	Insecure bool `yaml:"insecure" env:"SIMBA_TELEMETRY_TRACING_INSECURE" default:"true"`
+
+	// SamplingRate is the sampling rate for traces (0.0 to 1.0, default: 1.0 = 100%)
+	SamplingRate float64 `yaml:"sampling-rate" env:"SIMBA_TELEMETRY_TRACING_SAMPLING_RATE" default:"1.0"`
+}
+
+// MetricsConfig holds the configuration for metrics collection
+type MetricsConfig struct {
+	// Enabled determines if metrics collection is enabled (default: true when telemetry is enabled)
+	Enabled bool `yaml:"enabled" env:"SIMBA_TELEMETRY_METRICS_ENABLED" default:"true"`
+
+	// Exporter is the type of exporter to use (otlp, stdout)
+	Exporter string `yaml:"exporter" env:"SIMBA_TELEMETRY_METRICS_EXPORTER" default:"otlp"`
+
+	// Endpoint is the endpoint for the metrics exporter
+	Endpoint string `yaml:"endpoint" env:"SIMBA_TELEMETRY_METRICS_ENDPOINT" default:"localhost:4317"`
+
+	// Insecure determines if the connection should be insecure (default: true for local development)
+	Insecure bool `yaml:"insecure" env:"SIMBA_TELEMETRY_METRICS_INSECURE" default:"true"`
+
+	// ExportInterval is the interval in seconds for exporting metrics (default: 60 seconds)
+	ExportInterval int `yaml:"export-interval" env:"SIMBA_TELEMETRY_METRICS_EXPORT_INTERVAL" default:"60"`
 }
 
 // Option is a function that configures a Simba application settings struct.
@@ -167,6 +227,69 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
+// WithTelemetryEnabled sets whether telemetry is enabled
+func WithTelemetryEnabled(enabled bool) Option {
+	return func(s *Simba) {
+		s.Telemetry.Enabled = enabled
+	}
+}
+
+// WithTracingEndpoint sets the tracing endpoint
+func WithTracingEndpoint(endpoint string) Option {
+	return func(s *Simba) {
+		s.Telemetry.Tracing.Endpoint = endpoint
+	}
+}
+
+// WithTracingExporter sets the tracing exporter type
+func WithTracingExporter(exporter string) Option {
+	return func(s *Simba) {
+		s.Telemetry.Tracing.Exporter = exporter
+	}
+}
+
+// WithMetricsEnabled sets whether metrics collection is enabled
+func WithMetricsEnabled(enabled bool) Option {
+	return func(s *Simba) {
+		s.Telemetry.Metrics.Enabled = enabled
+	}
+}
+
+// WithMetricsExporter sets the metrics exporter type
+func WithMetricsExporter(exporter string) Option {
+	return func(s *Simba) {
+		s.Telemetry.Metrics.Exporter = exporter
+	}
+}
+
+// WithMetricsEndpoint sets the metrics endpoint
+func WithMetricsEndpoint(endpoint string) Option {
+	return func(s *Simba) {
+		s.Telemetry.Metrics.Endpoint = endpoint
+	}
+}
+
+// WithTelemetryEnvironment sets the telemetry environment
+func WithTelemetryEnvironment(environment string) Option {
+	return func(s *Simba) {
+		s.Telemetry.Environment = environment
+	}
+}
+
+// WithTelemetryServiceName sets the telemetry service name
+func WithTelemetryServiceName(serviceName string) Option {
+	return func(s *Simba) {
+		s.Telemetry.ServiceName = serviceName
+	}
+}
+
+// WithTelemetryServiceVersion sets the telemetry service version
+func WithTelemetryServiceVersion(serviceVersion string) Option {
+	return func(s *Simba) {
+		s.Telemetry.ServiceVersion = serviceVersion
+	}
+}
+
 // WithEnvGetter is a test-only option to mock environment variable retrieval
 func WithEnvGetter(getter func(string) string) Option {
 	return func(s *Simba) {
@@ -213,8 +336,8 @@ func Load(opts ...Option) (*Simba, error) {
 		settings.Logger = slog.Default()
 	}
 
-	// Set the service name
-	settings.ServiceName = settings.Name
+	// Set the service name for Docs
+	settings.Docs.ServiceName = settings.Application.Name
 
 	return settings, nil
 }
