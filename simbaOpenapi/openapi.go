@@ -217,6 +217,16 @@ func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Refle
 // getHandlerInfo extracts the handler information from the handler function
 func (g *OpenAPIGenerator) getHandlerInfo(handler any) handlerInfo {
 	functionPointer := g.getFunctionPointer(handler)
+
+	// For struct-based handlers (like WebSocket), return minimal info
+	if functionPointer == 0 {
+		return handlerInfo{
+			id:      "handler",
+			tags:    []string{"Handlers"},
+			summary: "Handler",
+		}
+	}
+
 	runTimeFunc := g.getFuncRuntime(functionPointer)
 	functionFullName := g.getFunctionFullName(runTimeFunc)
 	functionPackagePath := g.extractPackagePath(functionFullName)
@@ -251,16 +261,30 @@ func (g *OpenAPIGenerator) getHandlerInfo(handler any) handlerInfo {
 
 // getFunctionPointer gets the function pointer for a handler
 func (g *OpenAPIGenerator) getFunctionPointer(handler any) uintptr {
-	return reflect.ValueOf(handler).Pointer()
+	val := reflect.ValueOf(handler)
+
+	// For struct-based handlers (like WebSocket handlers), we can't get a function pointer
+	// Return 0 to signal that we should skip detailed introspection
+	if val.Kind() == reflect.Struct {
+		return 0
+	}
+
+	return val.Pointer()
 }
 
 // getFuncRuntime gets the runtime function for a handler
 func (g *OpenAPIGenerator) getFuncRuntime(handlerPointer uintptr) *runtime.Func {
+	if handlerPointer == 0 {
+		return nil
+	}
 	return runtime.FuncForPC(handlerPointer)
 }
 
 // getFunctionFullName gets the full name of a function using its pointer
 func (g *OpenAPIGenerator) getFunctionFullName(fn *runtime.Func) string {
+	if fn == nil {
+		return ""
+	}
 	return fn.Name()
 }
 
