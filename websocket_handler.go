@@ -2,68 +2,60 @@ package simba
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 )
 
-// WebSocketHandlerFunc is a function type for handling WebSocket connections with params
-type WebSocketHandlerFunc[Params any] func(ctx context.Context, conn net.Conn, params Params) error
-
-// AuthenticatedWebSocketHandlerFunc is a function type for handling authenticated WebSocket connections
-type AuthenticatedWebSocketHandlerFunc[Params, AuthModel any] struct {
-	handler     func(ctx context.Context, conn net.Conn, params Params, authModel AuthModel) error
-	authHandler AuthHandler[AuthModel]
+// WebSocketCallbackHandlerFunc is a function type for handling WebSocket connections with callbacks
+type WebSocketCallbackHandlerFunc[Params any] struct {
+	callbacks WebSocketCallbacks[Params]
+	registry  *connectionRegistry
 }
 
-// WebSocketHandler handles a WebSocket connection with params.
+// WebSocketHandler creates a handler that uses callbacks for WebSocket lifecycle events.
+// The callbacks can be defined in a separate function for better organization.
 //
-//	Example usage:
+// Example usage:
 //
-// Define a Request params struct:
-//
-//	type Params struct {
-//		Room   string `path:"room" validate:"required"`
-//		Token  string `query:"token"`
-//		UserID string `header:"X-User-ID"`
-//	}
-//
-// Define a handler function:
-//
-//	func(ctx context.Context, conn net.Conn, params Params) error {
-//		defer conn.Close()
-//
-//		// Access the params
-//		room := params.Room
-//		token := params.Token
-//
-//		// Read/write WebSocket messages
-//		for {
-//			msg, op, err := wsutil.ReadClientData(conn)
-//			if err != nil {
-//				return err
-//			}
-//
-//			// Process message and send response
-//			err = wsutil.WriteServerMessage(conn, op, msg)
-//			if err != nil {
-//				return err
-//			}
+//	// Define callbacks in a separate function
+//	func chatCallbacks() simba.WebSocketCallbacks[Params] {
+//		return simba.WebSocketCallbacks[Params]{
+//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params) error {
+//				registry.Join(conn.ID, params.Room)
+//				return conn.WriteText("Welcome!")
+//			},
+//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+//				params := conn.Params.(Params)
+//				return registry.BroadcastToGroup(params.Room, data)
+//			},
+//			OnDisconnect: func(ctx context.Context, params Params, err error) {
+//				// Cleanup logic here
+//			},
 //		}
 //	}
 //
-// Register the handler:
-//
-//	Mux.GET("/ws/{room}", simba.WebSocketHandler(handler))
-func WebSocketHandler[Params any](h WebSocketHandlerFunc[Params]) Handler {
-	return h
+//	// Register the handler
+//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandler(chatCallbacks()))
+func WebSocketHandler[Params any](callbacks WebSocketCallbacks[Params]) Handler {
+	if callbacks.OnMessage == nil {
+		panic("OnMessage callback is required")
+	}
+
+	return WebSocketCallbackHandlerFunc[Params]{
+		callbacks: callbacks,
+		registry:  newConnectionRegistry(),
+	}
 }
 
-// ServeHTTP implements the http.Handler interface for WebSocketHandlerFunc
-func (h WebSocketHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements the http.Handler interface for WebSocketCallbackHandlerFunc
+func (h WebSocketCallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Parse and validate params before upgrading connection
@@ -84,107 +76,160 @@ func (h WebSocketHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Call the user handler with the WebSocket connection
-	// The handler is responsible for managing the connection lifecycle
-	if err := h(ctx, conn, params); err != nil {
-		// Connection is already upgraded, so we can't write HTTP errors
-		// Just close the connection
-		_ = conn.Close()
+	// Handle the connection
+	h.handleConnection(ctx, conn, params, nil)
+}
+
+// handleConnection manages the lifecycle of a WebSocket connection
+func (h WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth any) {
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Create connection wrapper
+	wsConn := &WebSocketConnection{
+		ID:     generateConnID(),
+		conn:   rawConn,
+		ctx:    ctx,
+		cancel: cancel,
+		Params: params,
+		Auth:   auth,
+	}
+
+	// Track connection
+	h.registry.add(wsConn)
+	defer h.registry.remove(wsConn.ID)
+
+	// Always cleanup
+	var handlerErr error
+	defer func() {
+		_ = rawConn.Close()
+		if h.callbacks.OnDisconnect != nil {
+			// Use background context for cleanup as connection context is cancelled
+			h.callbacks.OnDisconnect(context.Background(), params, handlerErr)
+		}
+	}()
+
+	// Call OnConnect
+	if h.callbacks.OnConnect != nil {
+		if err := h.callbacks.OnConnect(ctx, wsConn, h.registry, params); err != nil {
+			handlerErr = err
+			return
+		}
+	}
+
+	// Message loop - process messages sequentially for this connection
+	for {
+		select {
+		case <-ctx.Done():
+			handlerErr = ctx.Err()
+			return
+		default:
+			// Read message from client
+			msg, op, err := wsutil.ReadClientData(rawConn)
+			if err != nil {
+				// Check if OnError wants to continue
+				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
+					continue
+				}
+				handlerErr = err
+				return
+			}
+
+			// Call OnMessage
+			if err := h.callbacks.OnMessage(ctx, wsConn, h.registry, op, msg); err != nil {
+				// Check if OnError wants to continue
+				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
+					continue
+				}
+				handlerErr = err
+				return
+			}
+		}
 	}
 }
 
-func (h WebSocketHandlerFunc[Params]) getRequestBody() any {
+func (h WebSocketCallbackHandlerFunc[Params]) getRequestBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h WebSocketHandlerFunc[Params]) getResponseBody() any {
+func (h WebSocketCallbackHandlerFunc[Params]) getResponseBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h WebSocketHandlerFunc[Params]) getParams() any {
+func (h WebSocketCallbackHandlerFunc[Params]) getParams() any {
 	var p Params
 	return p
 }
 
-func (h WebSocketHandlerFunc[Params]) getAccepts() string {
-	// WebSocket upgrade doesn't require specific content type
+func (h WebSocketCallbackHandlerFunc[Params]) getAccepts() string {
 	return ""
 }
 
-func (h WebSocketHandlerFunc[Params]) getProduces() string {
-	// WebSocket produces binary/text frames, not HTTP responses
+func (h WebSocketCallbackHandlerFunc[Params]) getProduces() string {
 	return ""
 }
 
-func (h WebSocketHandlerFunc[Params]) getHandler() any {
-	return h
+func (h WebSocketCallbackHandlerFunc[Params]) getHandler() any {
+	return h.callbacks
 }
 
-func (h WebSocketHandlerFunc[Params]) getAuthModel() any {
+func (h WebSocketCallbackHandlerFunc[Params]) getAuthModel() any {
 	return nil
 }
 
-func (h WebSocketHandlerFunc[Params]) getAuthHandler() any {
+func (h WebSocketCallbackHandlerFunc[Params]) getAuthHandler() any {
 	return nil
 }
 
-// AuthWebSocketHandler handles an authenticated WebSocket connection with params.
+// AuthWebSocketCallbackHandlerFunc is a function type for handling authenticated WebSocket connections with callbacks
+type AuthWebSocketCallbackHandlerFunc[Params, AuthModel any] struct {
+	callbacks   AuthWebSocketCallbacks[Params, AuthModel]
+	authHandler AuthHandler[AuthModel]
+	registry    *connectionRegistry
+}
+
+// AuthWebSocketHandler creates an authenticated handler that uses callbacks for WebSocket lifecycle events.
+// The callbacks can be defined in a separate function for better organization.
 //
-//	Example usage:
+// Example usage:
 //
-// Define a Request params struct:
-//
-//	type Params struct {
-//		Room string `path:"room" validate:"required"`
-//	}
-//
-// Define an auth model struct:
-//
-//	type AuthModel struct {
-//		ID   int
-//		Name string
-//		Role string
-//	}
-//
-// Define a handler function:
-//
-//	func(ctx context.Context, conn net.Conn, params Params, authModel AuthModel) error {
-//		defer conn.Close()
-//
-//		// Access the params and auth model
-//		room := params.Room
-//		userID := authModel.ID
-//
-//		// Read/write WebSocket messages
-//		for {
-//			msg, op, err := wsutil.ReadClientData(conn)
-//			if err != nil {
-//				return err
-//			}
-//
-//			// Process message and send response
-//			err = wsutil.WriteServerMessage(conn, op, msg)
-//			if err != nil {
-//				return err
-//			}
+//	// Define callbacks in a separate function
+//	func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
+//		return simba.AuthWebSocketCallbacks[Params, AuthModel]{
+//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params, auth AuthModel) error {
+//				registry.Join(conn.ID, params.Room)
+//				return conn.WriteText(fmt.Sprintf("Welcome %s!", auth.Name))
+//			},
+//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+//				params := conn.Params.(Params)
+//				auth := conn.Auth.(AuthModel)
+//				message := fmt.Sprintf("[%s]: %s", auth.Name, string(data))
+//				return registry.BroadcastToGroup(params.Room, []byte(message))
+//			},
 //		}
 //	}
 //
-// Register the handler:
-//
-//	Mux.GET("/ws/{room}", simba.AuthWebSocketHandler(handler, authHandler))
+//	// Register the handler
+//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
+//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandler(chatCallbacks(), bearerAuth))
 func AuthWebSocketHandler[Params, AuthModel any](
-	handler func(ctx context.Context, conn net.Conn, params Params, authModel AuthModel) error,
+	callbacks AuthWebSocketCallbacks[Params, AuthModel],
 	authHandler AuthHandler[AuthModel],
 ) Handler {
-	return AuthenticatedWebSocketHandlerFunc[Params, AuthModel]{
-		handler:     handler,
+	if callbacks.OnMessage == nil {
+		panic("OnMessage callback is required")
+	}
+
+	return AuthWebSocketCallbackHandlerFunc[Params, AuthModel]{
+		callbacks:   callbacks,
 		authHandler: authHandler,
+		registry:    newConnectionRegistry(),
 	}
 }
 
-// ServeHTTP implements the http.Handler interface for AuthenticatedWebSocketHandlerFunc
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements the http.Handler interface for AuthWebSocketCallbackHandlerFunc
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Authenticate before upgrading connection
@@ -222,47 +267,116 @@ func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) ServeHTTP(w http.R
 		return
 	}
 
-	// Call the user handler with the WebSocket connection
-	// The handler is responsible for managing the connection lifecycle
-	if err = h.handler(ctx, conn, params, authModel); err != nil {
-		// Connection is already upgraded, so we can't write HTTP errors
-		// Just close the connection
-		_ = conn.Close()
+	// Handle the connection
+	h.handleConnection(ctx, conn, params, authModel)
+}
+
+// handleConnection manages the lifecycle of an authenticated WebSocket connection
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth AuthModel) {
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Create connection wrapper
+	wsConn := &WebSocketConnection{
+		ID:     generateConnID(),
+		conn:   rawConn,
+		ctx:    ctx,
+		cancel: cancel,
+		Params: params,
+		Auth:   auth,
+	}
+
+	// Track connection
+	h.registry.add(wsConn)
+	defer h.registry.remove(wsConn.ID)
+
+	// Always cleanup
+	var handlerErr error
+	defer func() {
+		_ = rawConn.Close()
+		if h.callbacks.OnDisconnect != nil {
+			// Use background context for cleanup as connection context is cancelled
+			h.callbacks.OnDisconnect(context.Background(), params, auth, handlerErr)
+		}
+	}()
+
+	// Call OnConnect
+	if h.callbacks.OnConnect != nil {
+		if err := h.callbacks.OnConnect(ctx, wsConn, h.registry, params, auth); err != nil {
+			handlerErr = err
+			return
+		}
+	}
+
+	// Message loop - process messages sequentially for this connection
+	for {
+		select {
+		case <-ctx.Done():
+			handlerErr = ctx.Err()
+			return
+		default:
+			// Read message from client
+			msg, op, err := wsutil.ReadClientData(rawConn)
+			if err != nil {
+				// Check if OnError wants to continue
+				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
+					continue
+				}
+				handlerErr = err
+				return
+			}
+
+			// Call OnMessage
+			if err := h.callbacks.OnMessage(ctx, wsConn, h.registry, op, msg); err != nil {
+				// Check if OnError wants to continue
+				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
+					continue
+				}
+				handlerErr = err
+				return
+			}
+		}
 	}
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getRequestBody() any {
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getRequestBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getResponseBody() any {
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getResponseBody() any {
 	return simbaModels.NoBody{}
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getParams() any {
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getAccepts() string {
-	// WebSocket upgrade doesn't require specific content type
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAccepts() string {
 	return ""
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getProduces() string {
-	// WebSocket produces binary/text frames, not HTTP responses
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getProduces() string {
 	return ""
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getHandler() any {
-	return h.handler
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getHandler() any {
+	return h.callbacks
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getAuthModel() any {
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedWebSocketHandlerFunc[Params, AuthModel]) getAuthHandler() any {
+func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAuthHandler() any {
 	return h.authHandler
+}
+
+// generateConnID generates a unique connection ID
+func generateConnID() string {
+	// Use a simple counter for now - could be UUID or more sophisticated
+	// This is internal and doesn't need to be cryptographically secure
+	return fmt.Sprintf("conn-%d", time.Now().UnixNano())
 }
