@@ -139,10 +139,11 @@ func TestTelemetry_Integration_BothTracingAndMetrics(t *testing.T) {
 		settings.WithTelemetryEnabled(true),
 		settings.WithTracingExporter("stdout"),
 		settings.WithMetricsEnabled(true),
+		settings.WithMetricsExporter("stdout"),
 	)
 	defer func() {
 		if app.telemetryProvider != nil {
-			app.telemetryProvider.Shutdown(context.Background())
+			_ = app.telemetryProvider.Shutdown(context.Background())
 		}
 	}()
 

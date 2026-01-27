@@ -255,6 +255,13 @@ func WithMetricsEnabled(enabled bool) Option {
 	}
 }
 
+// WithMetricsExporter sets the metrics exporter type
+func WithMetricsExporter(exporter string) Option {
+	return func(s *Simba) {
+		s.Telemetry.Metrics.Exporter = exporter
+	}
+}
+
 // WithMetricsEndpoint sets the metrics endpoint
 func WithMetricsEndpoint(endpoint string) Option {
 	return func(s *Simba) {
