@@ -34,39 +34,7 @@ func authHandler(ctx context.Context, token string) (AuthModel, error) {
 	return AuthModel{}, fmt.Errorf("invalid token")
 }
 
-// echoCallbacks returns WebSocket callbacks for the echo handler.
-// This demonstrates how to structure handlers in separate functions or files.
-func echoCallbacks() simba.WebSocketCallbacks[Params] {
-	return simba.WebSocketCallbacks[Params]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params) error {
-			slog.Info("Connection established", "room", params.Room, "connID", conn.ID)
-			// Join the room automatically
-			registry.Join(conn.ID, params.Room)
-			// Send welcome message
-			return conn.WriteText(fmt.Sprintf("Welcome to %s!", params.Room))
-		},
-
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
-			params := conn.Params.(Params)
-			slog.Info("Received message", "room", params.Room, "message", string(data))
-
-			// Broadcast to everyone in the room
-			return registry.BroadcastToGroup(params.Room, data)
-		},
-
-		OnDisconnect: func(ctx context.Context, params Params, err error) {
-			slog.Info("Connection closed", "room", params.Room, "error", err)
-		},
-
-		OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
-			slog.Error("Error occurred", "error", err)
-			return false // Close connection on error
-		},
-	}
-}
-
 // chatCallbacks returns authenticated WebSocket callbacks for the chat handler.
-// This demonstrates how to structure authenticated handlers in separate functions or files.
 func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
 	return simba.AuthWebSocketCallbacks[Params, AuthModel]{
 		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params Params, auth AuthModel) error {
@@ -82,7 +50,7 @@ func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
 			// Send welcome to the user
 			conn.WriteText(fmt.Sprintf("Welcome %s to %s!", auth.Name, params.Room))
 
-			// Notify others in the room
+			// Notify others in the room (distributed broadcast)
 			msg := fmt.Sprintf("%s joined the room", auth.Name)
 			registry.BroadcastToGroup(params.Room, []byte(msg))
 
@@ -100,6 +68,7 @@ func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
 			)
 
 			// Format message with username and broadcast to room
+			// With distributed registry, this goes to ALL instances
 			message := fmt.Sprintf("[%s]: %s", auth.Name, string(data))
 			return registry.BroadcastToGroupText(params.Room, message)
 		},
@@ -120,7 +89,6 @@ func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
 }
 
 // simpleEchoCallbacks returns WebSocket callbacks for a simple echo handler without params.
-// This demonstrates how to structure handlers without path parameters.
 func simpleEchoCallbacks() simba.WebSocketCallbacks[simbaModels.NoParams] {
 	return simba.WebSocketCallbacks[simbaModels.NoParams]{
 		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, params simbaModels.NoParams) error {
@@ -150,27 +118,52 @@ func main() {
 		Description: "Bearer token authentication",
 	})
 
-	// Echo handler with room support and broadcasting
-	// Usage: ws://localhost:8080/ws/echo/{room}
-	// Uses default in-memory registry
-	app.Router.GET("/ws/echo/{room}", simba.WebSocketHandlerFunc(echoCallbacks))
+	// Create a DISTRIBUTED registry
+	// This mock implementation simulates distributed behavior
+	distributedRegistry := NewMockDistributedRegistry("instance-1")
 
-	// Authenticated chat handler with broadcasting
+	slog.Info("==============================================")
+	slog.Info("WebSocket Distributed Example")
+	slog.Info("==============================================")
+	slog.Info("")
+	slog.Info("This example demonstrates a CUSTOM CONNECTION REGISTRY")
+	slog.Info("that simulates distributed deployment across multiple instances.")
+	slog.Info("")
+	slog.Info("Key features demonstrated:")
+	slog.Info("  - Custom registry implementation")
+	slog.Info("  - Simulated cross-instance broadcasting")
+	slog.Info("  - Instance-local connection management")
+	slog.Info("  - Group/room tracking across instances")
+	slog.Info("")
+	slog.Info("In production, you would replace MockDistributedRegistry with")
+	slog.Info("a real implementation using Redis, Cassandra, or similar.")
+	slog.Info("")
+
+	// Authenticated chat handler with DISTRIBUTED broadcasting
 	// Usage: ws://localhost:8080/ws/chat/{room}
 	// Requires: Authorization: Bearer valid-token
-	// Uses default in-memory registry
-	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFunc(chatCallbacks, bearerAuth))
+	// Note: Using AuthWebSocketHandlerFuncWithRegistry for cleaner syntax with custom registry
+	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFuncWithRegistry(
+		chatCallbacks,
+		bearerAuth,
+		distributedRegistry, // Custom distributed registry
+	))
 
-	// Simple WebSocket without params
+	// Simple WebSocket without params (also using distributed registry)
 	// Usage: ws://localhost:8080/ws/simple
-	app.Router.GET("/ws/simple", simba.WebSocketHandlerFunc(simpleEchoCallbacks))
+	// Note: Using WebSocketHandlerFuncWithRegistry for cleaner syntax with custom registry
+	app.Router.GET("/ws/simple", simba.WebSocketHandlerFuncWithRegistry(
+		simpleEchoCallbacks,
+		distributedRegistry, // Custom distributed registry
+	))
 
-	slog.Info("Starting server with WebSocket support on :8080")
+	slog.Info("Starting server with DISTRIBUTED WebSocket support on :8080")
 	slog.Info("")
 	slog.Info("Available endpoints:")
-	slog.Info("  Echo with rooms: ws://localhost:8080/ws/echo/{room}")
-	slog.Info("  Authenticated chat: ws://localhost:8080/ws/chat/{room} (requires Bearer token)")
+	slog.Info("  Authenticated chat: ws://localhost:8080/ws/chat/{room} (requires Bearer: valid-token)")
 	slog.Info("  Simple echo: ws://localhost:8080/ws/simple")
+	slog.Info("")
+	slog.Info("Try connecting from multiple terminals to see distributed behavior!")
 
 	app.Start()
 }

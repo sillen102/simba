@@ -540,3 +540,175 @@ func TestOnDisconnectGuarantee(t *testing.T) {
 		// OnDisconnect will be called via defer when connection handler runs
 	})
 }
+
+func TestCustomRegistry(t *testing.T) {
+	t.Parallel()
+
+	t.Run("WebSocketHandler accepts custom registry", func(t *testing.T) {
+		customRegistry := simba.NewConnectionRegistry()
+
+		handler := simba.WebSocketHandler(
+			simba.WebSocketCallbacks[simbaModels.NoParams]{
+				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+					return nil
+				},
+			},
+			customRegistry,
+		)
+
+		assert.NotNil(t, handler)
+		var _ simba.Handler = handler
+	})
+
+	t.Run("AuthWebSocketHandler accepts custom registry", func(t *testing.T) {
+		customRegistry := simba.NewConnectionRegistry()
+		authHandler := simba.BearerAuth(
+			func(ctx context.Context, token string) (WSAuthModel, error) {
+				if token == "valid-token" {
+					return WSAuthModel{
+						UserID:   1,
+						Username: "testuser",
+					}, nil
+				}
+				return WSAuthModel{}, fmt.Errorf("invalid token")
+			},
+			simba.BearerAuthConfig{
+				Name:        "TestAuth",
+				Format:      "JWT",
+				Description: "Test authentication",
+			},
+		)
+
+		handler := simba.AuthWebSocketHandler(
+			simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSAuthModel]{
+				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+					return nil
+				},
+			},
+			authHandler,
+			customRegistry,
+		)
+
+		assert.NotNil(t, handler)
+		var _ simba.Handler = handler
+	})
+
+	t.Run("custom registry methods are accessible", func(t *testing.T) {
+		registry := simba.NewConnectionRegistry()
+
+		// Test ConnectionRegistry interface methods
+		assert.Equal(t, 0, registry.Count())
+		assert.Equal(t, 0, registry.GroupCount("test-group"))
+
+		conns := registry.All()
+		assert.Equal(t, 0, len(conns))
+
+		filtered := registry.Filter(func(conn *simba.WebSocketConnection) bool {
+			return true
+		})
+		assert.Equal(t, 0, len(filtered))
+
+		conn := registry.Get("non-existent")
+		assert.Nil(t, conn)
+
+		groups := registry.Groups("non-existent")
+		assert.Equal(t, 0, len(groups))
+
+		// Test that Join/Leave work (even without actual connections)
+		err := registry.Join("test-conn", "test-group")
+		// Should fail because connection doesn't exist
+		assert.NotNil(t, err)
+
+		err = registry.Leave("test-conn", "test-group")
+		// Should succeed (no-op for non-existent connection)
+		assert.Nil(t, err)
+
+		err = registry.LeaveAll("test-conn")
+		// Should succeed (no-op for non-existent connection)
+		assert.Nil(t, err)
+	})
+}
+
+func TestHandlerFuncVariants(t *testing.T) {
+	t.Parallel()
+
+	t.Run("WebSocketHandlerFunc accepts callback function", func(t *testing.T) {
+		callbacksFunc := func() simba.WebSocketCallbacks[simbaModels.NoParams] {
+			return simba.WebSocketCallbacks[simbaModels.NoParams]{
+				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+					return nil
+				},
+			}
+		}
+
+		handler := simba.WebSocketHandlerFunc(callbacksFunc)
+		assert.NotNil(t, handler)
+		var _ simba.Handler = handler
+	})
+
+	t.Run("WebSocketHandlerFuncWithRegistry accepts callback function and registry", func(t *testing.T) {
+		callbacksFunc := func() simba.WebSocketCallbacks[simbaModels.NoParams] {
+			return simba.WebSocketCallbacks[simbaModels.NoParams]{
+				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+					return nil
+				},
+			}
+		}
+
+		customRegistry := simba.NewConnectionRegistry()
+		handler := simba.WebSocketHandlerFuncWithRegistry(callbacksFunc, customRegistry)
+		assert.NotNil(t, handler)
+		var _ simba.Handler = handler
+	})
+
+	t.Run("AuthWebSocketHandlerFunc accepts callback function", func(t *testing.T) {
+		callbacksFunc := func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSAuthModel] {
+			return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSAuthModel]{
+				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+					return nil
+				},
+			}
+		}
+
+		authHandler := simba.BearerAuth(
+			func(ctx context.Context, token string) (WSAuthModel, error) {
+				return WSAuthModel{UserID: 1, Username: "test"}, nil
+			},
+			simba.BearerAuthConfig{
+				Name:        "TestAuth",
+				Format:      "JWT",
+				Description: "Test",
+			},
+		)
+
+		handler := simba.AuthWebSocketHandlerFunc(callbacksFunc, authHandler)
+		assert.NotNil(t, handler)
+		var _ simba.Handler = handler
+	})
+
+	t.Run("AuthWebSocketHandlerFuncWithRegistry accepts callback function and registry", func(t *testing.T) {
+		callbacksFunc := func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSAuthModel] {
+			return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSAuthModel]{
+				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, registry simba.ConnectionRegistry, msgType ws.OpCode, data []byte) error {
+					return nil
+				},
+			}
+		}
+
+		authHandler := simba.BearerAuth(
+			func(ctx context.Context, token string) (WSAuthModel, error) {
+				return WSAuthModel{UserID: 1, Username: "test"}, nil
+			},
+			simba.BearerAuthConfig{
+				Name:        "TestAuth",
+				Format:      "JWT",
+				Description: "Test",
+			},
+		)
+
+		customRegistry := simba.NewConnectionRegistry()
+		handler := simba.AuthWebSocketHandlerFuncWithRegistry(callbacksFunc, authHandler, customRegistry)
+		assert.NotNil(t, handler)
+		var _ simba.Handler = handler
+	})
+}

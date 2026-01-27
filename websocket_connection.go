@@ -67,8 +67,11 @@ func (wc *WebSocketConnection) Context() context.Context {
 	return wc.ctx
 }
 
-// ConnectionRegistry manages WebSocket connections and provides broadcasting capabilities
-// All methods are thread-safe and can be called concurrently
+// ConnectionRegistry manages WebSocket connections and provides broadcasting capabilities.
+// All methods are thread-safe and can be called concurrently.
+//
+// Users can implement custom registries for distributed scenarios (e.g., Redis, Cassandra).
+// The default implementation is an in-memory registry suitable for single-instance deployments.
 type ConnectionRegistry interface {
 	// Join adds a connection to a group (e.g., chat room, topic)
 	Join(connID, group string) error
@@ -110,30 +113,55 @@ type ConnectionRegistry interface {
 	GroupCount(group string) int
 }
 
-// connectionRegistry is the internal implementation of ConnectionRegistry
-type connectionRegistry struct {
+// ConnectionRegistryInternal extends ConnectionRegistry with lifecycle methods
+// required by the framework for managing connection lifecycle.
+// Custom implementations must implement both ConnectionRegistry and these lifecycle methods.
+//
+// Note: These methods are exported to allow external custom implementations,
+// but should only be called by the Simba framework internals.
+type ConnectionRegistryInternal interface {
+	ConnectionRegistry
+
+	// AddConnection registers a new connection (called by framework after WebSocket upgrade)
+	// Do not call this method directly - it's managed by the framework.
+	AddConnection(conn *WebSocketConnection)
+
+	// RemoveConnection unregisters a connection and removes it from all groups (called by framework on disconnect)
+	// Do not call this method directly - it's managed by the framework.
+	RemoveConnection(connID string)
+}
+
+// inMemoryConnectionRegistry is the default in-memory implementation of ConnectionRegistryInternal
+type inMemoryConnectionRegistry struct {
 	mu          sync.RWMutex
 	connections map[string]*WebSocketConnection
 	groups      map[string]map[string]bool // group -> set of connection IDs
 }
 
-// newConnectionRegistry creates a new connection registry
-func newConnectionRegistry() *connectionRegistry {
-	return &connectionRegistry{
+// NewConnectionRegistry creates a new in-memory connection registry.
+// This is the public factory function for creating the default registry implementation.
+// Use this when you need to pass a custom registry to WebSocketHandler or AuthWebSocketHandler.
+func NewConnectionRegistry() ConnectionRegistryInternal {
+	return &inMemoryConnectionRegistry{
 		connections: make(map[string]*WebSocketConnection),
 		groups:      make(map[string]map[string]bool),
 	}
 }
 
-// add adds a connection to the registry (internal method)
-func (r *connectionRegistry) add(conn *WebSocketConnection) {
+// newConnectionRegistry creates a new connection registry (internal helper for backward compatibility)
+func newConnectionRegistry() ConnectionRegistryInternal {
+	return NewConnectionRegistry()
+}
+
+// AddConnection adds a connection to the registry (called by framework)
+func (r *inMemoryConnectionRegistry) AddConnection(conn *WebSocketConnection) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.connections[conn.ID] = conn
 }
 
-// remove removes a connection from the registry and all groups (internal method)
-func (r *connectionRegistry) remove(connID string) {
+// RemoveConnection removes a connection from the registry and all groups (called by framework)
+func (r *inMemoryConnectionRegistry) RemoveConnection(connID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -149,7 +177,7 @@ func (r *connectionRegistry) remove(connID string) {
 }
 
 // Join implements ConnectionRegistry.Join
-func (r *connectionRegistry) Join(connID, group string) error {
+func (r *inMemoryConnectionRegistry) Join(connID, group string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -165,7 +193,7 @@ func (r *connectionRegistry) Join(connID, group string) error {
 }
 
 // Leave implements ConnectionRegistry.Leave
-func (r *connectionRegistry) Leave(connID, group string) error {
+func (r *inMemoryConnectionRegistry) Leave(connID, group string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -179,7 +207,7 @@ func (r *connectionRegistry) Leave(connID, group string) error {
 }
 
 // LeaveAll implements ConnectionRegistry.LeaveAll
-func (r *connectionRegistry) LeaveAll(connID string) error {
+func (r *inMemoryConnectionRegistry) LeaveAll(connID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -193,7 +221,7 @@ func (r *connectionRegistry) LeaveAll(connID string) error {
 }
 
 // Groups implements ConnectionRegistry.Groups
-func (r *connectionRegistry) Groups(connID string) []string {
+func (r *inMemoryConnectionRegistry) Groups(connID string) []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -207,7 +235,7 @@ func (r *connectionRegistry) Groups(connID string) []string {
 }
 
 // BroadcastToGroup implements ConnectionRegistry.BroadcastToGroup
-func (r *connectionRegistry) BroadcastToGroup(group string, data []byte) error {
+func (r *inMemoryConnectionRegistry) BroadcastToGroup(group string, data []byte) error {
 	// Snapshot connections while holding read lock
 	r.mu.RLock()
 	connIDs := make([]string, 0, len(r.groups[group]))
@@ -238,7 +266,7 @@ func (r *connectionRegistry) BroadcastToGroup(group string, data []byte) error {
 }
 
 // BroadcastToGroupText implements ConnectionRegistry.BroadcastToGroupText
-func (r *connectionRegistry) BroadcastToGroupText(group string, msg string) error {
+func (r *inMemoryConnectionRegistry) BroadcastToGroupText(group string, msg string) error {
 	// Snapshot connections while holding read lock
 	r.mu.RLock()
 	connIDs := make([]string, 0, len(r.groups[group]))
@@ -268,7 +296,7 @@ func (r *connectionRegistry) BroadcastToGroupText(group string, msg string) erro
 }
 
 // BroadcastToAll implements ConnectionRegistry.BroadcastToAll
-func (r *connectionRegistry) BroadcastToAll(data []byte) error {
+func (r *inMemoryConnectionRegistry) BroadcastToAll(data []byte) error {
 	// Snapshot connections while holding read lock
 	r.mu.RLock()
 	connections := make([]*WebSocketConnection, 0, len(r.connections))
@@ -292,7 +320,7 @@ func (r *connectionRegistry) BroadcastToAll(data []byte) error {
 }
 
 // BroadcastToAllText implements ConnectionRegistry.BroadcastToAllText
-func (r *connectionRegistry) BroadcastToAllText(msg string) error {
+func (r *inMemoryConnectionRegistry) BroadcastToAllText(msg string) error {
 	// Snapshot connections while holding read lock
 	r.mu.RLock()
 	connections := make([]*WebSocketConnection, 0, len(r.connections))
@@ -316,14 +344,14 @@ func (r *connectionRegistry) BroadcastToAllText(msg string) error {
 }
 
 // Get implements ConnectionRegistry.Get
-func (r *connectionRegistry) Get(id string) *WebSocketConnection {
+func (r *inMemoryConnectionRegistry) Get(id string) *WebSocketConnection {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.connections[id]
 }
 
 // All implements ConnectionRegistry.All
-func (r *connectionRegistry) All() []*WebSocketConnection {
+func (r *inMemoryConnectionRegistry) All() []*WebSocketConnection {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -335,7 +363,7 @@ func (r *connectionRegistry) All() []*WebSocketConnection {
 }
 
 // Filter implements ConnectionRegistry.Filter
-func (r *connectionRegistry) Filter(fn func(*WebSocketConnection) bool) []*WebSocketConnection {
+func (r *inMemoryConnectionRegistry) Filter(fn func(*WebSocketConnection) bool) []*WebSocketConnection {
 	// Snapshot connections while holding read lock
 	r.mu.RLock()
 	conns := make([]*WebSocketConnection, 0, len(r.connections))
@@ -355,14 +383,14 @@ func (r *connectionRegistry) Filter(fn func(*WebSocketConnection) bool) []*WebSo
 }
 
 // Count implements ConnectionRegistry.Count
-func (r *connectionRegistry) Count() int {
+func (r *inMemoryConnectionRegistry) Count() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.connections)
 }
 
 // GroupCount implements ConnectionRegistry.GroupCount
-func (r *connectionRegistry) GroupCount(group string) int {
+func (r *inMemoryConnectionRegistry) GroupCount(group string) int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.groups[group])

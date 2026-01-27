@@ -16,11 +16,14 @@ import (
 // WebSocketCallbackHandlerFunc is a function type for handling WebSocket connections with callbacks
 type WebSocketCallbackHandlerFunc[Params any] struct {
 	callbacks WebSocketCallbacks[Params]
-	registry  *connectionRegistry
+	registry  ConnectionRegistryInternal
 }
 
 // WebSocketHandler creates a handler that uses callbacks for WebSocket lifecycle events.
 // The callbacks can be defined in a separate function for better organization.
+//
+// An optional custom registry can be provided for distributed deployments.
+// If no registry is provided, a default in-memory registry will be used.
 //
 // Example usage:
 //
@@ -41,17 +44,65 @@ type WebSocketCallbackHandlerFunc[Params any] struct {
 //		}
 //	}
 //
-//	// Register the handler
+//	// Register the handler with default registry
 //	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandler(chatCallbacks()))
-func WebSocketHandler[Params any](callbacks WebSocketCallbacks[Params]) Handler {
+//
+//	// Or pass the function directly (without calling it)
+//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFunc(chatCallbacks))
+//
+//	// Or with a custom registry for distributed deployments
+//	redisRegistry := myapp.NewRedisConnectionRegistry(redisClient)
+//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandler(chatCallbacks(), redisRegistry))
+func WebSocketHandler[Params any](callbacks WebSocketCallbacks[Params], registry ...ConnectionRegistryInternal) Handler {
 	if callbacks.OnMessage == nil {
 		panic("OnMessage callback is required")
 	}
 
+	// Use provided registry or default to in-memory
+	var reg ConnectionRegistryInternal
+	if len(registry) > 0 {
+		reg = registry[0]
+	} else {
+		reg = newConnectionRegistry()
+	}
+
 	return WebSocketCallbackHandlerFunc[Params]{
 		callbacks: callbacks,
-		registry:  newConnectionRegistry(),
+		registry:  reg,
 	}
+}
+
+// WebSocketHandlerFunc creates a handler from a function that returns WebSocket callbacks.
+// This allows passing the callback function directly without calling it.
+//
+// Example usage:
+//
+//	func chatCallbacks() simba.WebSocketCallbacks[Params] {
+//		return simba.WebSocketCallbacks[Params]{
+//			OnMessage: func(...) error { ... },
+//		}
+//	}
+//
+//	// Pass function directly (cleaner syntax)
+//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFunc(chatCallbacks))
+//
+//	// With custom registry
+//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFuncWithRegistry(chatCallbacks, customRegistry))
+func WebSocketHandlerFunc[Params any](callbacksFunc func() WebSocketCallbacks[Params]) Handler {
+	return WebSocketHandler(callbacksFunc())
+}
+
+// WebSocketHandlerFuncWithRegistry creates a handler from a callback function with a custom registry.
+//
+// Example usage:
+//
+//	customRegistry := myapp.NewRedisConnectionRegistry(client)
+//	app.Router.GET("/ws/chat/{room}", simba.WebSocketHandlerFuncWithRegistry(chatCallbacks, customRegistry))
+func WebSocketHandlerFuncWithRegistry[Params any](
+	callbacksFunc func() WebSocketCallbacks[Params],
+	registry ConnectionRegistryInternal,
+) Handler {
+	return WebSocketHandler(callbacksFunc(), registry)
 }
 
 // ServeHTTP implements the http.Handler interface for WebSocketCallbackHandlerFunc
@@ -97,8 +148,8 @@ func (h WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Conte
 	}
 
 	// Track connection
-	h.registry.add(wsConn)
-	defer h.registry.remove(wsConn.ID)
+	h.registry.AddConnection(wsConn)
+	defer h.registry.RemoveConnection(wsConn.ID)
 
 	// Always cleanup
 	var handlerErr error
@@ -186,11 +237,14 @@ func (h WebSocketCallbackHandlerFunc[Params]) getAuthHandler() any {
 type AuthWebSocketCallbackHandlerFunc[Params, AuthModel any] struct {
 	callbacks   AuthWebSocketCallbacks[Params, AuthModel]
 	authHandler AuthHandler[AuthModel]
-	registry    *connectionRegistry
+	registry    ConnectionRegistryInternal
 }
 
 // AuthWebSocketHandler creates an authenticated handler that uses callbacks for WebSocket lifecycle events.
 // The callbacks can be defined in a separate function for better organization.
+//
+// An optional custom registry can be provided for distributed deployments.
+// If no registry is provided, a default in-memory registry will be used.
 //
 // Example usage:
 //
@@ -210,22 +264,78 @@ type AuthWebSocketCallbackHandlerFunc[Params, AuthModel any] struct {
 //		}
 //	}
 //
-//	// Register the handler
+//	// Register the handler with default registry
 //	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
 //	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandler(chatCallbacks(), bearerAuth))
+//
+//	// Or pass the function directly (without calling it)
+//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFunc(chatCallbacks, bearerAuth))
+//
+//	// Or with a custom registry for distributed deployments
+//	redisRegistry := myapp.NewRedisConnectionRegistry(redisClient)
+//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandler(chatCallbacks(), bearerAuth, redisRegistry))
 func AuthWebSocketHandler[Params, AuthModel any](
 	callbacks AuthWebSocketCallbacks[Params, AuthModel],
 	authHandler AuthHandler[AuthModel],
+	registry ...ConnectionRegistryInternal,
 ) Handler {
 	if callbacks.OnMessage == nil {
 		panic("OnMessage callback is required")
 	}
 
+	// Use provided registry or default to in-memory
+	var reg ConnectionRegistryInternal
+	if len(registry) > 0 {
+		reg = registry[0]
+	} else {
+		reg = newConnectionRegistry()
+	}
+
 	return AuthWebSocketCallbackHandlerFunc[Params, AuthModel]{
 		callbacks:   callbacks,
 		authHandler: authHandler,
-		registry:    newConnectionRegistry(),
+		registry:    reg,
 	}
+}
+
+// AuthWebSocketHandlerFunc creates an authenticated handler from a function that returns WebSocket callbacks.
+// This allows passing the callback function directly without calling it.
+//
+// Example usage:
+//
+//	func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
+//		return simba.AuthWebSocketCallbacks[Params, AuthModel]{
+//			OnMessage: func(...) error { ... },
+//		}
+//	}
+//
+//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
+//
+//	// Pass function directly (cleaner syntax)
+//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFunc(chatCallbacks, bearerAuth))
+//
+//	// With custom registry
+//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFuncWithRegistry(chatCallbacks, bearerAuth, customRegistry))
+func AuthWebSocketHandlerFunc[Params, AuthModel any](
+	callbacksFunc func() AuthWebSocketCallbacks[Params, AuthModel],
+	authHandler AuthHandler[AuthModel],
+) Handler {
+	return AuthWebSocketHandler(callbacksFunc(), authHandler)
+}
+
+// AuthWebSocketHandlerFuncWithRegistry creates an authenticated handler from a callback function with a custom registry.
+//
+// Example usage:
+//
+//	customRegistry := myapp.NewRedisConnectionRegistry(client)
+//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
+//	app.Router.GET("/ws/chat/{room}", simba.AuthWebSocketHandlerFuncWithRegistry(chatCallbacks, bearerAuth, customRegistry))
+func AuthWebSocketHandlerFuncWithRegistry[Params, AuthModel any](
+	callbacksFunc func() AuthWebSocketCallbacks[Params, AuthModel],
+	authHandler AuthHandler[AuthModel],
+	registry ConnectionRegistryInternal,
+) Handler {
+	return AuthWebSocketHandler(callbacksFunc(), authHandler, registry)
 }
 
 // ServeHTTP implements the http.Handler interface for AuthWebSocketCallbackHandlerFunc
@@ -288,8 +398,8 @@ func (h AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ct
 	}
 
 	// Track connection
-	h.registry.add(wsConn)
-	defer h.registry.remove(wsConn.ID)
+	h.registry.AddConnection(wsConn)
+	defer h.registry.RemoveConnection(wsConn.ID)
 
 	// Always cleanup
 	var handlerErr error
