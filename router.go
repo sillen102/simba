@@ -192,8 +192,12 @@ func (r *Router) HEADWithMiddleware(path string, handler Handler, middleware ...
 // WithMiddleware registers a handler for the given method and pattern wrapped with a middleware function
 func (r *Router) WithMiddleware(method, path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	h := handlerToHTTPHandler(handler)
-	for i := len(middleware) - 1; i >= 0; i-- {
-		h = middleware[i](h)
+	if len(middleware) > 0 {
+		for i := len(middleware) - 1; i >= 0; i-- {
+			if middleware[i] != nil {
+				h = middleware[i](h)
+			}
+		}
 	}
 	r.addRoute(method, path, h)
 	r.addRouteToDocs(method, path, handler)

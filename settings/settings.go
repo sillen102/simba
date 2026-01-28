@@ -230,49 +230,49 @@ func WithLogger(logger *slog.Logger) Option {
 // WithTelemetryEnabled sets whether telemetry is enabled
 func WithTelemetryEnabled(enabled bool) Option {
 	return func(s *Simba) {
-		s.Telemetry.Enabled = enabled
+		s.Enabled = enabled
 	}
 }
 
 // WithTracingEndpoint sets the tracing endpoint
 func WithTracingEndpoint(endpoint string) Option {
 	return func(s *Simba) {
-		s.Telemetry.Tracing.Endpoint = endpoint
+		s.Tracing.Endpoint = endpoint
 	}
 }
 
 // WithTracingExporter sets the tracing exporter type
 func WithTracingExporter(exporter string) Option {
 	return func(s *Simba) {
-		s.Telemetry.Tracing.Exporter = exporter
+		s.Tracing.Exporter = exporter
 	}
 }
 
 // WithMetricsEnabled sets whether metrics collection is enabled
 func WithMetricsEnabled(enabled bool) Option {
 	return func(s *Simba) {
-		s.Telemetry.Metrics.Enabled = enabled
+		s.Metrics.Enabled = enabled
 	}
 }
 
 // WithMetricsExporter sets the metrics exporter type
 func WithMetricsExporter(exporter string) Option {
 	return func(s *Simba) {
-		s.Telemetry.Metrics.Exporter = exporter
+		s.Metrics.Exporter = exporter
 	}
 }
 
 // WithMetricsEndpoint sets the metrics endpoint
 func WithMetricsEndpoint(endpoint string) Option {
 	return func(s *Simba) {
-		s.Telemetry.Metrics.Endpoint = endpoint
+		s.Metrics.Endpoint = endpoint
 	}
 }
 
 // WithTelemetryEnvironment sets the telemetry environment
 func WithTelemetryEnvironment(environment string) Option {
 	return func(s *Simba) {
-		s.Telemetry.Environment = environment
+		s.Environment = environment
 	}
 }
 
@@ -286,7 +286,7 @@ func WithTelemetryServiceName(serviceName string) Option {
 // WithTelemetryServiceVersion sets the telemetry service version
 func WithTelemetryServiceVersion(serviceVersion string) Option {
 	return func(s *Simba) {
-		s.Telemetry.ServiceVersion = serviceVersion
+		s.ServiceVersion = serviceVersion
 	}
 }
 
@@ -337,7 +337,7 @@ func Load(opts ...Option) (*Simba, error) {
 	}
 
 	// Set the service name for Docs
-	settings.Docs.ServiceName = settings.Application.Name
+	settings.Docs.ServiceName = settings.Name
 
 	return settings, nil
 }

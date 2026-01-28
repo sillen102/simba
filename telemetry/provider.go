@@ -28,13 +28,13 @@ func NewProvider(ctx context.Context, appSettings *settings.Simba) (*Provider, e
 	// Use application name as service name if not explicitly set
 	serviceName := telemetrySettings.ServiceName
 	if serviceName == "" {
-		serviceName = appSettings.Application.Name
+		serviceName = appSettings.Name
 	}
 
 	// Use application version as service version if not explicitly set
 	serviceVersion := telemetrySettings.ServiceVersion
 	if serviceVersion == "" {
-		serviceVersion = appSettings.Application.Version
+		serviceVersion = appSettings.Version
 	}
 
 	// Create resource

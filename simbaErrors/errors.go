@@ -100,7 +100,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	var details any
 
 	var simbaErr *SimbaError
-	if errutil.As(err, &simbaErr) {
+	if errutil.As(err, &simbaErr) && simbaErr != nil {
 		// If the error is a SimbaError, extract its properties
 		statusCode = simbaErr.StatusCode()
 		message = simbaErr.PublicMessage()
