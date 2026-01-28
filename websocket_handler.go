@@ -2,53 +2,46 @@ package simba
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
-	"sync"
-	"time"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/google/uuid"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
 )
 
-// WebSocketCallbackHandlerFunc is a function type for handling WebSocket connections with callbacks
+// WebSocketCallbackHandlerFunc handles WebSocket connections with callbacks.
 type WebSocketCallbackHandlerFunc[Params any] struct {
-	callbacks   WebSocketCallbacks[Params]
-	connections map[string]*WebSocketConnection
-	mu          sync.RWMutex
+	callbacks WebSocketCallbacks[Params]
 }
 
 // WebSocketHandler creates a handler that uses callbacks for WebSocket lifecycle events.
 //
 // Example usage:
 //
-//	func chatCallbacks() simba.WebSocketCallbacks[Params] {
-//		return simba.WebSocketCallbacks[Params]{
-//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, params Params) error {
-//				return conn.WriteText("Welcome!")
-//			},
-//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, msgType ws.OpCode, data []byte) error {
-//				// Broadcast to all connections
-//				for _, c := range connections {
-//					c.WriteText(string(data))
-//				}
-//				return nil
-//			},
-//		}
-//	}
-//
-//	app.Router.GET("/ws/chat", simba.WebSocketHandler(chatCallbacks))
+//	app.Router.GET("/ws/echo", simba.WebSocketHandler(simba.WebSocketCallbacks[Params]{
+//		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params Params) error {
+//			// Register connection in your registry
+//			registry.Add(conn)
+//			return conn.WriteText("Welcome!")
+//		},
+//		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, msgType simba.MessageType, data []byte) error {
+//			return conn.WriteText("Echo: " + string(data))
+//		},
+//		OnDisconnect: func(ctx context.Context, connID string, params Params, err error) {
+//			// Clean up your registry
+//			registry.Remove(connID)
+//		},
+//	}))
 func WebSocketHandler[Params any](callbacks WebSocketCallbacks[Params]) Handler {
 	if callbacks.OnMessage == nil {
 		panic("OnMessage callback is required")
 	}
 
 	return &WebSocketCallbackHandlerFunc[Params]{
-		callbacks:   callbacks,
-		connections: make(map[string]*WebSocketConnection),
+		callbacks: callbacks,
 	}
 }
 
@@ -57,7 +50,7 @@ func WebSocketHandlerFunc[Params any](callbacksFunc func() WebSocketCallbacks[Pa
 	return WebSocketHandler(callbacksFunc())
 }
 
-// ServeHTTP implements the http.Handler interface for WebSocketCallbackHandlerFunc
+// ServeHTTP implements the http.Handler interface.
 func (h *WebSocketCallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -79,59 +72,38 @@ func (h *WebSocketCallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, 
 		return
 	}
 
-	// Handle the connection
-	h.handleConnection(ctx, conn, params, nil)
+	// Handle the connection synchronously - the HTTP server runs each
+	// request in its own goroutine, so blocking here is correct
+	h.handleConnection(ctx, conn, params)
 }
 
-// handleConnection manages the lifecycle of a WebSocket connection
-func (h *WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth any) {
-	// Create cancellable context
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Create connection wrapper
+// handleConnection manages the lifecycle of a WebSocket connection.
+func (h *WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawConn net.Conn, params Params) {
+	// Create connection wrapper with unique ID
 	wsConn := &WebSocketConnection{
-		ID:     generateConnID(),
-		Params: params,
-		conn:   rawConn,
-		ctx:    ctx,
-		cancel: cancel,
+		ID:   uuid.New().String(),
+		conn: rawConn,
 	}
-
-	// Track connection
-	h.mu.Lock()
-	h.connections[wsConn.ID] = wsConn
-	h.mu.Unlock()
-
-	defer func() {
-		h.mu.Lock()
-		delete(h.connections, wsConn.ID)
-		h.mu.Unlock()
-	}()
 
 	// Always cleanup
 	var handlerErr error
 	defer func() {
 		_ = rawConn.Close()
 		if h.callbacks.OnDisconnect != nil {
-			// Use background context for cleanup as connection context is cancelled
-			h.callbacks.OnDisconnect(context.Background(), params, handlerErr)
+			// Use background context for cleanup as connection context may be cancelled
+			h.callbacks.OnDisconnect(context.Background(), wsConn.ID, params, handlerErr)
 		}
 	}()
 
 	// Call OnConnect
 	if h.callbacks.OnConnect != nil {
-		h.mu.RLock()
-		connectionsSnapshot := h.connections
-		h.mu.RUnlock()
-
-		if err := h.callbacks.OnConnect(ctx, wsConn, connectionsSnapshot, params); err != nil {
+		if err := h.callbacks.OnConnect(ctx, wsConn, params); err != nil {
 			handlerErr = err
 			return
 		}
 	}
 
-	// Message loop - process messages sequentially for this connection
+	// Message loop
 	for {
 		select {
 		case <-ctx.Done():
@@ -149,12 +121,11 @@ func (h *WebSocketCallbackHandlerFunc[Params]) handleConnection(ctx context.Cont
 				return
 			}
 
-			// Call OnMessage
-			h.mu.RLock()
-			connectionsSnapshot := h.connections
-			h.mu.RUnlock()
+			// Convert ws.OpCode to MessageType
+			msgType := opCodeToMessageType(op)
 
-			if err := h.callbacks.OnMessage(ctx, wsConn, connectionsSnapshot, op, msg); err != nil {
+			// Call OnMessage
+			if err := h.callbacks.OnMessage(ctx, wsConn, msgType, msg); err != nil {
 				// Check if OnError wants to continue
 				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
 					continue
@@ -199,35 +170,34 @@ func (h *WebSocketCallbackHandlerFunc[Params]) getAuthHandler() any {
 	return nil
 }
 
-// AuthWebSocketCallbackHandlerFunc is a function type for handling authenticated WebSocket connections with callbacks
+// AuthWebSocketCallbackHandlerFunc handles authenticated WebSocket connections with callbacks.
 type AuthWebSocketCallbackHandlerFunc[Params, AuthModel any] struct {
 	callbacks   AuthWebSocketCallbacks[Params, AuthModel]
 	authHandler AuthHandler[AuthModel]
-	connections map[string]*WebSocketConnection
-	mu          sync.RWMutex
 }
 
 // AuthWebSocketHandler creates an authenticated handler that uses callbacks for WebSocket lifecycle events.
 //
 // Example usage:
 //
-//	func chatCallbacks() simba.AuthWebSocketCallbacks[Params, AuthModel] {
-//		return simba.AuthWebSocketCallbacks[Params, AuthModel]{
-//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, params Params, auth AuthModel) error {
-//				return conn.WriteText(fmt.Sprintf("Welcome %s!", auth.Name))
+//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
+//
+//	app.Router.GET("/ws/chat", simba.AuthWebSocketHandler(
+//		simba.AuthWebSocketCallbacks[Params, User]{
+//			OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params Params, user User) error {
+//				registry.Add(user.ID, conn)
+//				return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
 //			},
-//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*WebSocketConnection, msgType ws.OpCode, data []byte, auth AuthModel) error {
-//				message := fmt.Sprintf("[%s]: %s", auth.Name, string(data))
-//				for _, c := range connections {
-//					c.WriteText(message)
-//				}
+//			OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, msgType simba.MessageType, data []byte, user User) error {
+//				// Handle message with user context
 //				return nil
 //			},
-//		}
-//	}
-//
-//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
-//	app.Router.GET("/ws/chat", simba.AuthWebSocketHandler(chatCallbacks, bearerAuth))
+//			OnDisconnect: func(ctx context.Context, connID string, params Params, user User, err error) {
+//				registry.Remove(user.ID, connID)
+//			},
+//		},
+//		bearerAuth,
+//	))
 func AuthWebSocketHandler[Params, AuthModel any](
 	callbacks AuthWebSocketCallbacks[Params, AuthModel],
 	authHandler AuthHandler[AuthModel],
@@ -239,7 +209,6 @@ func AuthWebSocketHandler[Params, AuthModel any](
 	return &AuthWebSocketCallbackHandlerFunc[Params, AuthModel]{
 		callbacks:   callbacks,
 		authHandler: authHandler,
-		connections: make(map[string]*WebSocketConnection),
 	}
 }
 
@@ -251,7 +220,7 @@ func AuthWebSocketHandlerFunc[Params, AuthModel any](
 	return AuthWebSocketHandler(callbacksFunc(), authHandler)
 }
 
-// ServeHTTP implements the http.Handler interface for AuthWebSocketCallbackHandlerFunc
+// ServeHTTP implements the http.Handler interface.
 func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -290,59 +259,38 @@ func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.R
 		return
 	}
 
-	// Handle the connection
+	// Handle the connection synchronously - the HTTP server runs each
+	// request in its own goroutine, so blocking here is correct
 	h.handleConnection(ctx, conn, params, authModel)
 }
 
-// handleConnection manages the lifecycle of an authenticated WebSocket connection
+// handleConnection manages the lifecycle of an authenticated WebSocket connection.
 func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth AuthModel) {
-	// Create cancellable context
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Create connection wrapper
+	// Create connection wrapper with unique ID
 	wsConn := &WebSocketConnection{
-		ID:     generateConnID(),
-		Params: params,
-		conn:   rawConn,
-		ctx:    ctx,
-		cancel: cancel,
+		ID:   uuid.New().String(),
+		conn: rawConn,
 	}
-
-	// Track connection
-	h.mu.Lock()
-	h.connections[wsConn.ID] = wsConn
-	h.mu.Unlock()
-
-	defer func() {
-		h.mu.Lock()
-		delete(h.connections, wsConn.ID)
-		h.mu.Unlock()
-	}()
 
 	// Always cleanup
 	var handlerErr error
 	defer func() {
 		_ = rawConn.Close()
 		if h.callbacks.OnDisconnect != nil {
-			// Use background context for cleanup as connection context is cancelled
-			h.callbacks.OnDisconnect(context.Background(), params, auth, handlerErr)
+			// Use background context for cleanup as connection context may be cancelled
+			h.callbacks.OnDisconnect(context.Background(), wsConn.ID, params, auth, handlerErr)
 		}
 	}()
 
 	// Call OnConnect
 	if h.callbacks.OnConnect != nil {
-		h.mu.RLock()
-		connectionsSnapshot := h.connections
-		h.mu.RUnlock()
-
-		if err := h.callbacks.OnConnect(ctx, wsConn, connectionsSnapshot, params, auth); err != nil {
+		if err := h.callbacks.OnConnect(ctx, wsConn, params, auth); err != nil {
 			handlerErr = err
 			return
 		}
 	}
 
-	// Message loop - process messages sequentially for this connection
+	// Message loop
 	for {
 		select {
 		case <-ctx.Done():
@@ -360,12 +308,11 @@ func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) handleConnection(c
 				return
 			}
 
-			// Call OnMessage
-			h.mu.RLock()
-			connectionsSnapshot := h.connections
-			h.mu.RUnlock()
+			// Convert ws.OpCode to MessageType
+			msgType := opCodeToMessageType(op)
 
-			if err := h.callbacks.OnMessage(ctx, wsConn, connectionsSnapshot, op, msg, auth); err != nil {
+			// Call OnMessage
+			if err := h.callbacks.OnMessage(ctx, wsConn, msgType, msg, auth); err != nil {
 				// Check if OnError wants to continue
 				if h.callbacks.OnError != nil && h.callbacks.OnError(ctx, wsConn, err) {
 					continue
@@ -411,9 +358,10 @@ func (h *AuthWebSocketCallbackHandlerFunc[Params, AuthModel]) getAuthHandler() a
 	return h.authHandler
 }
 
-// generateConnID generates a unique connection ID
-func generateConnID() string {
-	// Use a simple counter for now - could be UUID or more sophisticated
-	// This is internal and doesn't need to be cryptographically secure
-	return fmt.Sprintf("conn-%d", time.Now().UnixNano())
+// opCodeToMessageType converts gobwas/ws OpCode to our MessageType.
+func opCodeToMessageType(op ws.OpCode) MessageType {
+	if op == ws.OpBinary {
+		return MessageBinary
+	}
+	return MessageText
 }

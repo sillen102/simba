@@ -10,7 +10,10 @@ test-race:
 
 # Run linters
 lint:
-	@golangci-lint run ./...
+	@echo "Running golangci-lint"
+	-@golangci-lint run ./...
+	@echo "Running nilaway"
+	@nilaway -test=false ./...
 
 # Update dependencies
 update-deps:

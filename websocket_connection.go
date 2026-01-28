@@ -1,7 +1,6 @@
 package simba
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -10,56 +9,46 @@ import (
 	"github.com/gobwas/ws/wsutil"
 )
 
-// WebSocketConnection wraps a WebSocket connection with thread-safe write operations.
+// WebSocketConnection represents an active WebSocket connection.
+// It provides thread-safe methods for sending messages.
+// The ID can be used to reference this connection in external systems
+// (e.g., Redis, database) for multi-instance message routing.
 type WebSocketConnection struct {
-	// ID is a unique identifier for this connection
+	// ID is a unique identifier (UUID) for this connection.
+	// Use this to track connections in external registries.
 	ID string
 
-	// Params contains the parsed route/query/header parameters
-	Params any
-
-	conn   net.Conn
-	ctx    context.Context
-	cancel context.CancelFunc
-
-	// writeMu protects concurrent writes to the connection
-	writeMu sync.Mutex
+	conn net.Conn
+	mu   sync.Mutex
 }
 
-// WriteText sends a text message to the client (thread-safe)
-func (wc *WebSocketConnection) WriteText(msg string) error {
-	wc.writeMu.Lock()
-	defer wc.writeMu.Unlock()
-	return wsutil.WriteServerText(wc.conn, []byte(msg))
+// WriteText sends a text message to the client (thread-safe).
+func (c *WebSocketConnection) WriteText(msg string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return wsutil.WriteServerText(c.conn, []byte(msg))
 }
 
-// WriteBinary sends a binary message to the client (thread-safe)
-func (wc *WebSocketConnection) WriteBinary(data []byte) error {
-	wc.writeMu.Lock()
-	defer wc.writeMu.Unlock()
-	return wsutil.WriteServerBinary(wc.conn, data)
+// WriteBinary sends a binary message to the client (thread-safe).
+func (c *WebSocketConnection) WriteBinary(data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return wsutil.WriteServerBinary(c.conn, data)
 }
 
-// WriteJSON marshals v to JSON and sends it as a text message (thread-safe)
-func (wc *WebSocketConnection) WriteJSON(v any) error {
+// WriteJSON marshals v to JSON and sends it as a text message (thread-safe).
+func (c *WebSocketConnection) WriteJSON(v any) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	wc.writeMu.Lock()
-	defer wc.writeMu.Unlock()
-	return wsutil.WriteServerText(wc.conn, data)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return wsutil.WriteServerText(c.conn, data)
 }
 
-// Close closes the WebSocket connection (thread-safe)
-func (wc *WebSocketConnection) Close() error {
-	wc.cancel() // Cancel context to signal shutdown
-	return wc.conn.Close()
-}
-
-// Context returns the connection's context
-// The context is cancelled when the connection is closed
-func (wc *WebSocketConnection) Context() context.Context {
-	return wc.ctx
+// Close closes the WebSocket connection.
+func (c *WebSocketConnection) Close() error {
+	return c.conn.Close()
 }

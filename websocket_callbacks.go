@@ -2,59 +2,73 @@ package simba
 
 import (
 	"context"
-
-	"github.com/gobwas/ws"
 )
 
-// WebSocketCallbacks defines the lifecycle callbacks for a WebSocket connection
-// All callbacks are called sequentially for a single connection
-// Multiple connections can have their callbacks called concurrently
+// MessageType indicates whether a WebSocket message is text or binary.
+type MessageType int
+
+const (
+	// MessageText indicates a text message (UTF-8 encoded).
+	MessageText MessageType = iota
+	// MessageBinary indicates a binary message.
+	MessageBinary
+)
+
+// WebSocketCallbacks defines the lifecycle callbacks for a WebSocket connection.
+//
+// The framework handles protocol details (upgrade, framing, etc.).
+// You handle application logic (authentication, routing, persistence).
+//
+// For multi-instance deployments, use OnConnect to register connections
+// in an external registry (Redis, database, etc.) and OnDisconnect to clean up.
 type WebSocketCallbacks[Params any] struct {
-	// OnConnect is called after the WebSocket upgrade succeeds (optional)
-	// Use this to send welcome messages, initialize state, etc.
-	// If an error is returned, the connection is closed and OnDisconnect is called
-	OnConnect func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, params Params) error
+	// OnConnect is called after the WebSocket upgrade succeeds (optional).
+	// Use this to register the connection in your external registry.
+	// Return an error to reject the connection.
+	OnConnect func(ctx context.Context, conn *WebSocketConnection, params Params) error
 
-	// OnMessage is called for each incoming message from the client (required)
-	// The messageType indicates if this is text (ws.OpText) or binary (ws.OpBinary)
-	// If an error is returned, OnError is called (if provided), otherwise connection closes
-	OnMessage func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, messageType ws.OpCode, data []byte) error
+	// OnMessage is called for each incoming message from the client (required).
+	// The msgType indicates if this is text or binary.
+	// Return an error to trigger OnError (if provided) or close the connection.
+	OnMessage func(ctx context.Context, conn *WebSocketConnection, msgType MessageType, data []byte) error
 
-	// OnDisconnect is called when the connection is closed (optional)
-	// This is ALWAYS called, even if OnConnect or OnMessage returns an error
-	// The err parameter contains the error that caused disconnection (nil for clean close)
-	// This is guaranteed to run via defer, making it perfect for cleanup
-	OnDisconnect func(ctx context.Context, params Params, err error)
+	// OnDisconnect is called when the connection is closed (optional).
+	// Use this to clean up your external registry.
+	// The connID is provided since the connection is already closed.
+	// The err parameter contains the error that caused disconnection (nil for clean close).
+	// This is guaranteed to run via defer, making it safe for cleanup.
+	OnDisconnect func(ctx context.Context, connID string, params Params, err error)
 
-	// OnError is called when an error occurs during OnConnect or OnMessage (optional)
-	// Return true to continue processing messages, false to close the connection
-	// If not provided, any error will close the connection
+	// OnError is called when an error occurs during OnMessage (optional).
+	// Return true to continue processing messages, false to close the connection.
+	// If not provided, any error will close the connection.
 	OnError func(ctx context.Context, conn *WebSocketConnection, err error) bool
 }
 
-// AuthWebSocketCallbacks defines the lifecycle callbacks for an authenticated WebSocket connection
-// All callbacks are called sequentially for a single connection
-// Multiple connections can have their callbacks called concurrently
+// AuthWebSocketCallbacks defines the lifecycle callbacks for an authenticated WebSocket connection.
+//
+// Same as WebSocketCallbacks but includes the authenticated user model in each callback.
 type AuthWebSocketCallbacks[Params, AuthModel any] struct {
-	// OnConnect is called after the WebSocket upgrade succeeds (optional)
-	// The auth parameter contains the authenticated user model
-	// If an error is returned, the connection is closed and OnDisconnect is called
-	OnConnect func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, params Params, auth AuthModel) error
+	// OnConnect is called after the WebSocket upgrade succeeds (optional).
+	// The auth parameter contains the authenticated user model.
+	// Return an error to reject the connection.
+	OnConnect func(ctx context.Context, conn *WebSocketConnection, params Params, auth AuthModel) error
 
-	// OnMessage is called for each incoming message from the client (required)
-	// The messageType indicates if this is text (ws.OpText) or binary (ws.OpBinary)
-	// The auth parameter contains the authenticated user model
-	// If an error is returned, OnError is called (if provided), otherwise connection closes
-	OnMessage func(ctx context.Context, conn *WebSocketConnection, connections map[string]*WebSocketConnection, messageType ws.OpCode, data []byte, auth AuthModel) error
+	// OnMessage is called for each incoming message from the client (required).
+	// The msgType indicates if this is text or binary.
+	// The auth parameter contains the authenticated user model.
+	// Return an error to trigger OnError (if provided) or close the connection.
+	OnMessage func(ctx context.Context, conn *WebSocketConnection, msgType MessageType, data []byte, auth AuthModel) error
 
-	// OnDisconnect is called when the connection is closed (optional)
-	// This is ALWAYS called, even if OnConnect or OnMessage returns an error
-	// The err parameter contains the error that caused disconnection (nil for clean close)
-	// This is guaranteed to run via defer, making it perfect for cleanup
-	OnDisconnect func(ctx context.Context, params Params, auth AuthModel, err error)
+	// OnDisconnect is called when the connection is closed (optional).
+	// Use this to clean up your external registry.
+	// The connID is provided since the connection is already closed.
+	// The err parameter contains the error that caused disconnection (nil for clean close).
+	// This is guaranteed to run via defer, making it safe for cleanup.
+	OnDisconnect func(ctx context.Context, connID string, params Params, auth AuthModel, err error)
 
-	// OnError is called when an error occurs during OnConnect or OnMessage (optional)
-	// Return true to continue processing messages, false to close the connection
-	// If not provided, any error will close the connection
+	// OnError is called when an error occurs during OnMessage (optional).
+	// Return true to continue processing messages, false to close the connection.
+	// If not provided, any error will close the connection.
 	OnError func(ctx context.Context, conn *WebSocketConnection, err error) bool
 }
