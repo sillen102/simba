@@ -4,36 +4,20 @@ import (
 	"context"
 )
 
-// MessageType indicates whether a WebSocket message is text or binary.
-type MessageType int
-
-const (
-	// MessageText indicates a text message (UTF-8 encoded).
-	MessageText MessageType = iota
-	// MessageBinary indicates a binary message.
-	MessageBinary
-)
-
 // WebSocketCallbacks defines the lifecycle callbacks for a WebSocket connection.
 //
 // The framework handles protocol details (upgrade, framing, etc.).
 // You handle application logic (authentication, routing, persistence).
-//
-// For multi-instance deployments, use OnConnect to register connections
-// in an external registry (Redis, database, etc.) and OnDisconnect to clean up.
 type WebSocketCallbacks[Params any] struct {
 	// OnConnect is called after the WebSocket upgrade succeeds (optional).
-	// Use this to register the connection in your external registry.
 	// Return an error to reject the connection.
 	OnConnect func(ctx context.Context, conn *WebSocketConnection, params Params) error
 
 	// OnMessage is called for each incoming message from the client (required).
-	// The msgType indicates if this is text or binary.
 	// Return an error to trigger OnError (if provided) or close the connection.
-	OnMessage func(ctx context.Context, conn *WebSocketConnection, msgType MessageType, data []byte) error
+	OnMessage func(ctx context.Context, conn *WebSocketConnection, data []byte) error
 
 	// OnDisconnect is called when the connection is closed (optional).
-	// Use this to clean up your external registry.
 	// The connID is provided since the connection is already closed.
 	// The err parameter contains the error that caused disconnection (nil for clean close).
 	// This is guaranteed to run via defer, making it safe for cleanup.
@@ -55,13 +39,11 @@ type AuthWebSocketCallbacks[Params, AuthModel any] struct {
 	OnConnect func(ctx context.Context, conn *WebSocketConnection, params Params, auth AuthModel) error
 
 	// OnMessage is called for each incoming message from the client (required).
-	// The msgType indicates if this is text or binary.
 	// The auth parameter contains the authenticated user model.
 	// Return an error to trigger OnError (if provided) or close the connection.
-	OnMessage func(ctx context.Context, conn *WebSocketConnection, msgType MessageType, data []byte, auth AuthModel) error
+	OnMessage func(ctx context.Context, conn *WebSocketConnection, data []byte, auth AuthModel) error
 
 	// OnDisconnect is called when the connection is closed (optional).
-	// Use this to clean up your external registry.
 	// The connID is provided since the connection is already closed.
 	// The err parameter contains the error that caused disconnection (nil for clean close).
 	// This is guaranteed to run via defer, making it safe for cleanup.
