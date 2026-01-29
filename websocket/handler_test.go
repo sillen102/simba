@@ -10,14 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sillen102/simba/websocket"
-
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest/assert"
+	"github.com/sillen102/simba/websocket"
 )
 
 func TestHandler_ConnectionLifecycle(t *testing.T) {
@@ -25,14 +24,14 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 
 	t.Run("OnConnect is called on connection", func(t *testing.T) {
 		var connectCalled atomic.Bool
-		var receivedConnID string
+		var receivedConnID atomic.Value
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						connectCalled.Store(true)
-						receivedConnID = conn.ID
+						receivedConnID.Store(conn.ID)
 						assert.NotNil(t, conn)
 						assert.True(t, conn.ID != "")
 						return nil
@@ -54,19 +53,19 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		assert.True(t, connectCalled.Load())
-		assert.True(t, receivedConnID != "")
+		assert.True(t, receivedConnID.Load() != nil && receivedConnID.Load().(string) != "")
 	})
 
 	t.Run("OnMessage is called when message received", func(t *testing.T) {
 		var messageCalled atomic.Bool
-		var receivedData string
+		var receivedData atomic.Value
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						messageCalled.Store(true)
-						receivedData = string(data)
+						receivedData.Store(string(data))
 						return nil
 					},
 				}
@@ -87,17 +86,17 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		assert.True(t, messageCalled.Load())
-		assert.Equal(t, testMessage, receivedData)
+		assert.Equal(t, testMessage, receivedData.Load().(string))
 	})
 
 	t.Run("OnMessage receives binary messages", func(t *testing.T) {
-		var receivedData []byte
+		var receivedData atomic.Value
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
-						receivedData = data
+						receivedData.Store(data)
 						return nil
 					},
 				}
@@ -117,12 +116,12 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		assert.Equal(t, testData, receivedData)
+		assert.Equal(t, testData, receivedData.Load().([]byte))
 	})
 
 	t.Run("OnDisconnect is called on connection close", func(t *testing.T) {
 		var disconnectCalled atomic.Bool
-		var disconnectConnID string
+		var disconnectConnID atomic.Value
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -132,7 +131,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
 						disconnectCalled.Store(true)
-						disconnectConnID = connID
+						disconnectConnID.Store(connID)
 					},
 				}
 			},
@@ -149,25 +148,25 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		assert.True(t, disconnectCalled.Load())
-		assert.True(t, disconnectConnID != "")
+		assert.True(t, disconnectConnID.Load() != nil && disconnectConnID.Load().(string) != "")
 	})
 
 	t.Run("OnDisconnect receives connection ID", func(t *testing.T) {
-		var connectConnID string
-		var disconnectConnID string
+		var connectConnID atomic.Value
+		var disconnectConnID atomic.Value
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
-						connectConnID = conn.ID
+						connectConnID.Store(conn.ID)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
-						disconnectConnID = connID
+						disconnectConnID.Store(connID)
 					},
 				}
 			},
@@ -183,7 +182,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		conn.Close()
 		time.Sleep(50 * time.Millisecond)
 
-		assert.True(t, connectConnID != "")
+		assert.True(t, connectConnID.Load() != nil && connectConnID.Load().(string) != "")
 		assert.Equal(t, connectConnID, disconnectConnID)
 	})
 
@@ -272,13 +271,13 @@ func TestHandler_ConnectionID(t *testing.T) {
 	})
 
 	t.Run("connection ID is UUID format", func(t *testing.T) {
-		var connID string
+		var connID atomic.Value
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
-						connID = conn.ID
+						connID.Store(conn.ID)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -297,11 +296,12 @@ func TestHandler_ConnectionID(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		assert.Equal(t, 36, len(connID))
-		assert.Equal(t, '-', rune(connID[8]))
-		assert.Equal(t, '-', rune(connID[13]))
-		assert.Equal(t, '-', rune(connID[18]))
-		assert.Equal(t, '-', rune(connID[23]))
+		connIDStr := connID.Load().(string)
+		assert.Equal(t, 36, len(connIDStr))
+		assert.Equal(t, '-', rune(connIDStr[8]))
+		assert.Equal(t, '-', rune(connIDStr[13]))
+		assert.Equal(t, '-', rune(connIDStr[18]))
+		assert.Equal(t, '-', rune(connIDStr[23]))
 	})
 }
 
@@ -459,13 +459,13 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 
 	t.Run("can send to connection from external source", func(t *testing.T) {
 		registry := &sync.Map{}
-		var registeredConnID string
+		var registeredConnID atomic.Value
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
-						registeredConnID = conn.ID
+						registeredConnID.Store(conn.ID)
 						registry.Store(conn.ID, conn)
 						return nil
 					},
@@ -490,7 +490,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 
 		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-		if wsConn, ok := registry.Load(registeredConnID); ok {
+		if wsConn, ok := registry.Load(registeredConnID.Load().(string)); ok {
 			wsConn.(*websocket.Connection).WriteText("external message")
 		}
 
@@ -521,13 +521,13 @@ func TestAuthHandler_Authentication(t *testing.T) {
 	)
 
 	t.Run("authenticated connection succeeds with valid token", func(t *testing.T) {
-		var authReceived WSAuthModel
+		var authReceived atomic.Value
 
 		handler := websocket.AuthHandler(
 			func() websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
 				return websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, auth WSAuthModel) error {
-						authReceived = auth
+						authReceived.Store(auth)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSAuthModel) error {
@@ -552,8 +552,8 @@ func TestAuthHandler_Authentication(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		assert.Equal(t, 123, authReceived.UserID)
-		assert.Equal(t, "testuser", authReceived.Username)
+		assert.Equal(t, 123, authReceived.Load().(WSAuthModel).UserID)
+		assert.Equal(t, "testuser", authReceived.Load().(WSAuthModel).Username)
 	})
 
 	t.Run("connection rejected with invalid token", func(t *testing.T) {
@@ -581,13 +581,13 @@ func TestAuthHandler_Authentication(t *testing.T) {
 	})
 
 	t.Run("auth is passed to OnMessage", func(t *testing.T) {
-		var messageAuth WSAuthModel
+		var messageAuth atomic.Value
 
 		handler := websocket.AuthHandler(
 			func() websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
 				return websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSAuthModel) error {
-						messageAuth = auth
+						messageAuth.Store(auth)
 						return nil
 					},
 				}
@@ -612,13 +612,13 @@ func TestAuthHandler_Authentication(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		assert.Equal(t, 123, messageAuth.UserID)
-		assert.Equal(t, "testuser", messageAuth.Username)
+		assert.Equal(t, 123, messageAuth.Load().(WSAuthModel).UserID)
+		assert.Equal(t, "testuser", messageAuth.Load().(WSAuthModel).Username)
 	})
 
 	t.Run("auth is passed to OnDisconnect", func(t *testing.T) {
-		var disconnectAuth WSAuthModel
-		var disconnectConnID string
+		var disconnectAuth atomic.Value
+		var disconnectConnID atomic.Value
 
 		handler := websocket.AuthHandler(
 			func() websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
@@ -627,8 +627,8 @@ func TestAuthHandler_Authentication(t *testing.T) {
 						return nil
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, auth WSAuthModel, err error) {
-						disconnectConnID = connID
-						disconnectAuth = auth
+						disconnectConnID.Store(connID)
+						disconnectAuth.Store(auth)
 					},
 				}
 			},
@@ -650,9 +650,9 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		conn.Close()
 		time.Sleep(50 * time.Millisecond)
 
-		assert.True(t, disconnectConnID != "")
-		assert.Equal(t, 123, disconnectAuth.UserID)
-		assert.Equal(t, "testuser", disconnectAuth.Username)
+		assert.True(t, disconnectConnID.Load() != nil && disconnectConnID.Load().(string) != "")
+		assert.Equal(t, 123, disconnectAuth.Load().(WSAuthModel).UserID)
+		assert.Equal(t, "testuser", disconnectAuth.Load().(WSAuthModel).Username)
 	})
 }
 
