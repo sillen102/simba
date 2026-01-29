@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// WebSocketCallbacks defines the lifecycle callbacks for a WebSocket connection.
+// Callbacks defines the lifecycle callbacks for a WebSocket connection.
 //
 // The framework handles protocol details (upgrade, framing, etc.).
 // You handle application logic (authentication, routing, persistence).
@@ -29,7 +29,7 @@ type Callbacks[Params any] struct {
 	OnError func(ctx context.Context, conn *Connection, err error) bool
 }
 
-// AuthWebSocketCallbacks defines the lifecycle callbacks for an authenticated WebSocket connection.
+// AuthCallbacks defines the lifecycle callbacks for an authenticated WebSocket connection.
 //
 // Same as WebSocketCallbacks but includes the authenticated user model in each callback.
 type AuthCallbacks[Params, AuthModel any] struct {

@@ -23,8 +23,11 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 	t.Parallel()
 
 	t.Run("OnConnect is called on connection", func(t *testing.T) {
+		t.Parallel()
+
 		var connectCalled atomic.Bool
 		var receivedConnID atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -34,6 +37,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 						receivedConnID.Store(conn.ID)
 						assert.NotNil(t, conn)
 						assert.True(t, conn.ID != "")
+						close(done)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -50,15 +54,18 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		assert.NoError(t, err)
 		defer conn.Close()
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.True(t, connectCalled.Load())
 		assert.True(t, receivedConnID.Load() != nil && receivedConnID.Load().(string) != "")
 	})
 
 	t.Run("OnMessage is called when message received", func(t *testing.T) {
+		t.Parallel()
+
 		var messageCalled atomic.Bool
 		var receivedData atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -66,6 +73,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						messageCalled.Store(true)
 						receivedData.Store(string(data))
+						close(done)
 						return nil
 					},
 				}
@@ -83,20 +91,24 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		err = wsutil.WriteClientText(conn, []byte(testMessage))
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.True(t, messageCalled.Load())
 		assert.Equal(t, testMessage, receivedData.Load().(string))
 	})
 
 	t.Run("OnMessage receives binary messages", func(t *testing.T) {
+		t.Parallel()
+
 		var receivedData atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						receivedData.Store(data)
+						close(done)
 						return nil
 					},
 				}
@@ -114,14 +126,17 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		err = wsutil.WriteClientBinary(conn, testData)
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.Equal(t, testData, receivedData.Load().([]byte))
 	})
 
 	t.Run("OnDisconnect is called on connection close", func(t *testing.T) {
+		t.Parallel()
+
 		var disconnectCalled atomic.Bool
 		var disconnectConnID atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -132,6 +147,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
 						disconnectCalled.Store(true)
 						disconnectConnID.Store(connID)
+						close(done)
 					},
 				}
 			},
@@ -145,21 +161,26 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 
 		conn.Close()
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.True(t, disconnectCalled.Load())
 		assert.True(t, disconnectConnID.Load() != nil && disconnectConnID.Load().(string) != "")
 	})
 
 	t.Run("OnDisconnect receives connection ID", func(t *testing.T) {
+		t.Parallel()
+
 		var connectConnID atomic.Value
 		var disconnectConnID atomic.Value
+		connectDone := make(chan struct{})
+		disconnectDone := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						connectConnID.Store(conn.ID)
+						close(connectDone)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -167,6 +188,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
 						disconnectConnID.Store(connID)
+						close(disconnectDone)
 					},
 				}
 			},
@@ -178,16 +200,19 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		conn, _, _, err := ws.Dial(context.Background(), "ws"+server.URL[4:])
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-connectDone
 		conn.Close()
-		time.Sleep(50 * time.Millisecond)
+		<-disconnectDone
 
 		assert.True(t, connectConnID.Load() != nil && connectConnID.Load().(string) != "")
 		assert.Equal(t, connectConnID, disconnectConnID)
 	})
 
 	t.Run("OnError is called on message error", func(t *testing.T) {
+		t.Parallel()
+
 		var errorCalled atomic.Bool
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -197,6 +222,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 					},
 					OnError: func(ctx context.Context, conn *websocket.Connection, err error) bool {
 						errorCalled.Store(true)
+						close(done)
 						return false
 					},
 				}
@@ -213,7 +239,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		err = wsutil.WriteClientText(conn, []byte("test"))
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.True(t, errorCalled.Load())
 	})
@@ -223,8 +249,12 @@ func TestHandler_ConnectionID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("each connection gets unique ID", func(t *testing.T) {
+		t.Parallel()
+
 		var mu sync.Mutex
 		var connIDs []string
+		var wg sync.WaitGroup
+		wg.Add(3)
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -233,6 +263,7 @@ func TestHandler_ConnectionID(t *testing.T) {
 						mu.Lock()
 						defer mu.Unlock()
 						connIDs = append(connIDs, conn.ID)
+						wg.Done()
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -257,7 +288,7 @@ func TestHandler_ConnectionID(t *testing.T) {
 		assert.NoError(t, err)
 		defer conn3.Close()
 
-		time.Sleep(100 * time.Millisecond)
+		wg.Wait()
 
 		mu.Lock()
 		defer mu.Unlock()
@@ -271,13 +302,17 @@ func TestHandler_ConnectionID(t *testing.T) {
 	})
 
 	t.Run("connection ID is UUID format", func(t *testing.T) {
+		t.Parallel()
+
 		var connID atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						connID.Store(conn.ID)
+						close(done)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -294,7 +329,7 @@ func TestHandler_ConnectionID(t *testing.T) {
 		assert.NoError(t, err)
 		defer conn.Close()
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		connIDStr := connID.Load().(string)
 		assert.Equal(t, 36, len(connIDStr))
@@ -309,6 +344,8 @@ func TestHandler_WriteOperations(t *testing.T) {
 	t.Parallel()
 
 	t.Run("WriteText sends text message", func(t *testing.T) {
+		t.Parallel()
+
 		// Echo back text messages
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -340,6 +377,8 @@ func TestHandler_WriteOperations(t *testing.T) {
 	})
 
 	t.Run("WriteBinary sends binary message", func(t *testing.T) {
+		t.Parallel()
+
 		expectedData := []byte{0xDE, 0xAD, 0xBE, 0xEF}
 
 		// Echo back binary data
@@ -373,6 +412,8 @@ func TestHandler_WriteOperations(t *testing.T) {
 	})
 
 	t.Run("WriteJSON sends JSON message", func(t *testing.T) {
+		t.Parallel()
+
 		type TestMessage struct {
 			Type string `json:"type"`
 			Data string `json:"data"`
@@ -412,13 +453,18 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 	t.Parallel()
 
 	t.Run("can implement external connection registry", func(t *testing.T) {
+		t.Parallel()
+
 		registry := &sync.Map{}
+		connectDone := make(chan struct{})
+		disconnectDone := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						registry.Store(conn.ID, conn)
+						close(connectDone)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -426,6 +472,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
 						registry.Delete(connID)
+						close(disconnectDone)
 					},
 				}
 			},
@@ -437,7 +484,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 		conn, _, _, err := ws.Dial(context.Background(), "ws"+server.URL[4:])
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-connectDone
 
 		count := 0
 		registry.Range(func(key, value any) bool {
@@ -447,7 +494,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 		assert.Equal(t, 1, count)
 
 		conn.Close()
-		time.Sleep(50 * time.Millisecond)
+		<-disconnectDone
 
 		count = 0
 		registry.Range(func(key, value any) bool {
@@ -458,8 +505,11 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 	})
 
 	t.Run("can send to connection from external source", func(t *testing.T) {
+		t.Parallel()
+
 		registry := &sync.Map{}
 		var registeredConnID atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -467,6 +517,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						registeredConnID.Store(conn.ID)
 						registry.Store(conn.ID, conn)
+						close(done)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -486,7 +537,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 		assert.NoError(t, err)
 		defer conn.Close()
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
@@ -521,13 +572,17 @@ func TestAuthHandler_Authentication(t *testing.T) {
 	)
 
 	t.Run("authenticated connection succeeds with valid token", func(t *testing.T) {
+		t.Parallel()
+
 		var authReceived atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.AuthHandler(
 			func() websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
 				return websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, auth WSAuthModel) error {
 						authReceived.Store(auth)
+						close(done)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSAuthModel) error {
@@ -550,13 +605,15 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		assert.NoError(t, err)
 		defer conn.Close()
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.Equal(t, 123, authReceived.Load().(WSAuthModel).UserID)
 		assert.Equal(t, "testuser", authReceived.Load().(WSAuthModel).Username)
 	})
 
 	t.Run("connection rejected with invalid token", func(t *testing.T) {
+		t.Parallel()
+
 		handler := websocket.AuthHandler(
 			func() websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
 				return websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
@@ -581,13 +638,17 @@ func TestAuthHandler_Authentication(t *testing.T) {
 	})
 
 	t.Run("auth is passed to OnMessage", func(t *testing.T) {
+		t.Parallel()
+
 		var messageAuth atomic.Value
+		done := make(chan struct{})
 
 		handler := websocket.AuthHandler(
 			func() websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
 				return websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSAuthModel) error {
 						messageAuth.Store(auth)
+						close(done)
 						return nil
 					},
 				}
@@ -610,25 +671,34 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		err = wsutil.WriteClientText(conn, []byte("test"))
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.Equal(t, 123, messageAuth.Load().(WSAuthModel).UserID)
 		assert.Equal(t, "testuser", messageAuth.Load().(WSAuthModel).Username)
 	})
 
 	t.Run("auth is passed to OnDisconnect", func(t *testing.T) {
+		t.Parallel()
+
 		var disconnectAuth atomic.Value
 		var disconnectConnID atomic.Value
+		connectDone := make(chan struct{})
+		disconnectDone := make(chan struct{})
 
 		handler := websocket.AuthHandler(
 			func() websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
 				return websocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, auth WSAuthModel) error {
+						close(connectDone)
+						return nil
+					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSAuthModel) error {
 						return nil
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, auth WSAuthModel, err error) {
 						disconnectConnID.Store(connID)
 						disconnectAuth.Store(auth)
+						close(disconnectDone)
 					},
 				}
 			},
@@ -646,9 +716,9 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		conn, _, _, err := dialer.Dial(context.Background(), "ws"+server.URL[4:])
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-connectDone
 		conn.Close()
-		time.Sleep(50 * time.Millisecond)
+		<-disconnectDone
 
 		assert.True(t, disconnectConnID.Load() != nil && disconnectConnID.Load().(string) != "")
 		assert.Equal(t, 123, disconnectAuth.Load().(WSAuthModel).UserID)
@@ -660,13 +730,21 @@ func TestHandler_ConcurrentConnections(t *testing.T) {
 	t.Parallel()
 
 	t.Run("handles multiple concurrent connections", func(t *testing.T) {
+		t.Parallel()
+
 		var connectionCount atomic.Int32
+		var connectWg sync.WaitGroup
+		var disconnectWg sync.WaitGroup
+		numClients := 10
+		connectWg.Add(numClients)
+		disconnectWg.Add(numClients)
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						connectionCount.Add(1)
+						connectWg.Done()
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -674,6 +752,7 @@ func TestHandler_ConcurrentConnections(t *testing.T) {
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
 						connectionCount.Add(-1)
+						disconnectWg.Done()
 					},
 				}
 			},
@@ -682,7 +761,6 @@ func TestHandler_ConcurrentConnections(t *testing.T) {
 		server := httptest.NewServer(handler)
 		defer server.Close()
 
-		numClients := 10
 		var wg sync.WaitGroup
 		wg.Add(numClients)
 
@@ -702,7 +780,7 @@ func TestHandler_ConcurrentConnections(t *testing.T) {
 		}
 
 		wg.Wait()
-		time.Sleep(100 * time.Millisecond)
+		connectWg.Wait()
 
 		assert.Equal(t, int32(numClients), connectionCount.Load())
 
@@ -712,7 +790,7 @@ func TestHandler_ConcurrentConnections(t *testing.T) {
 			}
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		disconnectWg.Wait()
 		assert.Equal(t, int32(0), connectionCount.Load())
 	})
 }
@@ -721,13 +799,18 @@ func TestHandler_ErrorRecovery(t *testing.T) {
 	t.Parallel()
 
 	t.Run("OnError can continue processing after error", func(t *testing.T) {
+		t.Parallel()
+
 		var messageCount atomic.Int32
+		var wg sync.WaitGroup
+		wg.Add(2)
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						messageCount.Add(1)
+						wg.Done()
 						if messageCount.Load() == 1 {
 							return fmt.Errorf("first message error")
 						}
@@ -749,17 +832,20 @@ func TestHandler_ErrorRecovery(t *testing.T) {
 
 		err = wsutil.WriteClientText(conn, []byte("message1"))
 		assert.NoError(t, err)
-		time.Sleep(50 * time.Millisecond)
 
 		err = wsutil.WriteClientText(conn, []byte("message2"))
 		assert.NoError(t, err)
-		time.Sleep(50 * time.Millisecond)
+
+		wg.Wait()
 
 		assert.Equal(t, int32(2), messageCount.Load())
 	})
 
 	t.Run("connection closes when OnError returns false", func(t *testing.T) {
+		t.Parallel()
+
 		var disconnectCalled atomic.Bool
+		done := make(chan struct{})
 
 		handler := websocket.Handler(
 			func() websocket.Callbacks[simbaModels.NoParams] {
@@ -772,6 +858,7 @@ func TestHandler_ErrorRecovery(t *testing.T) {
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
 						disconnectCalled.Store(true)
+						close(done)
 					},
 				}
 			},
@@ -787,7 +874,7 @@ func TestHandler_ErrorRecovery(t *testing.T) {
 		err = wsutil.WriteClientText(conn, []byte("test"))
 		assert.NoError(t, err)
 
-		time.Sleep(100 * time.Millisecond)
+		<-done
 
 		assert.True(t, disconnectCalled.Load())
 	})
@@ -797,6 +884,8 @@ func TestHandler_ThreadSafety(t *testing.T) {
 	t.Parallel()
 
 	t.Run("concurrent writes are thread-safe", func(t *testing.T) {
+		t.Parallel()
+
 		var wsConn *websocket.Connection
 		var connReady sync.WaitGroup
 		connReady.Add(1)
@@ -853,9 +942,12 @@ func TestHandler_Middleware(t *testing.T) {
 	t.Parallel()
 
 	t.Run("middleware runs before callbacks", func(t *testing.T) {
+		t.Parallel()
+
 		var middlewareCalled atomic.Bool
 		var callbackCalled atomic.Bool
 		var middlewareBeforeCallback atomic.Bool
+		done := make(chan struct{})
 
 		testMiddleware := func(ctx context.Context) context.Context {
 			middlewareCalled.Store(true)
@@ -873,6 +965,7 @@ func TestHandler_Middleware(t *testing.T) {
 						// Check that middleware added value to context
 						value := ctx.Value("test-key")
 						assert.Equal(t, "test-value", value)
+						close(done)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -890,7 +983,7 @@ func TestHandler_Middleware(t *testing.T) {
 		assert.NoError(t, err)
 		defer conn.Close()
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		assert.True(t, middlewareCalled.Load())
 		assert.True(t, callbackCalled.Load())
@@ -898,7 +991,11 @@ func TestHandler_Middleware(t *testing.T) {
 	})
 
 	t.Run("middleware runs for each message", func(t *testing.T) {
+		t.Parallel()
+
 		var middlewareCount atomic.Int32
+		var wg sync.WaitGroup
+		wg.Add(3)
 
 		testMiddleware := func(ctx context.Context) context.Context {
 			middlewareCount.Add(1)
@@ -909,6 +1006,7 @@ func TestHandler_Middleware(t *testing.T) {
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
+						wg.Done()
 						return nil
 					},
 				}
@@ -929,15 +1027,18 @@ func TestHandler_Middleware(t *testing.T) {
 			assert.NoError(t, err)
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		wg.Wait()
 
 		// Middleware should run once per message
 		assert.Equal(t, int32(3), middlewareCount.Load())
 	})
 
 	t.Run("multiple middleware run in order", func(t *testing.T) {
+		t.Parallel()
+
 		var order []string
 		var mu sync.Mutex
+		done := make(chan struct{})
 
 		middleware1 := func(ctx context.Context) context.Context {
 			mu.Lock()
@@ -960,6 +1061,7 @@ func TestHandler_Middleware(t *testing.T) {
 						// Check both middleware values are in context
 						assert.Equal(t, "value1", ctx.Value("mw1"))
 						assert.Equal(t, "value2", ctx.Value("mw2"))
+						close(done)
 						return nil
 					},
 				}
@@ -977,7 +1079,7 @@ func TestHandler_Middleware(t *testing.T) {
 		err = wsutil.WriteClientText(conn, []byte("test"))
 		assert.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
+		<-done
 
 		mu.Lock()
 		defer mu.Unlock()
@@ -987,9 +1089,13 @@ func TestHandler_Middleware(t *testing.T) {
 	})
 
 	t.Run("connectionID persists, traceID can change", func(t *testing.T) {
+		t.Parallel()
+
 		var connIDs []string
 		var traceIDs []string
 		var mu sync.Mutex
+		var wg sync.WaitGroup
+		wg.Add(3)
 
 		testMiddleware := func(ctx context.Context) context.Context {
 			mu.Lock()
@@ -1012,6 +1118,7 @@ func TestHandler_Middleware(t *testing.T) {
 			func() websocket.Callbacks[simbaModels.NoParams] {
 				return websocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
+						wg.Done()
 						return nil
 					},
 				}
@@ -1032,7 +1139,7 @@ func TestHandler_Middleware(t *testing.T) {
 			assert.NoError(t, err)
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		wg.Wait()
 
 		mu.Lock()
 		defer mu.Unlock()
