@@ -116,7 +116,7 @@ func main() {
 	// Usage: ws://localhost:8080/ws/echo
 	app.Router.GET("/ws/echo", simba.WebSocketHandler(
 		echoCallbacks,
-		simba.WithMiddleware(
+		simba.WithWebsocketMiddleware(
 			middleware.WebSocketTraceID(), // Fresh traceID per callback
 			middleware.WebSocketLogger(),  // Logger with connectionID + traceID
 		)))
@@ -126,7 +126,7 @@ func main() {
 	app.Router.GET("/ws/chat", simba.AuthWebSocketHandler(
 		chatCallbacks,
 		bearerAuth,
-		simba.WithMiddleware(
+		simba.WithWebsocketMiddleware(
 			middleware.WebSocketTraceID(),
 			middleware.WebSocketLogger(),
 		)))

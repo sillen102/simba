@@ -900,7 +900,7 @@ func TestWebSocketHandler_Middleware(t *testing.T) {
 					},
 				}
 			},
-			simba.WithMiddleware(testMiddleware),
+			simba.WithWebsocketMiddleware(testMiddleware),
 		)
 
 		server := httptest.NewServer(handler)
@@ -934,7 +934,7 @@ func TestWebSocketHandler_Middleware(t *testing.T) {
 					},
 				}
 			},
-			simba.WithMiddleware(testMiddleware),
+			simba.WithWebsocketMiddleware(testMiddleware),
 		)
 
 		server := httptest.NewServer(handler)
@@ -986,7 +986,7 @@ func TestWebSocketHandler_Middleware(t *testing.T) {
 					},
 				}
 			},
-			simba.WithMiddleware(middleware1, middleware2),
+			simba.WithWebsocketMiddleware(middleware1, middleware2),
 		)
 
 		server := httptest.NewServer(handler)
@@ -1039,7 +1039,7 @@ func TestWebSocketHandler_Middleware(t *testing.T) {
 					},
 				}
 			},
-			simba.WithMiddleware(testMiddleware),
+			simba.WithWebsocketMiddleware(testMiddleware),
 		)
 
 		server := httptest.NewServer(handler)

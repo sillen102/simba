@@ -34,9 +34,9 @@ func (m middlewareOption) apply(handler any) {
 	}
 }
 
-// WithMiddleware adds middleware to the WebSocket handler.
+// WithWebsocketMiddleware adds middleware to the WebSocket handler.
 // Middleware runs before each callback invocation, allowing you to enrich the context.
-func WithMiddleware(middleware ...WebSocketMiddleware) WebSocketHandlerOption {
+func WithWebsocketMiddleware(middleware ...WebSocketMiddleware) WebSocketHandlerOption {
 	return middlewareOption{middleware: middleware}
 }
 
