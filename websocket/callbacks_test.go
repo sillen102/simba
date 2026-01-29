@@ -1,6 +1,8 @@
-package simba_test
+package websocket_test
 
 import (
+
+	"github.com/sillen102/simba/websocket"
 	"context"
 	"fmt"
 	"net/http"
@@ -34,10 +36,10 @@ func TestWebSocketCallbackHandler(t *testing.T) {
 		}()
 
 		// Should panic because OnMessage is nil
-		simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams) error {
+		websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						return nil
 					},
 				}
@@ -46,10 +48,10 @@ func TestWebSocketCallbackHandler(t *testing.T) {
 	})
 
 	t.Run("handler creation succeeds with OnMessage", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 				}
@@ -61,14 +63,14 @@ func TestWebSocketCallbackHandler(t *testing.T) {
 	})
 
 	t.Run("callbacks structure is correct", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						return nil
 					},
 
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 
@@ -83,10 +85,10 @@ func TestWebSocketCallbackHandler(t *testing.T) {
 	})
 
 	t.Run("handler interface compliance", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[WSCallbackParams] {
-				return simba.WebSocketCallbacks[WSCallbackParams]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[WSCallbackParams] {
+				return websocket.Callbacks[WSCallbackParams]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 				}
@@ -126,10 +128,10 @@ func TestAuthWebSocketCallbackHandler(t *testing.T) {
 		}()
 
 		// Should panic because OnMessage is nil
-		simba.AuthWebSocketHandler(
-			func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
-				return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
-					OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams, auth WSCallbackAuthModel) error {
+		websocket.AuthHandler(
+			func() websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
+				return websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, auth WSCallbackAuthModel) error {
 						return nil
 					},
 				}
@@ -139,10 +141,10 @@ func TestAuthWebSocketCallbackHandler(t *testing.T) {
 	})
 
 	t.Run("handler creation succeeds with OnMessage", func(t *testing.T) {
-		handler := simba.AuthWebSocketHandler(
-			func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
-				return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, auth WSCallbackAuthModel) error {
+		handler := websocket.AuthHandler(
+			func() websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
+				return websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSCallbackAuthModel) error {
 						return nil
 					},
 				}
@@ -155,10 +157,10 @@ func TestAuthWebSocketCallbackHandler(t *testing.T) {
 	})
 
 	t.Run("unauthorized request rejected", func(t *testing.T) {
-		handler := simba.AuthWebSocketHandler(
-			func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
-				return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, auth WSCallbackAuthModel) error {
+		handler := websocket.AuthHandler(
+			func() websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
+				return websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSCallbackAuthModel) error {
 						return nil
 					},
 				}
@@ -176,10 +178,10 @@ func TestAuthWebSocketCallbackHandler(t *testing.T) {
 	})
 
 	t.Run("invalid token rejected", func(t *testing.T) {
-		handler := simba.AuthWebSocketHandler(
-			func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
-				return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, auth WSCallbackAuthModel) error {
+		handler := websocket.AuthHandler(
+			func() websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
+				return websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSCallbackAuthModel) error {
 						return nil
 					},
 				}
@@ -197,10 +199,10 @@ func TestAuthWebSocketCallbackHandler(t *testing.T) {
 	})
 
 	t.Run("handler interface compliance", func(t *testing.T) {
-		handler := simba.AuthWebSocketHandler(
-			func() simba.AuthWebSocketCallbacks[WSCallbackParams, WSCallbackAuthModel] {
-				return simba.AuthWebSocketCallbacks[WSCallbackParams, WSCallbackAuthModel]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, auth WSCallbackAuthModel) error {
+		handler := websocket.AuthHandler(
+			func() websocket.AuthCallbacks[WSCallbackParams, WSCallbackAuthModel] {
+				return websocket.AuthCallbacks[WSCallbackParams, WSCallbackAuthModel]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSCallbackAuthModel) error {
 						return nil
 					},
 				}
@@ -213,20 +215,20 @@ func TestAuthWebSocketCallbackHandler(t *testing.T) {
 	})
 }
 
-func TestWebSocketConnection_API(t *testing.T) {
+func TestConnection_API(t *testing.T) {
 	t.Parallel()
 
 	t.Run("connection has ID field", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						// Connection should have ID assigned
 						assert.True(t, conn.ID != "")
 						return nil
 					},
 
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 				}
@@ -237,10 +239,10 @@ func TestWebSocketConnection_API(t *testing.T) {
 	})
 
 	t.Run("connection ID available in OnDisconnect", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
@@ -259,14 +261,14 @@ func TestCallbackErrorHandling(t *testing.T) {
 	t.Parallel()
 
 	t.Run("OnError callback can continue processing", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return fmt.Errorf("test error")
 					},
 
-					OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
+					OnError: func(ctx context.Context, conn *websocket.Connection, err error) bool {
 						return true // Continue processing
 					},
 				}
@@ -277,14 +279,14 @@ func TestCallbackErrorHandling(t *testing.T) {
 	})
 
 	t.Run("OnError callback can stop processing", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return fmt.Errorf("test error")
 					},
 
-					OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
+					OnError: func(ctx context.Context, conn *websocket.Connection, err error) bool {
 						return false // Stop processing
 					},
 				}
@@ -299,16 +301,16 @@ func TestCallbackParameterPassing(t *testing.T) {
 	t.Parallel()
 
 	t.Run("params are accessible in callbacks", func(t *testing.T) {
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[WSCallbackParams] {
-				return simba.WebSocketCallbacks[WSCallbackParams]{
-					OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params WSCallbackParams) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[WSCallbackParams] {
+				return websocket.Callbacks[WSCallbackParams]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params WSCallbackParams) error {
 						// Params should be accessible
 						_ = params.Room
 						return nil
 					},
 
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 				}
@@ -326,17 +328,17 @@ func TestCallbackParameterPassing(t *testing.T) {
 			simba.BearerAuthConfig{Name: "Test"},
 		)
 
-		handler := simba.AuthWebSocketHandler(
-			func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
-				return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
-					OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams, auth WSCallbackAuthModel) error {
+		handler := websocket.AuthHandler(
+			func() websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
+				return websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, auth WSCallbackAuthModel) error {
 						// Auth should be accessible
 						_ = auth.UserID
 						_ = auth.Username
 						return nil
 					},
 
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, auth WSCallbackAuthModel) error {
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSCallbackAuthModel) error {
 						return nil
 					},
 				}
@@ -354,14 +356,14 @@ func TestOnDisconnectGuarantee(t *testing.T) {
 	t.Run("OnDisconnect signature includes connID", func(t *testing.T) {
 		var disconnectCalled atomic.Bool
 
-		handler := simba.WebSocketHandler(
-			func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-				return simba.WebSocketCallbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams) error {
+		handler := websocket.Handler(
+			func() websocket.Callbacks[simbaModels.NoParams] {
+				return websocket.Callbacks[simbaModels.NoParams]{
+					OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 						return fmt.Errorf("connection failed")
 					},
 
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 						return nil
 					},
 
@@ -385,10 +387,10 @@ func TestOnDisconnectGuarantee(t *testing.T) {
 			simba.BearerAuthConfig{Name: "Test"},
 		)
 
-		handler := simba.AuthWebSocketHandler(
-			func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
-				return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
-					OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, auth WSCallbackAuthModel) error {
+		handler := websocket.AuthHandler(
+			func() websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
+				return websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
+					OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSCallbackAuthModel) error {
 						return nil
 					},
 
@@ -409,24 +411,24 @@ func TestOnDisconnectGuarantee(t *testing.T) {
 func TestHandlerFuncVariants(t *testing.T) {
 	t.Parallel()
 
-	t.Run("WebSocketHandler accepts callback function", func(t *testing.T) {
-		callbacksFunc := func() simba.WebSocketCallbacks[simbaModels.NoParams] {
-			return simba.WebSocketCallbacks[simbaModels.NoParams]{
-				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+	t.Run("Handler accepts callback function", func(t *testing.T) {
+		callbacksFunc := func() websocket.Callbacks[simbaModels.NoParams] {
+			return websocket.Callbacks[simbaModels.NoParams]{
+				OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 					return nil
 				},
 			}
 		}
 
-		handler := simba.WebSocketHandler(callbacksFunc)
+		handler := websocket.Handler(callbacksFunc)
 		assert.NotNil(t, handler)
 		var _ simba.Handler = handler
 	})
 
-	t.Run("AuthWebSocketHandler accepts callback function", func(t *testing.T) {
-		callbacksFunc := func() simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
-			return simba.AuthWebSocketCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
-				OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, auth WSCallbackAuthModel) error {
+	t.Run("AuthHandler accepts callback function", func(t *testing.T) {
+		callbacksFunc := func() websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel] {
+			return websocket.AuthCallbacks[simbaModels.NoParams, WSCallbackAuthModel]{
+				OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, auth WSCallbackAuthModel) error {
 					return nil
 				},
 			}
@@ -443,7 +445,7 @@ func TestHandlerFuncVariants(t *testing.T) {
 			},
 		)
 
-		handler := simba.AuthWebSocketHandler(callbacksFunc, authHandler)
+		handler := websocket.AuthHandler(callbacksFunc, authHandler)
 		assert.NotNil(t, handler)
 		var _ simba.Handler = handler
 	})

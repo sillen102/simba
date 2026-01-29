@@ -1,10 +1,11 @@
-module websocket
+module github.com/sillen102/simba/websocket
 
 go 1.25
 
 require (
+	github.com/gobwas/ws v1.4.0
+	github.com/google/uuid v1.6.0
 	github.com/sillen102/simba v0.30.0-dev
-	github.com/sillen102/simba/websocket v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -19,8 +20,6 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.4.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
 	github.com/hashicorp/go-envparse v0.1.0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
@@ -42,10 +41,10 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
-	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/text v0.33.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.78.0 // indirect
@@ -54,6 +53,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/sillen102/simba => ../../
-
-replace github.com/sillen102/simba/websocket => ../../websocket
+replace github.com/sillen102/simba => ../

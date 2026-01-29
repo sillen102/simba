@@ -1,11 +1,10 @@
-package middleware_test
+package middleware
 
 import (
 	"context"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
@@ -14,9 +13,7 @@ func TestWebSocketTraceID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("generates trace ID and adds to context", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketTraceID()
+		mw := TraceID()
 		ctx := context.Background()
 
 		// Apply middleware
@@ -37,9 +34,7 @@ func TestWebSocketTraceID(t *testing.T) {
 	})
 
 	t.Run("generates different trace IDs on each invocation", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketTraceID()
+		mw := TraceID()
 		ctx := context.Background()
 
 		// Apply middleware multiple times
@@ -59,9 +54,7 @@ func TestWebSocketTraceID(t *testing.T) {
 	})
 
 	t.Run("overwrites existing trace ID", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketTraceID()
+		mw := TraceID()
 
 		// Create context with existing trace ID
 		oldTraceID := "old-trace-id"
@@ -80,9 +73,7 @@ func TestWebSocketTraceID(t *testing.T) {
 	})
 
 	t.Run("preserves other context values", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketTraceID()
+		mw := TraceID()
 
 		// Create context with other values
 		type testKey string
@@ -97,9 +88,7 @@ func TestWebSocketTraceID(t *testing.T) {
 	})
 
 	t.Run("preserves connectionID from context", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketTraceID()
+		mw := TraceID()
 
 		// Create context with connectionID
 		connID := "test-connection-id"
@@ -119,9 +108,7 @@ func TestWebSocketTraceID(t *testing.T) {
 	})
 
 	t.Run("can be called multiple times for same connection", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketTraceID()
+		mw := TraceID()
 
 		// Simulate connection context
 		connID := "connection-123"

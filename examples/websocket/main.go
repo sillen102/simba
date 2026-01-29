@@ -8,9 +8,10 @@ import (
 
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/logging"
-	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/websocket"
+	wsmw "github.com/sillen102/simba/websocket/middleware"
 )
 
 // User represents an authenticated user
@@ -31,16 +32,16 @@ func authHandler(ctx context.Context, token string) (User, error) {
 }
 
 // echoCallbacks returns WebSocket callbacks for a simple echo handler
-func echoCallbacks() simba.WebSocketCallbacks[simbaModels.NoParams] {
-	return simba.WebSocketCallbacks[simbaModels.NoParams]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams) error {
+func echoCallbacks() websocket.Callbacks[simbaModels.NoParams] {
+	return websocket.Callbacks[simbaModels.NoParams]{
+		OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
 			// Logger from middleware includes connectionID and traceID
 			logger := logging.From(ctx)
 			logger.Info("Connection established")
 			return conn.WriteText("Welcome! Send me messages and I'll echo them back.")
 		},
 
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte) error {
+		OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
 			// Logger automatically includes fresh traceID for each message
 			logger := logging.From(ctx)
 			logger.Info("Received message", "message", string(data))
@@ -58,7 +59,7 @@ func echoCallbacks() simba.WebSocketCallbacks[simbaModels.NoParams] {
 			logger.Info("Connection closed", "error", err)
 		},
 
-		OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
+		OnError: func(ctx context.Context, conn *websocket.Connection, err error) bool {
 			logger := logging.From(ctx)
 			logger.Error("Error occurred", "error", err)
 			return false // Close connection on error
@@ -67,15 +68,15 @@ func echoCallbacks() simba.WebSocketCallbacks[simbaModels.NoParams] {
 }
 
 // chatCallbacks demonstrates authenticated WebSocket
-func chatCallbacks() simba.AuthWebSocketCallbacks[simbaModels.NoParams, User] {
-	return simba.AuthWebSocketCallbacks[simbaModels.NoParams, User]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, params simbaModels.NoParams, user User) error {
+func chatCallbacks() websocket.AuthCallbacks[simbaModels.NoParams, User] {
+	return websocket.AuthCallbacks[simbaModels.NoParams, User]{
+		OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, user User) error {
 			logger := logging.From(ctx)
 			logger.Info("User connected", "user", user.Name)
 			return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
 		},
 
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, data []byte, user User) error {
+		OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, user User) error {
 			logger := logging.From(ctx)
 			logger.Info("Chat message", "user", user.Name, "message", string(data))
 
@@ -89,7 +90,7 @@ func chatCallbacks() simba.AuthWebSocketCallbacks[simbaModels.NoParams, User] {
 			logger.Info("User disconnected", "user", user.Name, "error", err)
 		},
 
-		OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
+		OnError: func(ctx context.Context, conn *websocket.Connection, err error) bool {
 			logger := logging.From(ctx)
 			logger.Error("Chat error", "error", err)
 			return false // Close on error
@@ -114,21 +115,21 @@ func main() {
 	// Simple echo endpoint (no authentication) with middleware
 	// Middleware generates fresh traceID per message and injects logger with context
 	// Usage: ws://localhost:8080/ws/echo
-	app.Router.GET("/ws/echo", simba.WebSocketHandler(
+	app.Router.GET("/ws/echo", websocket.Handler(
 		echoCallbacks,
-		simba.WithWebsocketMiddleware(
-			middleware.WebSocketTraceID(), // Fresh traceID per callback
-			middleware.WebSocketLogger(),  // Logger with connectionID + traceID
+		websocket.WithMiddleware(
+			wsmw.TraceID(), // Fresh traceID per callback
+			wsmw.Logger(),  // Logger with connectionID + traceID
 		)))
 
 	// Authenticated chat endpoint with middleware
 	// Usage: ws://localhost:8080/ws/chat with header "Authorization: Bearer valid-token"
-	app.Router.GET("/ws/chat", simba.AuthWebSocketHandler(
+	app.Router.GET("/ws/chat", websocket.AuthHandler(
 		chatCallbacks,
 		bearerAuth,
-		simba.WithWebsocketMiddleware(
-			middleware.WebSocketTraceID(),
-			middleware.WebSocketLogger(),
+		websocket.WithMiddleware(
+			wsmw.TraceID(),
+			wsmw.Logger(),
 		)))
 
 	slog.Info("Starting server with WebSocket support on :8080")

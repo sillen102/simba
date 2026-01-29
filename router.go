@@ -14,14 +14,14 @@ import (
 // Handler specifies the interface for a handler that can be registered with the [Router].
 type Handler interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
-	getRequestBody() any
-	getParams() any
-	getResponseBody() any
-	getAccepts() string
-	getProduces() string
-	getHandler() any
-	getAuthModel() any
-	getAuthHandler() any
+	GetRequestBody() any
+	GetParams() any
+	GetResponseBody() any
+	GetAccepts() string
+	GetProduces() string
+	GetHandler() any
+	GetAuthModel() any
+	GetAuthHandler() any
 }
 
 type openApiGenerator interface {
@@ -231,14 +231,14 @@ func (r *Router) addRouteToDocs(method string, path string, handler Handler) {
 		r.routes = append(r.routes, openapiModels.RouteInfo{
 			Method:      method,
 			Path:        path,
-			Accepts:     handler.getAccepts(),
-			Produces:    handler.getProduces(),
-			ReqBody:     handler.getRequestBody(),
-			Params:      handler.getParams(),
-			RespBody:    handler.getResponseBody(),
-			Handler:     handler.getHandler(),
-			AuthModel:   handler.getAuthModel(),
-			AuthHandler: handler.getAuthHandler(),
+			Accepts:     handler.GetAccepts(),
+			Produces:    handler.GetProduces(),
+			ReqBody:     handler.GetRequestBody(),
+			Params:      handler.GetParams(),
+			RespBody:    handler.GetResponseBody(),
+			Handler:     handler.GetHandler(),
+			AuthModel:   handler.GetAuthModel(),
+			AuthHandler: handler.GetAuthHandler(),
 		})
 	}
 }

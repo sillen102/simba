@@ -1,4 +1,4 @@
-package simba
+package websocket
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 // It provides thread-safe methods for sending messages.
 // The ID can be used to reference this connection in external systems
 // (e.g., Redis, database) for multi-instance message routing.
-type WebSocketConnection struct {
+type Connection struct {
 	// ID is a unique identifier (UUID) for this connection.
 	// Use this to track connections in external registries.
 	ID string
@@ -23,21 +23,21 @@ type WebSocketConnection struct {
 }
 
 // WriteText sends a text message to the client (thread-safe).
-func (c *WebSocketConnection) WriteText(msg string) error {
+func (c *Connection) WriteText(msg string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return wsutil.WriteServerText(c.conn, []byte(msg))
 }
 
 // WriteBinary sends a binary message to the client (thread-safe).
-func (c *WebSocketConnection) WriteBinary(data []byte) error {
+func (c *Connection) WriteBinary(data []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return wsutil.WriteServerBinary(c.conn, data)
 }
 
 // WriteJSON marshals v to JSON and sends it as a text message (thread-safe).
-func (c *WebSocketConnection) WriteJSON(v any) error {
+func (c *Connection) WriteJSON(v any) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
@@ -49,6 +49,6 @@ func (c *WebSocketConnection) WriteJSON(v any) error {
 }
 
 // Close closes the WebSocket connection.
-func (c *WebSocketConnection) Close() error {
+func (c *Connection) Close() error {
 	return c.conn.Close()
 }

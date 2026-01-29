@@ -15,9 +15,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// parseAndValidateParams creates a new instance of the parameter struct,
+// ParseAndValidateParams creates a new instance of the parameter struct,
 // populates it using the MapParams interface method, and validates it.
-func parseAndValidateParams[Params any](r *http.Request) (Params, error) {
+func ParseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	var instance Params
 	// If instance is NoParams or empty struct, return early
 	if _, ok := any(instance).(simbaModels.NoParams); ok {

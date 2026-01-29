@@ -7,12 +7,12 @@ import (
 	"github.com/sillen102/simba/simbaContext"
 )
 
-// WebSocketLogger injects a logger with connectionID and traceID into the context.
+// Logger injects a logger with connectionID and traceID into the context.
 // This ensures all log statements within WebSocket callbacks automatically include
 // both IDs for proper correlation.
 //
-// Returns a WebSocketMiddleware function that can be used with simba.WithMiddleware().
-func WebSocketLogger() func(context.Context) context.Context {
+// Returns a WebSocketMiddleware function that can be used with websocket.WithMiddleware().
+func Logger() func(context.Context) context.Context {
 	return func(ctx context.Context) context.Context {
 		// Get connectionID and traceID from context
 		connID := ctx.Value(simbaContext.ConnectionIDKey)

@@ -1,4 +1,4 @@
-package middleware_test
+package middleware
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
@@ -16,9 +15,7 @@ func TestWebSocketLogger(t *testing.T) {
 	t.Parallel()
 
 	t.Run("injects logger into context", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		ctx := context.Background()
 
 		// Apply middleware
@@ -34,8 +31,6 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("logger includes connectionID when present", func(t *testing.T) {
-		t.Parallel()
-
 		// Set up logger to capture output
 		var buf bytes.Buffer
 		testLogger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
@@ -43,7 +38,7 @@ func TestWebSocketLogger(t *testing.T) {
 		}))
 		slog.SetDefault(testLogger)
 
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		connID := "conn-12345"
 		ctx := context.WithValue(context.Background(), simbaContext.ConnectionIDKey, connID)
 
@@ -61,8 +56,6 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("logger includes traceID when present", func(t *testing.T) {
-		t.Parallel()
-
 		// Set up logger to capture output
 		var buf bytes.Buffer
 		testLogger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
@@ -70,7 +63,7 @@ func TestWebSocketLogger(t *testing.T) {
 		}))
 		slog.SetDefault(testLogger)
 
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		traceID := "trace-67890"
 		ctx := context.WithValue(context.Background(), simbaContext.TraceIDKey, traceID)
 
@@ -88,8 +81,6 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("logger includes both connectionID and traceID", func(t *testing.T) {
-		t.Parallel()
-
 		// Set up logger to capture output
 		var buf bytes.Buffer
 		testLogger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
@@ -97,7 +88,7 @@ func TestWebSocketLogger(t *testing.T) {
 		}))
 		slog.SetDefault(testLogger)
 
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		connID := "conn-12345"
 		traceID := "trace-67890"
 		ctx := context.WithValue(context.Background(), simbaContext.ConnectionIDKey, connID)
@@ -118,9 +109,7 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("works without connectionID or traceID", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		ctx := context.Background()
 
 		// Apply middleware
@@ -136,8 +125,6 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("handles empty string connectionID", func(t *testing.T) {
-		t.Parallel()
-
 		// Set up logger to capture output
 		var buf bytes.Buffer
 		testLogger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
@@ -145,7 +132,7 @@ func TestWebSocketLogger(t *testing.T) {
 		}))
 		slog.SetDefault(testLogger)
 
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		ctx := context.WithValue(context.Background(), simbaContext.ConnectionIDKey, "")
 
 		// Apply middleware
@@ -161,8 +148,6 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("handles empty string traceID", func(t *testing.T) {
-		t.Parallel()
-
 		// Set up logger to capture output
 		var buf bytes.Buffer
 		testLogger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
@@ -170,7 +155,7 @@ func TestWebSocketLogger(t *testing.T) {
 		}))
 		slog.SetDefault(testLogger)
 
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		ctx := context.WithValue(context.Background(), simbaContext.TraceIDKey, "")
 
 		// Apply middleware
@@ -186,9 +171,7 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("handles non-string connectionID gracefully", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		ctx := context.WithValue(context.Background(), simbaContext.ConnectionIDKey, 12345)
 
 		// Apply middleware - should not panic
@@ -200,9 +183,7 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("handles non-string traceID gracefully", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 		ctx := context.WithValue(context.Background(), simbaContext.TraceIDKey, 67890)
 
 		// Apply middleware - should not panic
@@ -214,9 +195,7 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("preserves other context values", func(t *testing.T) {
-		t.Parallel()
-
-		mw := middleware.WebSocketLogger()
+		mw := Logger()
 
 		// Create context with other values
 		type testKey string
@@ -231,8 +210,6 @@ func TestWebSocketLogger(t *testing.T) {
 	})
 
 	t.Run("works in middleware chain", func(t *testing.T) {
-		t.Parallel()
-
 		// Set up logger to capture output
 		var buf bytes.Buffer
 		testLogger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
@@ -241,8 +218,8 @@ func TestWebSocketLogger(t *testing.T) {
 		slog.SetDefault(testLogger)
 
 		// Simulate middleware chain: TraceID -> Logger
-		traceIDMw := middleware.WebSocketTraceID()
-		loggerMw := middleware.WebSocketLogger()
+		traceIDMw := TraceID()
+		loggerMw := Logger()
 
 		// Start with context containing connectionID
 		connID := "conn-xyz"
