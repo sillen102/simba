@@ -1,29 +1,23 @@
 # Simba
 
-Simba is a type-safe HTTP router framework for Go that makes building REST APIs simple and enjoyable. It provides strong type safety through generics and a clean, intuitive API for handling HTTP requests.
-It also automatically generates OpenAPI (v3.1) documentation for your API.
+Simba is a type-safe HTTP router framework for Go that makes building REST APIs simple and enjoyable. It provides strong type safety through generics, clean and intuitive APIs for request handling, and generates OpenAPI (v3.1) docs automatically.
 
-> **Telemetry Notice**: Simba does _not_ instrument requests or metrics by default and will never force a metrics/tracing solution. For observability, wire in any provider you want as shown in the section below.
+> **Telemetry Notice:** Simba never instruments requests or metrics unless you provide a telemetry provider. Wire in any provider (like OpenTelemetry) using `SetTelemetryProvider()` as demonstrated below.
 
 ## Features
 
 - **Type-safe routing** with Go generics
-- **Built-in authentication** support
+- **Built-in authentication** (API key, Basic, Bearer)
 - **Middleware support**
 - **Strong request/response typing**
-- **Automatic OpenAPI documentation generation**
+- **Automatic OpenAPI docs generation**
+- **WebSocket support**
+
+---
 
 ## Telemetry & Observability (Advanced, Optional)
+Simba is telemetry-provider agnostic. To emit traces/metrics, inject any telemetry provider you like:
 
-Simba is telemetry-provider-agnostic by default:
-*No telemetry (metrics, traces) is built into the Simba core.* Instead, you can plug in any provider you like, such as OpenTelemetry, via the Simba `TelemetryProvider` interface.
-
-**How to Enable Instrumentation:**
-1. Add the `simba/telemetry` subpackage to your project.
-2. Create an OTel telemetry provider using your desired configuration.
-3. Inject that provider into your Simba app before starting your server.
-
-**Minimal Example:**
 ```go
 import (
     "context"
@@ -33,11 +27,8 @@ import (
 )
 
 func main() {
-    // Create your Simba app as usual
-    app := simba.Default()
-    // ... configure routes, etc.
+    app := simba.Default() // or simba.New(...)
 
-    // Prepare telemetry config as needed (or load from YAML/env)
     tcfg := &config.TelemetryConfig{
         Enabled:        true,
         ServiceName:    "my-service",
@@ -45,18 +36,24 @@ func main() {
         Tracing:        config.TracingConfig{Enabled: true, Exporter: "otlp"},
         Metrics:        config.MetricsConfig{Enabled: true, Exporter: "otlp"},
     }
-    // Explicitly construct and inject a telemetry provider
     prov, err := telemetry.NewOtelTelemetryProvider(context.Background(), tcfg)
     if err != nil {
         panic("Failed to create telemetry provider: " + err.Error())
     }
     app.SetTelemetryProvider(prov)
 
+    // Advanced: Create custom spans/counters by type asserting your provider
+    // otel := prov.(*telemetry.OtelTelemetryProvider)
+    // meter := otel.Provider().Meter("my.custom")
+    // tracer := otel.Provider().Tracer("my.custom")
+
     app.Start()
 }
 ```
-**Note:** If you do not inject a telemetry provider, Simba runs without instrumentation (a no-op provider is used by default, so no OpenTelemetry or instrumentation code will run).
-- For full observability patterns—including custom spans, metrics, and integration with Jaeger/Prometheus—see [`examples/telemetry`](./examples/telemetry).
+
+See [`examples/telemetry`](./examples/telemetry) for advanced provider use, custom spans and metrics. If you do not set a provider, Simba disables all. 
+
+---
 
 ## Installation
 
@@ -64,13 +61,12 @@ func main() {
 go get -u github.com/sillen102/simba
 ```
 
-## Quick Start
+---
 
-Here's a simple example showing how to create a basic HTTP server with Simba:
+## Quick Start
 
 ```go
 package main
-
 import (
     "context"
     "fmt"
@@ -88,372 +84,309 @@ type ResponseBody struct {
 }
 
 func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response[ResponseBody], error) {
-
-    // Access the request body fields
-    // req.Body.Age
-    // req.Body.Name
-
-    // Access the request cookies
-    // req.Cookies
-
-    // Access the request headers
-    // req.Headers
-
     return &simba.Response[ResponseBody]{
-        Headers: map[string][]string{"My-Header": {"header-value"}},
-        Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
         Body: ResponseBody{
             Message: fmt.Sprintf("Hello %s, you are %d years old", req.Body.Name, req.Body.Age),
         },
-        Status: http.StatusOK, // Can be omitted, defaults to 200 if there's a body, 204 if there's no body
+        Status: http.StatusOK,
     }, nil
 }
 
 func main() {
-    // Using simba.Default() will use the default options for logger and request validation,
-    // add default middleware like panic recovery and request id and add some endpoints like /health
-    //
-    // If you wish to build up your own router without any default middleware etc., use simba.New()
     app := simba.Default()
     app.Router.POST("/users", simba.JsonHandler(handler))
     app.Start()
 }
 ```
 
+---
+
 ## Parameters
 
-Handle parameters with type safety and validation support using go-playground validator:
+Simba provides deep parameter binding and validation from path, query, headers, and cookies. Default values (`default:"val"`) and validation (`validate:"..."`) are supported via `go-playground/validator` tags.
 
+**Simple example:**
 ```go
 type Params struct {
     UserID    string `path:"userId"`
     Name      string `query:"name" validate:"required"`
     Age       int    `header:"age" validate:"required"`
     SessionID string `cookie:"session_id" validate:"required"`
-    Page      int64  `query:"page" validate:"omitempty,min=0" default:"0"`
-    Size      int64  `query:"size" validate:"omitempty,min=0" default:"10"`
+    Page      int64  `query:"page" default:"0"`
+    Size      int64  `query:"size" default:"10"`
 }
 
-func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response[respBody], error) {
-    userID := req.Params.UserID
-    name := req.Params.Name
-    age := req.Params.Age
-
-    // ... handle the request
+func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response[ResponseBody], error) {
+    // ... handler logic
 }
-
 app.GET("/users/{userId}", simba.JsonHandler(getUser))
 ```
 
-## Logging
-
-Simba relies on slog to handle logging. If no logger is provided `slog.Default` will be used.
-If you use the Default constructor a slog logger will be injected into the request context for all requests.
-To access the injected logger, use the `logging.From` function in the logging package.
-
-Example:
-
+**Advanced example:**
+Handles custom types (`uuid.UUID`), booleans, floats, defaults, and OpenAPI multiline handler comments.
 ```go
-func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[respBody], error) {
-    logger := logging.From(ctx)
-    logger.Info("handling request")
-    // ... handle the request
+import "github.com/google/uuid"
+type Params struct {
+    Name   string      `header:"name" validate:"required"`
+    ID     uuid.UUID   `path:"id" validate:"required"`
+    Active bool        `query:"active" validate:"required"`
+    Page   int         `query:"page" validate:"omitempty,min=0" default:"1"`
+    Size   int64       `query:"size" validate:"omitempty,min=0" default:"10"`
+    Score  float64     `query:"score" default:"10.0"`
+}
+
+// Handler with OpenAPI docs
+// This is a description of what the handler does.
+// Can span multiple lines.
+func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response[ResponseBody], error) {
+    // req.Params.ID (uuid)
+    // req.Params.Active (bool, parsed from query)
+    // req.Params.Page (default/explicit)
+    // ...
 }
 ```
-
-## Configuration
-
-Customize behavior with options functions:
-
-```go
-app := simba.New(
-    settings.WithServerHost("localhost"),
-    settings.WithServerPort(8080),
-})
-```
-
-Or use default and change a single one or few of the settings:
-
-```go
-app := simba.Default()
-app.Settings.Server.Port = 8080
-```
-
-## Error Handling
-
-Simba provides automatic error handling with standardized JSON responses. All errors are automatically wrapped and returned in a consistent format:
-
-```json
-{
-  "timestamp": "2024-12-04T20:28:33.852965Z",
-  "status": 400,
-  "error": "Bad Request",
-  "path": "/api/resource",
-  "method": "POST",
-  "requestId": "40ad8bb4-215a-4748-8a7f-9e236d988c5b",
-  "message": "request validation failed, 1 validation error",
-  "validationErrors": [
-    {
-      "parameter": "email",
-      "type": "body",
-      "message": "'notanemail' is not a valid email address"
-    }
-  ]
-}
-```
-
-## Middleware
-
-Simba supports middleware. Simply create a function that takes a handler and returns a handler and register it with the `Use` method on the router:
-
-```go
-func myMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        r.Header.Set("X-Middleware", "123") // Here we simply add a header to every request
-        next.ServeHTTP(w, r) // And the proceed to the next handler
-    })
-}
-
-app.Router.Use(myMiddleware)
-```
-
-## Authentication
-
-Simba provides built-in support for authentication of the handlers by providing an
-authentication function signature respectively for Basic Auth, API Key Auth, and Bearer Token Auth.
-It uses generics so everything is type safe.
-
-Notice that the authFunc signature differs slightly between the different authentication methods.
-
-#### Basic Auth
-```go
-type User struct {
-    ID   string
-    Name string
-}
-
-// authFunc is should use the basic auth function signature:
-// BasicAuthHandlerFunc[AuthModel any] func(ctx context.Context, username, password string) (*AuthModel, error)
-func authFunc(ctx context.Context, username, password string) (*User, error) {
-    if !(username == "john" && password == "password") {
-        return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid username or password", nil)
-    }
-
-    return &User{
-        ID:   1,
-        Name: "John Doe",
-        Role: "admin",
-    }, nil
-}
-
-var authHandler = simba.BasicAuth[User](
-    authFunc,
-    simba.BasicAuthConfig{
-        Name:        "admin",
-        Description: "admin access only",
-    }, 
-)
-
-// @ID authenticatedHandler
-// @Summary authenticated handler
-// @Description this is a handler that requires authentication
-func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
-
-    // Access the request cookies
-    // req.Cookies
-    
-    // Access the request headers
-    // req.Headers
-    
-    return &simbaModels.Response[ResponseBody]{
-        Body: ResponseBody{
-            Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
-        },
-    }, nil
-}
-
-app := simba.Default()
-app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
-```
-
-#### API Key Auth
-```go
-type User struct {
-    ID   string
-    Name string
-}
-
-// authFunc should use the API key auth function signature:
-// APIKeyAuthHandlerFunc[AuthModel any] func(ctx context.Context, apiKey string) (*AuthModel, error)
-func authFunc(ctx context.Context, apiKey string) (*User, error) {
-	if apiKey != "valid-key" {
-		return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid api key", nil)
-	}
-
-	return &User{
-		ID:   1,
-		Name: "John Doe",
-		Role: "admin",
-	}, nil
-}
-
-var authHandler = simba.APIKeyAuth[User](
-	authFunc,
-	simba.APIKeyAuthConfig{
-		Name:        "admin",
-		FieldName:   "sessionid",
-		In:          openapi.InHeader,
-		Description: "admin access only",
-	},
-)
-
-// @ID authenticatedHandler
-// @Summary authenticated handler
-// @Description this is a handler that requires authentication
-func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
-
-    // Access the request cookies
-    // req.Cookies
-    
-    // Access the request headers
-    // req.Headers
-    
-    return &simbaModels.Response[ResponseBody]{
-        Body: ResponseBody{
-            Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
-        },
-    }, nil
-}
-
-app := simba.Default()
-app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
-```
-
-#### Bearer Token Auth
-```go
-type User struct {
-    ID   string
-    Name string
-}
-
-// authFunc should use the Bearer token auth function signature:
-// BearerAuthHandlerFunc[AuthModel any] func(ctx context.Context, token string) (*AuthModel, error)
-func authFunc(ctx context.Context, token string) (*User, error) {
-    if token != "token" {
-        return nil, simbaErrors.NewHttpError(http.StatusUnauthorized, "invalid token", nil)
-    }
-
-    return &User{
-        ID:   1,
-        Name: "John Doe",
-        Role: "admin",
-    }, nil
-}
-
-var authHandler = simba.BearerAuth[User](
-    BearerAuthFunc,
-    simba.BearerAuthConfig{
-        Name:        "admin",
-        Format:      "jwt",
-        Description: "Bearer token",
-    },
-)
-
-// @ID authenticatedHandler
-// @Summary authenticated handler
-// @Description this is a handler that requires authentication
-func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
-
-    // Access the request cookies
-    // req.Cookies
-    
-    // Access the request headers
-    // req.Headers
-    
-    return &simbaModels.Response[ResponseBody]{
-        Body: ResponseBody{
-            Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
-        },
-    }, nil
-}
-
-app := simba.Default()
-app.GET("/users/{userId}", simba.AuthJsonHandler(getUser, authHandler))
-```
-
-## OpenAPI Documentation Generation
-
-Simba will automatically generate OpenAPI documentation for your APIs. By default, the OpenAPI documentation is available at `/openapi.yml`.
-And the Scalar UI is available at `/docs`. You can change these paths by providing a custom path in the application settings.
-
-```go
-app := simba.Default()
-app.Settings.Docs.OpenAPIFileType = mimetypes.ApplicationJSON
-app.Settings.Docs.OpenAPIPath = "/swagger.json"
-app.Settings.Docs.DocsPath = "/swagger-ui"
-```
-
-If you want to you can disable the OpenAPI documentation generation by setting the GenerateOpenAPIDocs to false in application settings.
-
-```go
-app := simba.Default()
-app.Settings.Docs.GenerateOpenAPIDocs = false
-```
-
-You can also generate the OpenAPI documentation yaml file but not serve any UI (in case you want to use a different or customized UI)
-by setting the MountDocsEndpoint to false in the application settings.
-
-```go
-app := simba.Default()
-app.Settings.Docs.MountDocsEndpoint = false
-```
-
-### Customizing OpenAPI Documentation
-By default, Simba will generate OpenAPI documentation based on the handler you have registered. It will use the package name to group the endpoints,
-and the handler name to generate the operation id, summary for the endpoint and the comment you have on your handler to generate a description.
-This makes it easy to generate OpenAPI documentation without any additional configuration.
-Just organize your handlers in packages, name them well and add descriptive comments.
-
-If you want greater control over the generated API documentation you can customize the OpenAPI documentation by providing tags in the comment of your handler.
-Simba uses [openapi-go](https://github.com/swaggest/openapi-go) under the hood to generate the documentation.
-
-```go
-type reqParams struct {
-    ID       string `path:"id" example:"XXX-XXXXX"`
-    Locale   string `query:"locale" pattern:"^[a-z]{2}-[A-Z]{2}$"`
-    MyHeader string `header:"My-Header" required:"true"`
-    MyCookie string `cookie:"My-Cookie" required:"true"`
-}
-
-type reqBody struct {
-    Title  string `json:"string" example:"My Order"`
-    Amount int    `json:"amount" example:"100" required:"true"`
-    Items  []struct {
-        Count uint   `json:"count" example:"2"`
-        Name  string `json:"name" example:"Item 1"`
-    } `json:"items"`
-}
-
-// @ID get-user
-// @Tag Users
-// @Summary Get user
-// @Description Get a user by ID (can span across multiple lines)
-// @Error 404 User not found
-func getUser(ctx context.Context, req *simba.Request[reqBody, reqParams], user *User) (*simba.Response[respBody], error) {
-    // ... handle the request
-}
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-All dependencies are under their respective licenses, which can be found in their repositories via the go.mod file.
 
 ---
 
-For advanced instrumentation, distributed tracing, and metrics: see [`examples/telemetry`](./examples/telemetry) for patterns using the Simba provider interface and OpenTelemetry.
+## No Body Responses & Status Codes
+To return a 204 No Content response:
+```go
+func noBodyHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
+    return &simba.Response[simba.NoBody]{}, nil // No body = 204
+}
+```
+If you omit `Status`, Simba uses 200 for non-empty, 204 for empty bodies.
+
+---
+
+## Response Headers & Cookies
+Set headers/cookies in the response struct:
+```go
+return &simba.Response[ResponseBody]{
+    Headers: map[string][]string{"My-Header": {"value"}},
+    Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "val"}},
+    Body: ...,
+}
+```
+
+---
+
+## WebSocket Support
+
+Simba provides first-class generic WebSocket support (with middleware and optional authentication):
+
+```go
+import (
+    "context"
+    "github.com/sillen102/simba"
+    "github.com/sillen102/simba/websocket"
+    wsmw "github.com/sillen102/simba/websocket/middleware"
+)
+
+type User struct {
+    ID   int
+    Name string
+}
+
+// Simple bearer token authentication function
+func authHandler(ctx context.Context, token string) (User, error) {
+    if token == "valid-token" {
+        return User{ID: 1, Name: "John Doe"}, nil
+    }
+    return User{}, fmt.Errorf("invalid token")
+}
+
+// Echo handler
+func echoCallbacks() websocket.Callbacks[simba.NoParams] {
+    return websocket.Callbacks[simba.NoParams]{
+        OnConnect: func(ctx context.Context, conn *websocket.Connection, params simba.NoParams) error {
+            return conn.WriteText("Connected! Send messages and I'll echo them.")
+        },
+        OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
+            return conn.WriteText("Echo: " + string(data))
+        },
+    }
+}
+
+// Authenticated chat handler
+func chatCallbacks() websocket.AuthCallbacks[simba.NoParams, User] {
+    return websocket.AuthCallbacks[simba.NoParams, User]{
+        OnConnect: func(ctx context.Context, conn *websocket.Connection, params simba.NoParams, user User) error {
+            return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
+        },
+        OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, user User) error {
+            return conn.WriteText(fmt.Sprintf("[%s]: %s", user.Name, string(data)))
+        },
+    }
+}
+
+func main() {
+    app := simba.Default()
+    // Unauthenticated echo endpoint
+    app.Router.GET("/ws/echo", websocket.Handler(
+        echoCallbacks(),
+        websocket.WithMiddleware(
+            wsmw.TraceID(),
+            wsmw.Logger(),
+        ),
+    ))
+    // Authenticated chat endpoint
+    bearer := simba.BearerAuth(authHandler, simba.BearerAuthConfig{
+        Name: "BearerAuth", Format: "JWT", Description: "Bearer token",
+    })
+    app.Router.GET("/ws/chat", websocket.AuthHandler(
+        chatCallbacks(),
+        bearer,
+        websocket.WithMiddleware(
+            wsmw.TraceID(),
+            wsmw.Logger(),
+        ),
+    ))
+    app.Start()
+}
+```
+
+---
+
+## Logging
+
+Simba uses `slog` for logging. With `simba.Default()`, a logger is injected into each request context. To use a custom logger:
+
+```go
+import (
+    "log/slog"
+    "github.com/sillen102/simba"
+    "github.com/sillen102/simba/settings"
+)
+logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+app := simba.Default(settings.WithLogger(logger))
+```
+Retrieve logger in handlers:
+```go
+import "github.com/sillen102/simba/logging"
+func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[ResponseBody], error) {
+    logger := logging.From(ctx)
+    logger.Info("handling request")
+}
+```
+
+---
+
+## Middleware
+
+Register standard Go http.Handler compatible middleware:
+```go
+func myMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // ...
+        next.ServeHTTP(w, r)
+    })
+}
+app.Router.Use(myMiddleware)
+```
+
+You can inject data into request headers in middleware and access via validated handler params:
+```go
+app.Router.Use(func(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        r.Header.Set("X-Middleware", "123")
+        next.ServeHTTP(w, r)
+    })
+})
+```
+And access:
+```go
+type Params struct { MiddlewareHeader string `header:"X-Middleware"` }
+```
+
+---
+
+## Authentication (API Key, Basic, Bearer)
+
+All Simba built-in authentication handlers use **pointer-based generics** for the user type:
+
+### API Key Auth (Canonical Example)
+```go
+type User struct {
+    ID   int
+    Name string
+    Role string
+}
+
+func authFunc(ctx context.Context, apiKey string) (*User, error) {
+    if apiKey != "valid-key" {
+        return nil, fmt.Errorf("invalid api key")
+    }
+    return &User{ID: 1, Name: "John Doe", Role: "admin"}, nil
+}
+
+authHandler := simba.APIKeyAuth[*User](authFunc, simba.APIKeyAuthConfig{
+    Name: "admin", FieldName: "sessionid", In: openapi.InHeader, Description: "admin only",
+})
+
+func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, struct { UserID int `path:"userId"` }], user *User) (*simba.Response[ResponseBody], error) {
+    return &simba.Response[ResponseBody]{
+        Body: ResponseBody{Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role)},
+    }, nil
+}
+
+app := simba.Default()
+app.Router.GET("/users/{userId}", simba.AuthJsonHandler(authenticatedHandler, authHandler))
+```
+
+### Bearer Auth
+```go
+func bearerAuthFunc(ctx context.Context, token string) (*User, error) { /* ... */ }
+bearer := simba.BearerAuth[*User](bearerAuthFunc, simba.BearerAuthConfig{
+    Name: "bearer", Format: "jwt", Description: "token",
+})
+```
+
+### Basic Auth
+```go
+func basicAuthFunc(ctx context.Context, username, password string) (*User, error) { /* ... */ }
+basic := simba.BasicAuth[*User](basicAuthFunc, simba.BasicAuthConfig{
+    Name: "basic", Description: "desc",
+})
+```
+
+---
+
+## OpenAPI Documentation
+
+Simba automatically generates a full [OpenAPI](https://spec.openapis.org/) specification at `/openapi.yml` and serves interactive documentation at `/docs` using the Scalar UI. You can customize these endpoints or disable documentation entirely via settings:
+
+```go
+app.Settings.Docs.OpenAPIPath = "/openapi.yml"      // Change OpenAPI spec path (default)
+app.Settings.Docs.DocsPath = "/docs"               // Change Scalar UI path (default)
+app.Settings.Docs.GenerateOpenAPIDocs = false       // Disable OpenAPI generation entirely
+```
+
+### Customizing OpenAPI Documentation
+
+Simba generates your OpenAPI specification using handler comments: 
+- The package and function names define operationId and grouping.
+- Use line comments above your handler function to add descriptions, summaries, and error information. Simba parses these for OpenAPI summaries/descriptions.
+
+Example:
+```go
+// @ID get-user
+// @Tag Users
+// @Summary Get user
+// @Description Get user by ID
+// @Error 404 User not found
+func getUser(...) {...}
+```
+For details, see [swaggest/openapi-go](https://github.com/swaggest/openapi-go). You do not need or use Swagger tags within Simba.
+
+---
+
+## License
+MIT (see LICENSE file)
+
+---
+
+For advanced usage, see additional folders in [`examples/`](./examples/) for:
+- Observability and advanced tracing/metrics with OpenTelemetry (`examples/telemetry`)
+- WebSocket (`examples/websocket`)
+- Advanced parameter handling, authentication, and middleware patterns
