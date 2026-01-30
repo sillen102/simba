@@ -83,38 +83,38 @@ func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.Res
 	writeResponse(w, r, resp, nil)
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getRequestBody() any {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetRequestBody() any {
 	var rb RequestBody
 	return rb
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getResponseBody() any {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getParams() any {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAccepts() string {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetAccepts() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getProduces() string {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getHandler() any {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetHandler() any {
 	return h
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthModel() any {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetAuthModel() any {
 	return nil
 }
 
-func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) getAuthHandler() any {
+func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) GetAuthHandler() any {
 	return nil
 }
 
@@ -187,7 +187,7 @@ func AuthJsonHandler[RequestBody, Params, AuthModel, ResponseBody any](
 func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
+	authModel, err := HandleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		statusCode := http.StatusUnauthorized // Default status code for unauthorized access
 		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
@@ -218,45 +218,45 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getRequestBody() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetRequestBody() any {
 	var rb RequestBody
 	return rb
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getParams() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getResponseBody() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAccepts() string {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetAccepts() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getProduces() string {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getHandler() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetHandler() any {
 	return h.handler
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAuthModel() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) getAuthHandler() any {
+func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) GetAuthHandler() any {
 	return h.authHandler
 }
 
 // handleJsonRequest handles extracting body and params from the Request
 func handleJsonRequest[RequestBody any, Params any](r *http.Request) (*simbaModels.Request[RequestBody, Params], error) {
-	params, err := parseAndValidateParams[Params](r)
+	params, err := ParseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
 	}

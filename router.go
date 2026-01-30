@@ -14,14 +14,14 @@ import (
 // Handler specifies the interface for a handler that can be registered with the [Router].
 type Handler interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
-	getRequestBody() any
-	getParams() any
-	getResponseBody() any
-	getAccepts() string
-	getProduces() string
-	getHandler() any
-	getAuthModel() any
-	getAuthHandler() any
+	GetRequestBody() any
+	GetParams() any
+	GetResponseBody() any
+	GetAccepts() string
+	GetProduces() string
+	GetHandler() any
+	GetAuthModel() any
+	GetAuthHandler() any
 }
 
 type openApiGenerator interface {
@@ -192,8 +192,12 @@ func (r *Router) HEADWithMiddleware(path string, handler Handler, middleware ...
 // WithMiddleware registers a handler for the given method and pattern wrapped with a middleware function
 func (r *Router) WithMiddleware(method, path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	h := handlerToHTTPHandler(handler)
-	for i := len(middleware) - 1; i >= 0; i-- {
-		h = middleware[i](h)
+	if len(middleware) > 0 {
+		for i := len(middleware) - 1; i >= 0; i-- {
+			if middleware[i] != nil {
+				h = middleware[i](h)
+			}
+		}
 	}
 	r.addRoute(method, path, h)
 	r.addRouteToDocs(method, path, handler)
@@ -227,14 +231,14 @@ func (r *Router) addRouteToDocs(method string, path string, handler Handler) {
 		r.routes = append(r.routes, openapiModels.RouteInfo{
 			Method:      method,
 			Path:        path,
-			Accepts:     handler.getAccepts(),
-			Produces:    handler.getProduces(),
-			ReqBody:     handler.getRequestBody(),
-			Params:      handler.getParams(),
-			RespBody:    handler.getResponseBody(),
-			Handler:     handler.getHandler(),
-			AuthModel:   handler.getAuthModel(),
-			AuthHandler: handler.getAuthHandler(),
+			Accepts:     handler.GetAccepts(),
+			Produces:    handler.GetProduces(),
+			ReqBody:     handler.GetRequestBody(),
+			Params:      handler.GetParams(),
+			RespBody:    handler.GetResponseBody(),
+			Handler:     handler.GetHandler(),
+			AuthModel:   handler.GetAuthModel(),
+			AuthHandler: handler.GetAuthHandler(),
 		})
 	}
 }

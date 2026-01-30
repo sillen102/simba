@@ -6,99 +6,93 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/gobwas/ws"
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/websocket"
+	wsmw "github.com/sillen102/simba/websocket/middleware"
 )
 
-// AuthModel represents the authenticated user
-type AuthModel struct {
+// User represents an authenticated user
+type User struct {
 	ID   int
 	Name string
 }
 
 // Simple bearer token auth handler for demonstration
-func authHandler(ctx context.Context, token string) (AuthModel, error) {
+func authHandler(ctx context.Context, token string) (User, error) {
 	if token == "valid-token" {
-		return AuthModel{
+		return User{
 			ID:   1,
 			Name: "John Doe",
 		}, nil
 	}
-	return AuthModel{}, fmt.Errorf("invalid token")
+	return User{}, fmt.Errorf("invalid token")
 }
 
 // echoCallbacks returns WebSocket callbacks for a simple echo handler
-func echoCallbacks() simba.WebSocketCallbacks[simbaModels.NoParams] {
-	return simba.WebSocketCallbacks[simbaModels.NoParams]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, params simbaModels.NoParams) error {
-			slog.Info("Connection established", "connID", conn.ID, "totalConns", len(connections))
+func echoCallbacks() websocket.Callbacks[simbaModels.NoParams] {
+	return websocket.Callbacks[simbaModels.NoParams]{
+		OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
+			// Logger from middleware includes connectionID and traceID
+			logger := logging.From(ctx)
+			logger.Info("Connection established")
 			return conn.WriteText("Welcome! Send me messages and I'll echo them back.")
 		},
 
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, msgType ws.OpCode, data []byte) error {
-			slog.Info("Received message", "message", string(data))
-			// Echo back to sender
-			return conn.WriteText(fmt.Sprintf("Echo: %s", string(data)))
+		OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
+			// Logger automatically includes fresh traceID for each message
+			logger := logging.From(ctx)
+			logger.Info("Received message", "message", string(data))
+
+			// Show traceID and connectionID are available
+			traceID := simbaContext.GetTraceID(ctx)
+			connID, _ := ctx.Value(simbaContext.ConnectionIDKey).(string)
+
+			return conn.WriteText(fmt.Sprintf("Echo: %s (traceID: %s, connID: %s)",
+				string(data), traceID[:8], connID[:8]))
 		},
 
-		OnDisconnect: func(ctx context.Context, params simbaModels.NoParams, err error) {
-			slog.Info("Connection closed", "error", err)
+		OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+			logger := logging.From(ctx)
+			logger.Info("Connection closed", "error", err)
 		},
 
-		OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
-			slog.Error("Error occurred", "error", err)
+		OnError: func(ctx context.Context, conn *websocket.Connection, err error) bool {
+			logger := logging.From(ctx)
+			logger.Error("Error occurred", "error", err)
 			return false // Close connection on error
 		},
 	}
 }
 
-// broadcastCallbacks demonstrates authenticated WebSocket with broadcasting
-func broadcastCallbacks() simba.AuthWebSocketCallbacks[simbaModels.NoParams, AuthModel] {
-	return simba.AuthWebSocketCallbacks[simbaModels.NoParams, AuthModel]{
-		OnConnect: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, params simbaModels.NoParams, auth AuthModel) error {
-			slog.Info("Authenticated user connected",
-				"user", auth.Name,
-				"connID", conn.ID,
-			)
-
-			// Send welcome to the user
-			conn.WriteText(fmt.Sprintf("Welcome %s!", auth.Name))
-
-			// Notify all other connections
-			msg := fmt.Sprintf("%s joined the chat", auth.Name)
-			for _, c := range connections {
-				if c.ID != conn.ID {
-					c.WriteText(msg)
-				}
-			}
-
-			return nil
+// chatCallbacks demonstrates authenticated WebSocket
+func chatCallbacks() websocket.AuthCallbacks[simbaModels.NoParams, User] {
+	return websocket.AuthCallbacks[simbaModels.NoParams, User]{
+		OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, user User) error {
+			logger := logging.From(ctx)
+			logger.Info("User connected", "user", user.Name)
+			return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
 		},
 
-		OnMessage: func(ctx context.Context, conn *simba.WebSocketConnection, connections map[string]*simba.WebSocketConnection, msgType ws.OpCode, data []byte, auth AuthModel) error {
-			slog.Info("Chat message",
-				"user", auth.Name,
-				"message", string(data),
-			)
+		OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, user User) error {
+			logger := logging.From(ctx)
+			logger.Info("Chat message", "user", user.Name, "message", string(data))
 
-			// Format message with username and broadcast to all
-			message := fmt.Sprintf("[%s]: %s", auth.Name, string(data))
-			for _, c := range connections {
-				c.WriteText(message)
-			}
-			return nil
+			// Echo back with user name
+			message := fmt.Sprintf("[%s]: %s", user.Name, string(data))
+			return conn.WriteText(message)
 		},
 
-		OnDisconnect: func(ctx context.Context, params simbaModels.NoParams, auth AuthModel, err error) {
-			slog.Info("User disconnected",
-				"user", auth.Name,
-				"error", err,
-			)
+		OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, user User, err error) {
+			logger := logging.From(ctx)
+			logger.Info("User disconnected", "user", user.Name, "error", err)
 		},
 
-		OnError: func(ctx context.Context, conn *simba.WebSocketConnection, err error) bool {
-			slog.Error("Chat error", "error", err)
+		OnError: func(ctx context.Context, conn *websocket.Connection, err error) bool {
+			logger := logging.From(ctx)
+			logger.Error("Chat error", "error", err)
 			return false // Close on error
 		},
 	}
@@ -118,20 +112,31 @@ func main() {
 		Description: "Bearer token authentication",
 	})
 
-	// Simple echo endpoint (no authentication)
+	// Simple echo endpoint (no authentication) with middleware
+	// Middleware generates fresh traceID per message and injects logger with context
 	// Usage: ws://localhost:8080/ws/echo
-	app.Router.GET("/ws/echo", simba.WebSocketHandlerFunc(echoCallbacks))
+	app.Router.GET("/ws/echo", websocket.Handler(
+		echoCallbacks,
+		websocket.WithMiddleware(
+			wsmw.TraceID(), // Fresh traceID per callback
+			wsmw.Logger(),  // Logger with connectionID + traceID
+		)))
 
-	// Broadcast chat endpoint (requires authentication)
-	// Usage: ws://localhost:8080/ws/broadcast with header "Authorization: Bearer valid-token"
-	app.Router.GET("/ws/broadcast", simba.AuthWebSocketHandlerFunc(broadcastCallbacks, bearerAuth))
+	// Authenticated chat endpoint with middleware
+	// Usage: ws://localhost:8080/ws/chat with header "Authorization: Bearer valid-token"
+	app.Router.GET("/ws/chat", websocket.AuthHandler(
+		chatCallbacks,
+		bearerAuth,
+		websocket.WithMiddleware(
+			wsmw.TraceID(),
+			wsmw.Logger(),
+		)))
 
 	slog.Info("Starting server with WebSocket support on :8080")
 	slog.Info("")
 	slog.Info("Available endpoints:")
 	slog.Info("  Echo: ws://localhost:8080/ws/echo")
-	slog.Info("  Broadcast chat: ws://localhost:8080/ws/broadcast (requires Bearer token)")
-	slog.Info("")
+	slog.Info("  Chat: ws://localhost:8080/ws/chat (requires Bearer token: 'valid-token')")
 
 	app.Start()
 }
