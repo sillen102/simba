@@ -37,7 +37,7 @@ func authFunc(ctx context.Context, apiKey string) (*User, error) {
 	}, nil
 }
 
-var authHandler = simba.APIKeyAuth[User](
+var authHandler = simba.APIKeyAuth[*User](
 	authFunc,
 	simba.APIKeyAuthConfig{
 		Name:        "admin",
@@ -50,7 +50,13 @@ var authHandler = simba.APIKeyAuth[User](
 // @ID authenticatedHandler
 // @Summary authenticated handler
 // @Description this is a handler that requires authentication
-func authenticatedHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], user *User) (*simbaModels.Response[ResponseBody], error) {
+func authenticatedHandler(
+	ctx context.Context,
+	req *simbaModels.Request[simbaModels.NoBody, struct {
+	UserID int `path:"userId"`
+}],
+	user *User,
+) (*simbaModels.Response[ResponseBody], error) {
 
 	// Access the request cookies
 	// req.Cookies
@@ -69,6 +75,6 @@ func main() {
 	// the app will use the authFunc to authenticate and retrieve the user
 	// for each request that uses the AuthJsonHandler and pass it to the handler
 	app := simba.Default()
-	app.Router.GET("/user", simba.AuthJsonHandler(authenticatedHandler, authHandler))
+	app.Router.GET("/users/{userId}", simba.AuthJsonHandler(authenticatedHandler, authHandler))
 	app.Start()
 }

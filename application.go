@@ -1,13 +1,11 @@
 package simba
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/settings"
-	"github.com/sillen102/simba/telemetry"
 )
 
 // Application is the main application struct that holds the Mux and other application Settings
@@ -28,8 +26,8 @@ type Application struct {
 	// Settings is the application Settings
 	Settings *settings.Simba
 
-	// telemetryProvider manages OpenTelemetry tracer and meter providers
-	telemetryProvider *telemetry.Provider
+	// telemetryProvider manages tracing and metrics via a pluggable interface
+	telemetryProvider TelemetryProvider
 }
 
 // Default returns a new [Application] application with default Simba
@@ -52,20 +50,8 @@ func New(opts ...settings.Option) *Application {
 		return injectRequestSettings(next, &cfg.Request)
 	})
 
-	// Initialize telemetry provider if enabled
-	var telemetryProvider *telemetry.Provider
-	if cfg.Enabled {
-		provider, err := telemetry.NewProvider(context.Background(), cfg)
-		if err != nil {
-			cfg.Logger.Error("Failed to initialize telemetry", "error", err)
-		} else {
-			telemetryProvider = provider
-			cfg.Logger.Info("Telemetry initialized successfully",
-				"tracing", cfg.Tracing.Enabled,
-				"metrics", cfg.Metrics.Enabled,
-			)
-		}
-	}
+	// Support modular telemetry config if provided; fallback for legacy settings
+	telemetryProvider := NoOpTelemetryProvider{}
 
 	return &Application{
 		Server:            &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), Handler: router},
@@ -75,12 +61,16 @@ func New(opts ...settings.Option) *Application {
 	}
 }
 
+// SetTelemetryProvider allows injection or replacement of the TelemetryProvider after application creation.
+func (a *Application) SetTelemetryProvider(tp TelemetryProvider) {
+	a.telemetryProvider = tp
+}
+
 // defaultMiddleware returns the middleware chain used in the default [Application] application
 func (a *Application) defaultMiddleware() []func(http.Handler) http.Handler {
-	// Telemetry middleware is added first (outermost) to capture complete request lifecycle
 	middlewares := []func(http.Handler) http.Handler{
-		middleware.OtelTracing(a.telemetryProvider, &a.Settings.Telemetry),
-		middleware.OtelMetrics(a.telemetryProvider, &a.Settings.Telemetry),
+		a.telemetryProvider.TracingMiddleware(),
+		a.telemetryProvider.MetricsMiddleware(),
 		middleware.TraceID,
 		middleware.Logger{Logger: a.Settings.Logger}.ContextLogger,
 		middleware.PanicRecovery,

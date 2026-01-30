@@ -43,8 +43,12 @@ func NewSimbaError(statusCode int, publicMessage string, err error) *SimbaError 
 }
 
 func (e *SimbaError) WithDetails(details any) *SimbaError {
-	e.details = details
-	return e
+	return &SimbaError{
+		statusCode:    e.statusCode,
+		publicMessage: e.publicMessage,
+		err:           e.err,
+		details:       details,
+	}
 }
 
 func (e *SimbaError) Unwrap() error {
