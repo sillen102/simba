@@ -13,11 +13,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/sillen102/simba/settings"
+	"github.com/sillen102/simba/telemetry/config"
 )
 
 // newTraceExporter creates a trace exporter based on configuration
-func newTraceExporter(ctx context.Context, cfg *settings.TracingConfig) (sdktrace.SpanExporter, error) {
+func newTraceExporter(ctx context.Context, cfg *config.TracingConfig) (sdktrace.SpanExporter, error) {
 	switch cfg.Exporter {
 	case "otlp":
 		opts := []otlptracegrpc.Option{
@@ -41,7 +41,7 @@ func newTraceExporter(ctx context.Context, cfg *settings.TracingConfig) (sdktrac
 }
 
 // newMetricExporter creates a metric exporter based on configuration
-func newMetricExporter(ctx context.Context, cfg *settings.MetricsConfig) (sdkmetric.Exporter, error) {
+func newMetricExporter(ctx context.Context, cfg *config.MetricsConfig) (sdkmetric.Exporter, error) {
 	switch cfg.Exporter {
 	case "otlp":
 		opts := []otlpmetricgrpc.Option{

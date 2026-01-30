@@ -60,7 +60,7 @@ func (r *Router) GenerateOpenAPIDocumentation(ctx context.Context, title, versio
 }
 
 func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Router {
-	return &Router{
+	router := &Router{
 		Mux: http.NewServeMux(),
 		middleware: []func(http.Handler) http.Handler{
 			closeRequestBody,
@@ -80,18 +80,19 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 		docsEndpointsMounted:   false,
 		openAPIGenerator:       simbaOpenapi.NewOpenAPIGenerator(),
 	}
+
+	if docsSettings.GenerateOpenAPIDocs {
+		router.mountOpenAPIEndpoint()
+	}
+	if docsSettings.MountDocsUIEndpoint {
+		router.mountDocsUIEndpoint()
+	}
+
+	return router
 }
 
 // ServeHTTP implements the [http.Handler] interface for the [Router] type
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if r.docsSettings.GenerateOpenAPIDocs {
-		r.mountOpenAPIEndpoint()
-	}
-
-	if r.docsSettings.MountDocsUIEndpoint {
-		r.mountDocsUIEndpoint()
-	}
-
 	r.Mux.ServeHTTP(w, req)
 }
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sillen102/simba/settings"
+	"github.com/sillen102/simba/telemetry/config"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -18,45 +18,35 @@ import (
 type Provider struct {
 	tracerProvider *sdktrace.TracerProvider
 	meterProvider  *sdkmetric.MeterProvider
-	settings       *settings.Telemetry
+	settings       *config.TelemetryConfig
 }
 
 // NewProvider creates and initializes a new telemetry provider
-func NewProvider(ctx context.Context, appSettings *settings.Simba) (*Provider, error) {
-	telemetrySettings := &appSettings.Telemetry
+func NewProvider(ctx context.Context, cfg *config.TelemetryConfig) (*Provider, error) {
+	serviceName := cfg.ServiceName
+	serviceVersion := cfg.ServiceVersion
+	environment := cfg.Environment
 
-	// Use application name as service name if not explicitly set
-	serviceName := telemetrySettings.ServiceName
-	if serviceName == "" {
-		serviceName = appSettings.Name
-	}
-
-	// Use application version as service version if not explicitly set
-	serviceVersion := telemetrySettings.ServiceVersion
-	if serviceVersion == "" {
-		serviceVersion = appSettings.Version
-	}
-
-	// Create resource
-	res, err := newResource(serviceName, serviceVersion, telemetrySettings.Environment)
+	// Create OpenTelemetry resource
+	res, err := newResource(serviceName, serviceVersion, environment)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	provider := &Provider{
-		settings: telemetrySettings,
+		settings: cfg,
 	}
 
 	// Initialize tracer provider if tracing is enabled
-	if telemetrySettings.Tracing.Enabled {
-		traceExporter, err := newTraceExporter(ctx, &telemetrySettings.Tracing)
+	if cfg.Tracing.Enabled {
+		traceExporter, err := newTraceExporter(ctx, &cfg.Tracing)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 		}
 
 		// Create tracer provider with sampling
 		samplerOption := sdktrace.WithSampler(
-			sdktrace.TraceIDRatioBased(telemetrySettings.Tracing.SamplingRate),
+			sdktrace.TraceIDRatioBased(cfg.Tracing.SamplingRate),
 		)
 
 		provider.tracerProvider = sdktrace.NewTracerProvider(
@@ -70,8 +60,8 @@ func NewProvider(ctx context.Context, appSettings *settings.Simba) (*Provider, e
 	}
 
 	// Initialize meter provider if metrics are enabled
-	if telemetrySettings.Metrics.Enabled {
-		metricExporter, err := newMetricExporter(ctx, &telemetrySettings.Metrics)
+	if cfg.Metrics.Enabled {
+		metricExporter, err := newMetricExporter(ctx, &cfg.Metrics)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create metric exporter: %w", err)
 		}
@@ -79,7 +69,7 @@ func NewProvider(ctx context.Context, appSettings *settings.Simba) (*Provider, e
 		// Create meter provider with periodic reader
 		reader := sdkmetric.NewPeriodicReader(
 			metricExporter,
-			sdkmetric.WithInterval(time.Duration(telemetrySettings.Metrics.ExportInterval)*time.Second),
+			sdkmetric.WithInterval(time.Duration(cfg.Metrics.ExportInterval)*time.Second),
 		)
 
 		provider.meterProvider = sdkmetric.NewMeterProvider(

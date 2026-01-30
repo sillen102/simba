@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sillen102/simba/settings"
+	"github.com/sillen102/simba/telemetry/config"
 )
 
 func TestNewTraceExporter_OTLP(t *testing.T) {
-	cfg := &settings.TracingConfig{
+	cfg := &config.TracingConfig{
 		Exporter: "otlp",
 		Endpoint: "localhost:4317",
 		Insecure: true,
@@ -26,7 +26,7 @@ func TestNewTraceExporter_OTLP(t *testing.T) {
 }
 
 func TestNewTraceExporter_Stdout(t *testing.T) {
-	cfg := &settings.TracingConfig{
+	cfg := &config.TracingConfig{
 		Exporter: "stdout",
 	}
 
@@ -42,7 +42,7 @@ func TestNewTraceExporter_Stdout(t *testing.T) {
 }
 
 func TestNewTraceExporter_Invalid(t *testing.T) {
-	cfg := &settings.TracingConfig{
+	cfg := &config.TracingConfig{
 		Exporter: "invalid",
 	}
 
@@ -60,7 +60,7 @@ func TestNewTraceExporter_Invalid(t *testing.T) {
 }
 
 func TestNewMetricExporter_OTLP(t *testing.T) {
-	cfg := &settings.MetricsConfig{
+	cfg := &config.MetricsConfig{
 		Exporter: "otlp",
 		Endpoint: "localhost:4317",
 		Insecure: true,
@@ -78,7 +78,7 @@ func TestNewMetricExporter_OTLP(t *testing.T) {
 }
 
 func TestNewMetricExporter_Stdout(t *testing.T) {
-	cfg := &settings.MetricsConfig{
+	cfg := &config.MetricsConfig{
 		Exporter: "stdout",
 	}
 
@@ -94,7 +94,7 @@ func TestNewMetricExporter_Stdout(t *testing.T) {
 }
 
 func TestNewMetricExporter_Invalid(t *testing.T) {
-	cfg := &settings.MetricsConfig{
+	cfg := &config.MetricsConfig{
 		Exporter: "invalid",
 	}
 

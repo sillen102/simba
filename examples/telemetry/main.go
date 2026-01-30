@@ -9,13 +9,16 @@ import (
 	"time"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
-	"github.com/sillen102/simba/telemetry"
+	"github.com/sillen102/simba/telemetry/config"
 
+	// NOTE: Telemetry usage is now handled via the OtelTelemetryProvider explicitly constructed and injected below.
+	// Imports for OTel interfaces only if needed for demonstration or metric/span creation in handlers.
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	telemetryPkg "github.com/sillen102/simba/telemetry" // used for provider setup in main
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -46,8 +49,10 @@ type MessageResponse struct {
 var users = make(map[int]UserResponse)
 var userIDCounter = 0
 
-// Custom metrics (initialized in main)
+// Custom metrics and telemetry objects (initialized in main)
 var (
+	meter           metric.Meter
+	tracer          trace.Tracer
 	customCounter   metric.Int64Counter
 	customHistogram metric.Float64Histogram
 )
@@ -55,7 +60,7 @@ var (
 // createUserHandler demonstrates custom spans with attributes
 func createUserHandler(ctx context.Context, req *simbaModels.Request[CreateUserRequest, simbaModels.NoParams]) (*simbaModels.Response[UserResponse], error) {
 	// Create a custom span for validation
-	ctx, validateSpan := telemetry.StartSpan(ctx, "validate.user.input")
+	ctx, validateSpan := tracer.Start(ctx, "validate.user.input")
 	validateSpan.SetAttributes(
 		attribute.String("user.email", req.Body.Email),
 		attribute.String("user.name", req.Body.Name),
@@ -79,7 +84,7 @@ func createUserHandler(ctx context.Context, req *simbaModels.Request[CreateUserR
 	users[user.ID] = user
 
 	// Simulate sending welcome email
-	ctx, emailSpan := telemetry.StartSpan(ctx, "send.welcome.email")
+	ctx, emailSpan := tracer.Start(ctx, "send.welcome.email")
 	emailSpan.SetAttributes(
 		attribute.String("email.to", user.Email),
 		attribute.String("email.type", "welcome"),
@@ -102,7 +107,7 @@ func getUserHandler(ctx context.Context, req *simbaModels.Request[simbaModels.No
 	}
 
 	// Fetch from "database" with custom span
-	ctx, dbSpan := telemetry.StartSpan(ctx, "database.get.user",
+	ctx, dbSpan := tracer.Start(ctx, "database.get.user",
 		trace.WithAttributes(attribute.Int("user.id", userID)),
 	)
 	time.Sleep(15 * time.Millisecond) // Simulate DB query
@@ -144,7 +149,7 @@ func metricsDemoHandler(ctx context.Context, req *simbaModels.Request[simbaModel
 
 // simulateDBOperation simulates a database operation with tracing
 func simulateDBOperation(ctx context.Context, operation string) error {
-	ctx, span := telemetry.StartSpan(ctx, "database."+operation)
+	ctx, span := tracer.Start(ctx, "database."+operation)
 	defer span.End()
 
 	span.SetAttributes(
@@ -161,7 +166,7 @@ func simulateDBOperation(ctx context.Context, operation string) error {
 
 // simulateExternalAPICall simulates calling an external API with error handling
 func simulateExternalAPICall(ctx context.Context, userID int) (map[string]any, error) {
-	ctx, span := telemetry.StartSpan(ctx, "external.api.get_user_preferences")
+	ctx, span := tracer.Start(ctx, "external.api.get_user_preferences")
 	defer span.End()
 
 	span.SetAttributes(
@@ -210,24 +215,50 @@ func recordCustomMetrics(ctx context.Context) error {
 }
 
 func main() {
-	// Initialize the Simba application with telemetry enabled
-	app := simba.Default(
-		settings.WithApplicationName("simba-telemetry-demo"),
-		settings.WithApplicationVersion("1.0.0"),
-		settings.WithTelemetryEnabled(true),
-		settings.WithTracingEndpoint("otel-collector:4317"),
-		settings.WithMetricsEndpoint("otel-collector:4317"),
-		settings.WithTelemetryEnvironment("demo"),
-	)
+	ctx := context.Background()
+
+	// Setup the OpenTelemetry configuration
+	tcfg := &config.TelemetryConfig{
+		Enabled:        true,
+		ServiceName:    "simba-telemetry-demo",
+		ServiceVersion: "1.0.0",
+		Environment:    "demo",
+		Tracing: config.TracingConfig{
+			Enabled:  true,
+			Exporter: "otlp",
+			Endpoint: "otel-collector:4317",
+			Insecure: true,
+		},
+		Metrics: config.MetricsConfig{
+			Enabled:        true,
+			Exporter:       "otlp",
+			Endpoint:       "otel-collector:4317",
+			Insecure:       true,
+			ExportInterval: 30,
+		},
+	}
+
+	// Build the Simba application
+	// No longer use settings.WithTelemetry, wiring is now explicit with provider injection
+	app := simba.Default()
+
+	// Explicitly construct and inject the OtelTelemetryProvider
+	prov, err := telemetryPkg.NewOtelTelemetryProvider(ctx, tcfg)
+	if err != nil {
+		panic("Failed to create OtelTelemetryProvider: " + err.Error())
+	}
+	app.SetTelemetryProvider(prov)
+
+	// Type assert so we can access implementation details to create meters/tracers as needed in the demo
+	otelProv := prov.(*telemetryPkg.OtelTelemetryProvider)
+	meter := otelProv.Provider().Meter("simba.demo")
+	tracer = otelProv.Provider().Tracer("simba.demo")
 
 	// Initialize custom metrics
-	meter := telemetry.GetMeter(context.Background())
-	var err error
-
 	customCounter, err = meter.Int64Counter(
 		"custom.demo.counter",
-		metric.WithDescription("A custom counter for demonstration"),
-		metric.WithUnit("1"),
+		// metric.WithDescription("A custom counter for demonstration"),
+		// metric.WithUnit("1"),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create counter: %v", err))
@@ -235,19 +266,17 @@ func main() {
 
 	customHistogram, err = meter.Float64Histogram(
 		"custom.demo.histogram",
-		metric.WithDescription("A custom histogram for demonstration"),
-		metric.WithUnit("ms"),
+		// metric.WithDescription("A custom histogram for demonstration"),
+		// metric.WithUnit("ms"),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create histogram: %v", err))
 	}
 
 	// Register routes
-	// Note: /health endpoint is already provided by simba.Default()
 	app.Router.POST("/users", simba.JsonHandler(createUserHandler))
 	app.Router.GET("/users/{id}", simba.JsonHandler(getUserHandler))
 	app.Router.GET("/metrics-demo", simba.JsonHandler(metricsDemoHandler))
 
-	// Start the application
 	app.Start()
 }

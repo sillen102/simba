@@ -4,49 +4,40 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sillen102/simba/settings"
+	"github.com/sillen102/simba/telemetry/config"
 )
 
 func TestNewProvider_TelemetryDisabled(t *testing.T) {
-	appSettings := &settings.Simba{
-		Application: settings.Application{
-			Name:    "test-app",
-			Version: "1.0.0",
-		},
-		Telemetry: settings.Telemetry{
-			Enabled: false,
-		},
+	cfg := &config.TelemetryConfig{
+		Enabled:        false,
+		ServiceName:    "test-app",
+		ServiceVersion: "1.0.0",
 	}
 
 	// Should not create provider when telemetry is disabled
 	// This test just verifies the calling code handles nil provider correctly
-	if appSettings.Telemetry.Enabled {
+	if cfg.Enabled {
 		t.Error("Expected telemetry to be disabled")
 	}
 }
 
 func TestNewProvider_WithTracingOnly(t *testing.T) {
-	appSettings := &settings.Simba{
-		Application: settings.Application{
-			Name:    "test-app",
-			Version: "1.0.0",
+	cfg := &config.TelemetryConfig{
+		Enabled:        true,
+		ServiceName:    "test-service",
+		ServiceVersion: "1.0.0",
+		Environment:    "test",
+		Tracing: config.TracingConfig{
+			Enabled:      true,
+			Exporter:     "stdout",
+			SamplingRate: 1.0,
 		},
-		Telemetry: settings.Telemetry{
-			Enabled:     true,
-			ServiceName: "test-service",
-			Environment: "test",
-			Tracing: settings.TracingConfig{
-				Enabled:      true,
-				Exporter:     "stdout",
-				SamplingRate: 1.0,
-			},
-			Metrics: settings.MetricsConfig{
-				Enabled: false,
-			},
+		Metrics: config.MetricsConfig{
+			Enabled: false,
 		},
 	}
 
-	provider, err := NewProvider(context.Background(), appSettings)
+	provider, err := NewProvider(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("Failed to create provider: %v", err)
 	}
@@ -72,27 +63,22 @@ func TestNewProvider_WithTracingOnly(t *testing.T) {
 }
 
 func TestNewProvider_WithMetricsOnly(t *testing.T) {
-	appSettings := &settings.Simba{
-		Application: settings.Application{
-			Name:    "test-app",
-			Version: "1.0.0",
+	cfg := &config.TelemetryConfig{
+		Enabled:        true,
+		ServiceName:    "test-service",
+		ServiceVersion: "1.0.0",
+		Environment:    "test",
+		Tracing: config.TracingConfig{
+			Enabled: false,
 		},
-		Telemetry: settings.Telemetry{
-			Enabled:     true,
-			ServiceName: "test-service",
-			Environment: "test",
-			Tracing: settings.TracingConfig{
-				Enabled: false,
-			},
-			Metrics: settings.MetricsConfig{
-				Enabled:        true,
-				Exporter:       "stdout",
-				ExportInterval: 60,
-			},
+		Metrics: config.MetricsConfig{
+			Enabled:        true,
+			Exporter:       "stdout",
+			ExportInterval: 60,
 		},
 	}
 
-	provider, err := NewProvider(context.Background(), appSettings)
+	provider, err := NewProvider(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("Failed to create provider: %v", err)
 	}
@@ -118,30 +104,24 @@ func TestNewProvider_WithMetricsOnly(t *testing.T) {
 }
 
 func TestNewProvider_WithBothTracingAndMetrics(t *testing.T) {
-	appSettings := &settings.Simba{
-		Application: settings.Application{
-			Name:    "test-app",
-			Version: "1.0.0",
+	cfg := &config.TelemetryConfig{
+		Enabled:        true,
+		ServiceName:    "test-service",
+		ServiceVersion: "2.0.0",
+		Environment:    "production",
+		Tracing: config.TracingConfig{
+			Enabled:      true,
+			Exporter:     "stdout",
+			SamplingRate: 0.5,
 		},
-		Telemetry: settings.Telemetry{
+		Metrics: config.MetricsConfig{
 			Enabled:        true,
-			ServiceName:    "test-service",
-			ServiceVersion: "2.0.0",
-			Environment:    "production",
-			Tracing: settings.TracingConfig{
-				Enabled:      true,
-				Exporter:     "stdout",
-				SamplingRate: 0.5,
-			},
-			Metrics: settings.MetricsConfig{
-				Enabled:        true,
-				Exporter:       "stdout",
-				ExportInterval: 30,
-			},
+			Exporter:       "stdout",
+			ExportInterval: 30,
 		},
 	}
 
-	provider, err := NewProvider(context.Background(), appSettings)
+	provider, err := NewProvider(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("Failed to create provider: %v", err)
 	}
@@ -173,23 +153,18 @@ func TestNewProvider_WithBothTracingAndMetrics(t *testing.T) {
 }
 
 func TestNewProvider_UsesApplicationNameAsDefault(t *testing.T) {
-	appSettings := &settings.Simba{
-		Application: settings.Application{
-			Name:    "my-app",
-			Version: "3.0.0",
-		},
-		Telemetry: settings.Telemetry{
-			Enabled: true,
-			// ServiceName not set, should use Application.Name
-			Environment: "test",
-			Tracing: settings.TracingConfig{
-				Enabled:  true,
-				Exporter: "stdout",
-			},
+	cfg := &config.TelemetryConfig{
+		Enabled:        true,
+		ServiceName:    "my-app",
+		ServiceVersion: "3.0.0",
+		Environment:    "test",
+		Tracing: config.TracingConfig{
+			Enabled:  true,
+			Exporter: "stdout",
 		},
 	}
 
-	provider, err := NewProvider(context.Background(), appSettings)
+	provider, err := NewProvider(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("Failed to create provider: %v", err)
 	}
@@ -206,23 +181,18 @@ func TestNewProvider_UsesApplicationNameAsDefault(t *testing.T) {
 }
 
 func TestNewProvider_InvalidExporter(t *testing.T) {
-	appSettings := &settings.Simba{
-		Application: settings.Application{
-			Name:    "test-app",
-			Version: "1.0.0",
-		},
-		Telemetry: settings.Telemetry{
-			Enabled:     true,
-			ServiceName: "test-service",
-			Environment: "test",
-			Tracing: settings.TracingConfig{
-				Enabled:  true,
-				Exporter: "invalid-exporter",
-			},
+	cfg := &config.TelemetryConfig{
+		Enabled:        true,
+		ServiceName:    "test-service",
+		ServiceVersion: "1.0.0",
+		Environment:    "test",
+		Tracing: config.TracingConfig{
+			Enabled:  true,
+			Exporter: "invalid-exporter",
 		},
 	}
 
-	provider, err := NewProvider(context.Background(), appSettings)
+	provider, err := NewProvider(context.Background(), cfg)
 	if err == nil {
 		if provider != nil {
 			provider.Shutdown(context.Background())
@@ -236,27 +206,22 @@ func TestNewProvider_InvalidExporter(t *testing.T) {
 }
 
 func TestProvider_Shutdown(t *testing.T) {
-	appSettings := &settings.Simba{
-		Application: settings.Application{
-			Name:    "test-app",
-			Version: "1.0.0",
+	cfg := &config.TelemetryConfig{
+		Enabled:        true,
+		ServiceName:    "test-service",
+		ServiceVersion: "1.0.0",
+		Environment:    "test",
+		Tracing: config.TracingConfig{
+			Enabled:  true,
+			Exporter: "stdout",
 		},
-		Telemetry: settings.Telemetry{
-			Enabled:     true,
-			ServiceName: "test-service",
-			Environment: "test",
-			Tracing: settings.TracingConfig{
-				Enabled:  true,
-				Exporter: "stdout",
-			},
-			Metrics: settings.MetricsConfig{
-				Enabled:  true,
-				Exporter: "stdout",
-			},
+		Metrics: config.MetricsConfig{
+			Enabled:  true,
+			Exporter: "stdout",
 		},
 	}
 
-	provider, err := NewProvider(context.Background(), appSettings)
+	provider, err := NewProvider(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("Failed to create provider: %v", err)
 	}
