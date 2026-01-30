@@ -3,6 +3,8 @@
 Simba is a type-safe HTTP router framework for Go that makes building REST APIs simple and enjoyable. It provides strong type safety through generics and a clean, intuitive API for handling HTTP requests.
 It also automatically generates OpenAPI (v3.1) documentation for your API.
 
+> **Telemetry Notice**: Simba does _not_ instrument requests or metrics by default and will never force a metrics/tracing solution. For observability, wire in any provider you want as shown in the section below.
+
 ## Features
 
 - **Type-safe routing** with Go generics
@@ -10,6 +12,51 @@ It also automatically generates OpenAPI (v3.1) documentation for your API.
 - **Middleware support**
 - **Strong request/response typing**
 - **Automatic OpenAPI documentation generation**
+
+## Telemetry & Observability (Advanced, Optional)
+
+Simba is telemetry-provider-agnostic by default:
+*No telemetry (metrics, traces) is built into the Simba core.* Instead, you can plug in any provider you like, such as OpenTelemetry, via the Simba `TelemetryProvider` interface.
+
+**How to Enable Instrumentation:**
+1. Add the `simba/telemetry` subpackage to your project.
+2. Create an OTel telemetry provider using your desired configuration.
+3. Inject that provider into your Simba app before starting your server.
+
+**Minimal Example:**
+```go
+import (
+    "context"
+    "github.com/sillen102/simba"
+    "github.com/sillen102/simba/telemetry"
+    "github.com/sillen102/simba/telemetry/config"
+)
+
+func main() {
+    // Create your Simba app as usual
+    app := simba.Default()
+    // ... configure routes, etc.
+
+    // Prepare telemetry config as needed (or load from YAML/env)
+    tcfg := &config.TelemetryConfig{
+        Enabled:        true,
+        ServiceName:    "my-service",
+        ServiceVersion: "1.0.0",
+        Tracing:        config.TracingConfig{Enabled: true, Exporter: "otlp"},
+        Metrics:        config.MetricsConfig{Enabled: true, Exporter: "otlp"},
+    }
+    // Explicitly construct and inject a telemetry provider
+    prov, err := telemetry.NewOtelTelemetryProvider(context.Background(), tcfg)
+    if err != nil {
+        panic("Failed to create telemetry provider: " + err.Error())
+    }
+    app.SetTelemetryProvider(prov)
+
+    app.Start()
+}
+```
+**Note:** If you do not inject a telemetry provider, Simba runs without instrumentation (a no-op provider is used by default, so no OpenTelemetry or instrumentation code will run).
+- For full observability patterns—including custom spans, metrics, and integration with Jaeger/Prometheus—see [`examples/telemetry`](./examples/telemetry).
 
 ## Installation
 
@@ -406,3 +453,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 All dependencies are under their respective licenses, which can be found in their repositories via the go.mod file.
+
+---
+
+For advanced instrumentation, distributed tracing, and metrics: see [`examples/telemetry`](./examples/telemetry) for patterns using the Simba provider interface and OpenTelemetry.

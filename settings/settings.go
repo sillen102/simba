@@ -227,63 +227,72 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithTelemetryEnabled sets whether telemetry is enabled
+// WithTelemetryEnabled sets whether telemetry is enabled (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig) for modular, decoupled telemetry configuration.
 func WithTelemetryEnabled(enabled bool) Option {
 	return func(s *Simba) {
 		s.Enabled = enabled
 	}
 }
 
-// WithTracingEndpoint sets the tracing endpoint
+// WithTracingEndpoint sets the tracing endpoint (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig) for modular, decoupled telemetry configuration.
 func WithTracingEndpoint(endpoint string) Option {
 	return func(s *Simba) {
 		s.Tracing.Endpoint = endpoint
 	}
 }
 
-// WithTracingExporter sets the tracing exporter type
+// WithTracingExporter sets the tracing exporter type (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig).
 func WithTracingExporter(exporter string) Option {
 	return func(s *Simba) {
 		s.Tracing.Exporter = exporter
 	}
 }
 
-// WithMetricsEnabled sets whether metrics collection is enabled
+// WithMetricsEnabled sets whether metrics collection is enabled (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig).
 func WithMetricsEnabled(enabled bool) Option {
 	return func(s *Simba) {
 		s.Metrics.Enabled = enabled
 	}
 }
 
-// WithMetricsExporter sets the metrics exporter type
+// WithMetricsExporter sets the metrics exporter type (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig).
 func WithMetricsExporter(exporter string) Option {
 	return func(s *Simba) {
 		s.Metrics.Exporter = exporter
 	}
 }
 
-// WithMetricsEndpoint sets the metrics endpoint
+// WithMetricsEndpoint sets the metrics endpoint (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig).
 func WithMetricsEndpoint(endpoint string) Option {
 	return func(s *Simba) {
 		s.Metrics.Endpoint = endpoint
 	}
 }
 
-// WithTelemetryEnvironment sets the telemetry environment
+// WithTelemetryEnvironment sets the telemetry environment (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig).
 func WithTelemetryEnvironment(environment string) Option {
 	return func(s *Simba) {
 		s.Environment = environment
 	}
 }
 
-// WithTelemetryServiceName sets the telemetry service name
+// WithTelemetryServiceName sets the telemetry service name (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig).
 func WithTelemetryServiceName(serviceName string) Option {
 	return func(s *Simba) {
 		s.Telemetry.ServiceName = serviceName
 	}
 }
 
-// WithTelemetryServiceVersion sets the telemetry service version
+// WithTelemetryServiceVersion sets the telemetry service version (legacy Simba settings)
+// DEPRECATED: Use WithTelemetry(*config.TelemetryConfig).
 func WithTelemetryServiceVersion(serviceVersion string) Option {
 	return func(s *Simba) {
 		s.ServiceVersion = serviceVersion

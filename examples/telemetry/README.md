@@ -1,387 +1,147 @@
-# Simba Telemetry Example
+# Simba Telemetry Example (OpenTelemetry Integration)
 
-This example demonstrates how to use Simba's comprehensive OpenTelemetry integration with a full observability stack. It showcases automatic HTTP tracing and metrics collection, as well as custom instrumentation patterns.
+**This example demonstrates how to wire full observability (distributed tracing, custom metrics, automatic HTTP instrumentation) into your Simba application via an explicit, provider-based OpenTelemetry integration.**
 
-## Overview
+Simba itself is telemetry-agnostic. All tracing and metrics are enabled via injection of a provider object—no static helpers, no built-in instrumentation, no global Simba telemetry state.
 
-This example provides:
+---
 
-- **Automatic HTTP Instrumentation**: Traces and metrics for all HTTP requests via middleware
-- **Custom Spans**: Adding detailed tracing to business logic operations
-- **Custom Metrics**: Recording application-specific metrics
-- **Error Tracking**: Proper error handling and span status management
-- **Full Observability Stack**: Complete setup with Jaeger, Prometheus, and Grafana
+## 🚀 What This Example Shows
 
-## What's Being Demonstrated
+- **OpenTelemetry provider injection pattern** (the only supported approach)
+- **Distributed tracing** for HTTP endpoints (custom spans, attributes, nested operations)
+- **Custom application metrics** via OTel
+- **Error tracking in traces**
+- **Full observability stack using Docker Compose:**
+  - Simba app (instrumented)
+  - OpenTelemetry Collector
+  - Jaeger (for traces)
+  - Prometheus (for metrics)
+  - Grafana (for metrics dashboards)
 
-### Automatic Features (Zero Code Required)
-- HTTP request tracing with W3C trace context propagation
-- Request duration histograms (for percentile calculations)
-- Request count by endpoint and status code
-- Response size tracking
-- Trace ID injection into logs and response headers
+---
 
-### Custom Instrumentation Examples
-- Creating custom spans for database operations
-- Adding attributes to spans (user IDs, operation types, etc.)
-- Nested span creation (parent-child relationships)
-- Error recording and span status management
-- Creating custom metrics (counters, histograms)
+## 📝 Quick Start
 
-## Architecture
+**Requirements:**
+- [Go](https://golang.org/doc/install) (for running locally)
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 
-```
-┌─────────────────┐
-│  Simba App      │
-│  (Port 9999)    │
-└────────┬────────┘
-         │ OTLP (gRPC)
-         ▼
-┌─────────────────┐
-│ OTEL Collector  │
-│  (Port 4317)    │
-└────┬────────┬───┘
-     │        │
-     │        └──────────────┐
-     ▼                       ▼
-┌─────────────┐      ┌──────────────┐
-│   Jaeger    │      │  Prometheus  │
-│ (Port 16686)│      │  (Port 9090) │
-└─────────────┘      └──────┬───────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │   Grafana    │
-                     │  (Port 3000) │
-                     └──────────────┘
-```
-
-## Prerequisites
-
-- Docker
-- Docker Compose
-- curl (for testing)
-
-## Quick Start
-
-1. **Start the entire stack**:
-   ```bash
-   cd examples/telemetry
-   docker-compose up --build
-   ```
-
-   This will start:
-   - Simba application
-   - OpenTelemetry Collector
-   - Jaeger (tracing)
-   - Prometheus (metrics)
-   - Grafana (visualization)
-
-2. **Wait for services to be ready** (approximately 30 seconds)
-
-3. **Access the UIs**:
-   - Simba App: http://localhost:9999
-   - Jaeger UI: http://localhost:16686
-   - Grafana: http://localhost:3000 (login: admin/admin)
-   - Prometheus: http://localhost:9090
-
-## Testing the Application
-
-### Health Check (Built-in)
-```bash
-curl http://localhost:9999/health
-```
-
-Expected response:
-```json
-{"status":"ok"}
-```
-
-This endpoint is provided automatically by `simba.Default()` and demonstrates basic automatic tracing.
-
-### Create a User (Custom Spans Demo)
-```bash
-curl -X POST http://localhost:9999/users \
-  -H "Content-Type: application/json" \
-  -d '{"name":"John Doe","email":"john@example.com"}'
-```
-
-Expected response:
-```json
-{
-  "id": 1,
-  "name": "John Doe",
-  "email": "john@example.com",
-  "created_at": "2025-11-30T..."
-}
-```
-
-This endpoint demonstrates:
-- Input validation span
-- Database operation span with attributes
-- Email sending span
-- Nested span relationships
-
-### Get a User (Error Handling Demo)
-```bash
-# Get existing user
-curl http://localhost:9999/users/1
-
-# Get non-existent user (404 error)
-curl http://localhost:9999/users/999
-```
-
-This endpoint demonstrates:
-- Database query span
-- External API call span with random failures (20% chance)
-- Error status tracking in spans
-- Graceful degradation when external APIs fail
-
-### Trigger Custom Metrics
-```bash
-curl http://localhost:9999/metrics-demo
-```
-
-This endpoint demonstrates:
-- Custom counter increment
-- Custom histogram recording
-
-## Observing Telemetry Data
-
-### In Jaeger (Distributed Tracing)
-
-1. Open http://localhost:16686
-2. Select service: **simba-telemetry-demo**
-3. Click "Find Traces"
-4. Click on any trace to see:
-   - HTTP request span (automatic)
-   - Custom spans for database operations
-   - Custom spans for email sending
-   - Custom spans for external API calls
-   - Span attributes (user IDs, operation types, etc.)
-   - Error states (for failed external API calls)
-
-**What to look for**:
-- Trace for `POST /users` showing nested spans: validation → database → email
-- Trace for `GET /users/:id` showing database query + external API call
-- Failed external API calls marked with error status
-
-### In Grafana (Metrics Visualization)
-
-1. Open http://localhost:3000
-2. Login with **admin/admin**
-3. Navigate to Dashboards → Simba → **Simba HTTP Metrics**
-
-The dashboard shows:
-- **HTTP Request Rate**: Requests per second by endpoint
-- **HTTP Request Duration**: p50, p95, p99 latencies
-- **HTTP Status Codes**: Distribution of 2xx, 4xx, 5xx responses
-- **Response Size**: p95 response sizes by endpoint
-- **Request Rate by Endpoint**: Stacked bar chart
-- **Error Rate**: 4xx and 5xx error rates over time
-
-### In Prometheus (Raw Metrics)
-
-1. Open http://localhost:9090
-2. Try these queries:
-
-**Request rate**:
-```promql
-rate(simba_http_server_request_count_total[1m])
-```
-
-**95th percentile latency**:
-```promql
-histogram_quantile(0.95, rate(simba_http_server_request_duration_milliseconds_bucket[5m]))
-```
-
-**Custom counter**:
-```promql
-simba_custom_demo_counter_total
-```
-
-**Custom histogram**:
-```promql
-histogram_quantile(0.95, rate(simba_custom_demo_histogram_bucket[5m]))
-```
-
-## Configuration Options
-
-### Environment Variables
-
-The application can be configured via environment variables:
+### 1. Clone the repo (or use this directory in your Simba monorepo)
 
 ```bash
-# Enable/disable telemetry
-SIMBA_TELEMETRY_ENABLED=true
-
-# Tracing configuration
-SIMBA_TELEMETRY_TRACING_ENABLED=true
-SIMBA_TELEMETRY_TRACING_ENDPOINT=otel-collector:4317
-SIMBA_TELEMETRY_TRACING_EXPORTER=otlp  # or 'stdout'
-SIMBA_TELEMETRY_TRACING_INSECURE=true
-SIMBA_TELEMETRY_TRACING_SAMPLING_RATE=1.0  # 100% sampling
-
-# Metrics configuration
-SIMBA_TELEMETRY_METRICS_ENABLED=true
-SIMBA_TELEMETRY_METRICS_ENDPOINT=otel-collector:4317
-SIMBA_TELEMETRY_METRICS_EXPORTER=otlp  # or 'stdout'
-SIMBA_TELEMETRY_METRICS_INSECURE=true
-SIMBA_TELEMETRY_METRICS_EXPORT_INTERVAL=60  # seconds
-
-# Service identification
-SIMBA_TELEMETRY_SERVICE_NAME=my-service
-SIMBA_TELEMETRY_SERVICE_VERSION=1.0.0
-SIMBA_TELEMETRY_ENVIRONMENT=production
+cd examples/telemetry
 ```
 
-### YAML Configuration
+### 2. Launch Everything with Docker Compose
 
-See `config.yaml` for an example YAML configuration file.
-
-### Programmatic Configuration
-
-```go
-app := simba.Default(
-    settings.WithApplicationName("my-service"),
-    settings.WithApplicationVersion("1.0.0"),
-    settings.WithTelemetryEnabled(true),
-    settings.WithTracingEndpoint("localhost:4317"),
-    settings.WithMetricsEndpoint("localhost:4317"),
-    settings.WithTelemetryEnvironment("production"),
-)
-```
-
-## Code Examples
-
-### Creating Custom Spans
-
-```go
-import "github.com/sillen102/simba/telemetry"
-import "go.opentelemetry.io/otel/attribute"
-
-func myHandler(ctx context.Context, req *Request) (*Response, error) {
-    // Create a custom span
-    ctx, span := telemetry.StartSpan(ctx, "my.operation")
-    defer span.End()
-    
-    // Add attributes
-    span.SetAttributes(
-        attribute.String("user.id", "123"),
-        attribute.String("operation.type", "query"),
-    )
-    
-    // Do work...
-    
-    return &Response{}, nil
-}
-```
-
-### Error Handling in Spans
-
-```go
-import "go.opentelemetry.io/otel/codes"
-
-ctx, span := telemetry.StartSpan(ctx, "risky.operation")
-defer span.End()
-
-result, err := riskyOperation()
-if err != nil {
-    span.RecordError(err)
-    span.SetStatus(codes.Error, "Operation failed")
-    return nil, err
-}
-
-span.SetStatus(codes.Ok, "Success")
-```
-
-### Creating Custom Metrics
-
-```go
-import "go.opentelemetry.io/otel/metric"
-
-// In main() or setup function
-meter := telemetry.GetMeter(context.Background())
-
-counter, err := meter.Int64Counter(
-    "my.custom.counter",
-    metric.WithDescription("Description of the counter"),
-    metric.WithUnit("1"),
-)
-
-// In handler
-counter.Add(ctx, 1, 
-    metric.WithAttributes(
-        attribute.String("status", "success"),
-    ),
-)
-```
-
-## Troubleshooting
-
-### Services Not Starting
-
-Check service logs:
-```bash
-docker-compose logs app
-docker-compose logs otel-collector
-```
-
-### No Traces in Jaeger
-
-1. Verify OTEL Collector is receiving data:
-   ```bash
-   docker-compose logs otel-collector | grep -i trace
-   ```
-
-2. Check telemetry is enabled in the app:
-   ```bash
-   docker-compose logs app | grep -i telemetry
-   ```
-
-### No Metrics in Prometheus
-
-1. Verify OTEL Collector Prometheus exporter:
-   ```bash
-   curl http://localhost:8889/metrics
-   ```
-
-2. Check Prometheus targets:
-   - Open http://localhost:9090/targets
-   - Ensure `otel-collector` target is UP
-
-### Dashboard Not Loading in Grafana
-
-1. Check datasource configuration:
-   - Go to Configuration → Data Sources
-   - Verify Prometheus and Jaeger are configured
-
-2. Manually import dashboard:
-   - Go to Dashboards → Import
-   - Upload `grafana/dashboards/simba-http-metrics.json`
-
-## Cleanup
-
-Stop and remove all containers and volumes:
+This will start the Simba demo app, OTel collector, Jaeger, Prometheus, and Grafana all at once.
 
 ```bash
-docker-compose down -v
+docker-compose up --build
 ```
 
-This will remove all collected metrics and traces.
+- Wait ~30 seconds for the stack to settle.
 
-## Next Steps
+### 3. Call Endpoints to Generate Telemetry
 
-- Explore the `main.go` code to see how custom spans and metrics are created
-- Modify the endpoints to add your own instrumentation
-- Experiment with different sampling rates
-- Try the stdout exporter for local development
-- Connect your own application to the observability stack
+- Create a user (triggers several spans):
+  ```bash
+  curl -X POST http://localhost:9999/users \
+    -H "Content-Type: application/json" \
+    -d '{"name":"Jane Doe","email":"jane@example.com"}'
+  ```
+- Get a user (demonstrates nested spans and error propagation):
+  ```bash
+  curl http://localhost:9999/users/1
+  curl http://localhost:9999/users/999  # triggers 404 + error in span
+  ```
+- Trigger custom metrics:
+  ```bash
+  curl http://localhost:9999/metrics-demo
+  ```
 
-## Learn More
+### 4. Explore Observability UIs
+- **Jaeger (Traces):** [http://localhost:16686](http://localhost:16686) — Search for service `simba-telemetry-demo`
+- **Grafana (Metrics dashboards):** [http://localhost:3000](http://localhost:3000) — Login: admin/admin
+- **Prometheus (Raw metrics, queries):** [http://localhost:9090](http://localhost:9090)
+- **App itself:** [http://localhost:9999](http://localhost:9999)
 
-- [Simba Documentation](https://github.com/sillen102/simba)
-- [OpenTelemetry Documentation](https://opentelemetry.io/docs/)
-- [Jaeger Documentation](https://www.jaegertracing.io/docs/)
-- [Prometheus Documentation](https://prometheus.io/docs/)
-- [Grafana Documentation](https://grafana.com/docs/)
+
+---
+
+## 🔍 Example Code Highlights
+
+- **Provider pattern:**
+  See [`main.go`](./main.go):
+  ```go
+  import (
+      "github.com/sillen102/simba"
+      "github.com/sillen102/simba/telemetry"
+      "github.com/sillen102/simba/telemetry/config"
+  )
+
+  func main() {
+      tcfg := &config.TelemetryConfig{...}
+      app := simba.Default()
+      prov, err := telemetry.NewOtelTelemetryProvider(context.Background(), tcfg)
+      if err != nil { panic(err) }
+      app.SetTelemetryProvider(prov) // <-- all instrumentation starts here
+
+      // Create custom meters/embed rich tracing from here...
+      app.Start()
+  }
+  ```
+- **No static Simba helpers anywhere.**
+- **All HTTP, tracing, and metric logic is opt-in and locally configured.**
+
+---
+
+## 🧩 Endpoints and Demo Behavior
+
+- `POST /users` — Creates a user, triggers spans for validation, DB op, and email simulation
+- `GET /users/{id}` — Fetches a user, with spans for DB read and an external API call (failures are traced)
+- `GET /metrics-demo` — Increments demo metrics and records histogram
+- `GET /health` — Built-in Simba health check (auto-instrumented)
+
+---
+
+## 🆕 How Provider Injection Works (Migration)
+
+- **There are no static helpers like `simba.telemetry.*` or `InitTracer` or `NewMetrics`.**
+- Instrumentation is only enabled if you inject a provider object (see above pattern).
+- To instrument your own code, use the injected provider to get tracers/meters:
+  ```go
+  otelProv := prov.(*telemetry.OtelTelemetryProvider)
+  tracer := otelProv.Provider().Tracer("my-service")
+  meter := otelProv.Provider().Meter("my-service")
+  ```
+
+---
+
+## ⚠️ Troubleshooting
+
+- If you see "provider does not implement Shutdown", update Simba and make sure all provider types have a Shutdown method.
+- Metrics and traces won’t show up if you don’t inject a provider, or if your collector/stack isn’t running.
+- For detailed logs, see `docker-compose logs` and the app logs.
+- Stack slow to respond? Wait for all containers to start, or check resource usage.
+
+---
+
+## 🔮 Next Steps / Customization
+
+- Modify endpoints in `main.go` to add your own spans, metrics, or attributes
+- Use a different OTel exporter for local development (e.g. stdout)
+- Tune config (`config.yaml`) or override with env vars
+- Explore dashboards in Grafana or deep traces in Jaeger
+
+---
+
+## 📖 Further Reading
+
+- [Simba Project Docs](https://github.com/sillen102/simba)
+- [OpenTelemetry (concepts, exporters, advanced)](https://opentelemetry.io/docs/)
+
+---
+
+**Legacy Note:** This example is up-to-date with Simba ≥vNEXT (provider pattern only). If coming from older Simba, migrate to explicit provider injection—see above. No static telemetry helpers remain.
