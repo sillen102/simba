@@ -364,9 +364,9 @@ func (t SessionCookieAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel
 // AuthHandlerFunc is a function that handles authentication for a route.
 type AuthHandlerFunc[AuthModel any] func(r *http.Request) (AuthModel, error)
 
-// handleAuthRequest is a helper function that handles parses the parameters and calls the authentication
+// HandleAuthRequest is a helper function that parses the parameters and calls the authentication
 // function with the parsed parameters.
-func handleAuthRequest[AuthModel any](
+func HandleAuthRequest[AuthModel any](
 	authHandler AuthHandler[AuthModel],
 	r *http.Request,
 ) (AuthModel, error) {

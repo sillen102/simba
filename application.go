@@ -54,15 +54,15 @@ func New(opts ...settings.Option) *Application {
 
 	// Initialize telemetry provider if enabled
 	var telemetryProvider *telemetry.Provider
-	if cfg.Telemetry.Enabled {
+	if cfg.Enabled {
 		provider, err := telemetry.NewProvider(context.Background(), cfg)
 		if err != nil {
 			cfg.Logger.Error("Failed to initialize telemetry", "error", err)
 		} else {
 			telemetryProvider = provider
 			cfg.Logger.Info("Telemetry initialized successfully",
-				"tracing", cfg.Telemetry.Tracing.Enabled,
-				"metrics", cfg.Telemetry.Metrics.Enabled,
+				"tracing", cfg.Tracing.Enabled,
+				"metrics", cfg.Metrics.Enabled,
 			)
 		}
 	}

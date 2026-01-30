@@ -82,38 +82,38 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWri
 	writeResponse(w, r, resp, nil)
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getRequestBody() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetRequestBody() any {
 	var file multipart.File
 	return &file
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getParams() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getResponseBody() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getAccepts() string {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetAccepts() string {
 	return mimetypes.MultipartForm
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getProduces() string {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getHandler() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetHandler() any {
 	return h
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthModel() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetAuthModel() any {
 	return nil
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetAuthHandler() any {
 	return nil
 }
 
@@ -181,7 +181,7 @@ func AuthMultipartHandler[Params, AuthModel, ResponseBody any](
 func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
+	authModel, err := HandleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		statusCode := http.StatusUnauthorized // Default status code for unauthorized access
 		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
@@ -212,39 +212,39 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getRequestBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetRequestBody() any {
 	var file multipart.File
 	return &file
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getResponseBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getParams() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAccepts() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetAccepts() string {
 	return mimetypes.MultipartForm
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getProduces() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getHandler() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetHandler() any {
 	return h.handler
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthModel() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthHandler() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetAuthHandler() any {
 	return h.authHandler
 }
 
@@ -256,7 +256,7 @@ func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.Multipart
 		return nil, simbaErrors.ErrInvalidContentType
 	}
 
-	reqParams, err := parseAndValidateParams[Params](r)
+	reqParams, err := ParseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
 	}
