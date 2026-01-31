@@ -1,0 +1,75 @@
+name: Release (root + websocket + telemetry)
+
+on:
+  push:
+    branches: [ main, dev ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history & tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Compute next stable version (main only)
+        id: compute_stable
+        if: github.ref == 'refs/heads/main'
+        run: |
+          node ./scripts/compute-next-stable.js > /tmp/next-stable.txt
+          echo "next_stable=$(cat /tmp/next-stable.txt)" >> $GITHUB_OUTPUT
+
+      - name: Get latest stable tag (dev and main)
+        id: latest_stable
+        run: |
+          node ./scripts/get-latest-stable.js > /tmp/latest-stable.txt
+          echo "latest_stable=$(cat /tmp/latest-stable.txt)" >> $GITHUB_OUTPUT
+
+      - name: Compute dev tag (dev only)
+        id: compute_dev
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          node ./scripts/compute-dev-tag.js "${{ steps.latest_stable.outputs.latest_stable }}" > /tmp/dev-tag.txt
+          echo "new_tag=$(cat /tmp/dev-tag.txt)" >> $GITHUB_OUTPUT
+
+      - name: Set new tag for main (from semantic calculation)
+        id: set_main_tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          STABLE="${{ steps.compute_stable.outputs.next_stable }}"
+          NEW_TAG="v${STABLE}"
+          echo "new_tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Update submodules go.mod/go.sum and commit
+        env:
+          NEW_TAG: ${{ steps.compute_dev.outputs.new_tag || steps.set_main_tag.outputs.new_tag }}
+        run: |
+          chmod +x ./scripts/update-submodules.sh
+          ./scripts/update-submodules.sh "${NEW_TAG}"
+
+      - name: Create tags and GitHub releases for root & modules
+        env:
+          NEW_TAG: ${{ steps.compute_dev.outputs.new_tag || steps.set_main_tag.outputs.new_tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          chmod +x ./scripts/create-tags-and-releases.sh
+          ./scripts/create-tags-and-releases.sh "${NEW_TAG}"
