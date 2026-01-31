@@ -113,19 +113,195 @@ jobs:
         env:
           DRY_RUN: ${{ env.DRY_RUN }}
 
-      - name: Create tags and GitHub releases for root & modules
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          DRY_RUN: ${{ env.DRY_RUN }}
+      - name: Push git tag for new release
         run: |
           NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
-          if [ -z "${NEW_TAG}" ]; then
+          if [ -z "$NEW_TAG" ]; then
             NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
           fi
-          echo "Tagging and releasing: ${NEW_TAG}"
-          chmod +x ./scripts/create-tags-and-releases.sh
-          ./scripts/create-tags-and-releases.sh "${NEW_TAG}"
+          if [ -z "$NEW_TAG" ]; then
+            echo 'No valid NEW_TAG found, aborting.'
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # ensure tag exists locally
+          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            echo "Local tag $NEW_TAG already present"
+          else
+            git tag "$NEW_TAG"
+          fi
 
+          # push tag using the actions token (explicit URL) to avoid auth issues
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          echo "Pushing tag $NEW_TAG to ${REPO_URL}"
+          git push "$REPO_URL" "refs/tags/$NEW_TAG"
 
+          # Verify remote has the tag; if not, retry once
+          if git ls-remote --tags "$REPO_URL" | grep -q "refs/tags/$NEW_TAG"; then
+            echo "Tag $NEW_TAG is present on remote"
+          else
+            echo "Tag $NEW_TAG missing on remote after push, retrying..."
+            git push "$REPO_URL" "refs/tags/$NEW_TAG" || true
+            git ls-remote --tags "$REPO_URL" || true
+          fi
 
+          # Diagnostic: show remote tags briefly
+          git ls-remote --tags "$REPO_URL" | grep "$NEW_TAG" || true
+
+      - name: Prime and verify Simba tag availability (avoid blind wait)
+        run: |
+          # Strategy:
+          # 1) Ensure the tag is present on the remote (git ls-remote)
+          # 2) Try to prime module by fetching directly from VCS using GOPROXY=direct
+          # 3) If direct fetch fails, poll sum.golang.org lookup as fallback (exponential backoff)
+
+          set -euo pipefail
+          NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
+          if [ -z "$NEW_TAG" ]; then
+            NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
+          fi
+          if [ -z "$NEW_TAG" ]; then
+            echo "No NEW_TAG available, aborting"
+            exit 1
+          fi
+
+          REPO_PATH="github.com/${{ github.repository }}"
+          REPO_URL="https://github.com/${{ github.repository }}.git"
+          AUTH_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+          echo "Verifying remote tag $NEW_TAG exists..."
+          attempts=0
+          until git ls-remote --tags "$AUTH_URL" | grep -q "refs/tags/$NEW_TAG"; do
+            attempts=$((attempts+1))
+            if [ $attempts -gt 6 ]; then
+              echo "Tag $NEW_TAG not present on remote after multiple attempts."
+              echo "Attempting one more push..."
+              git push "$AUTH_URL" "refs/tags/$NEW_TAG" || true
+            fi
+            if [ $attempts -gt 12 ]; then
+              echo "Tag $NEW_TAG still missing on remote after retries, aborting."
+              git ls-remote --tags "$AUTH_URL" || true
+              exit 1
+            fi
+            echo "Tag not found yet (attempt $attempts), sleeping 5s..."
+            sleep 5
+          done
+          echo "Tag $NEW_TAG is present on remote."
+
+          # Try priming the module by fetching directly from VCS (avoid waiting for proxy)
+          echo "Attempting to fetch module directly from VCS to prime cache..."
+          PRIME_ATTEMPTS=0
+          PRIME_TIMEOUT=300
+          SLEEP=2
+          start_ts=$(date +%s)
+          while true; do
+            if GOPROXY=direct GOSUMDB=off go list -m -json "${REPO_PATH}@$NEW_TAG" >/dev/null 2>&1; then
+              echo "Successfully fetched ${REPO_PATH}@$NEW_TAG directly from VCS. Proceeding."
+              break
+            fi
+            now_ts=$(date +%s)
+            elapsed=$((now_ts - start_ts))
+            if [ $elapsed -ge $PRIME_TIMEOUT ]; then
+              echo "Direct fetch timed out after ${PRIME_TIMEOUT}s, will try Go proxy lookup as fallback."
+              break
+            fi
+            PRIME_ATTEMPTS=$((PRIME_ATTEMPTS+1))
+            sleep $SLEEP
+            SLEEP=$(( SLEEP * 2 ))
+            if [ $SLEEP -gt 30 ]; then SLEEP=30; fi
+            echo "Direct fetch attempt ${PRIME_ATTEMPTS} failed; retrying in ${SLEEP}s..."
+          done
+
+          # If direct fetch didn't succeed, fallback to polling sum.golang.org lookup endpoint (exponential backoff)
+          if ! GOPROXY=direct GOSUMDB=off go list -m -json "${REPO_PATH}@$NEW_TAG" >/dev/null 2>&1; then
+            echo "Falling back to polling sum.golang.org for ${REPO_PATH}@$NEW_TAG"
+            BACKOFF=2
+            MAX_WAIT=600
+            waited=0
+            while [ $waited -lt $MAX_WAIT ]; do
+              if curl -fsS "https://sum.golang.org/lookup/${REPO_PATH}@${NEW_TAG}" >/dev/null 2>&1; then
+                echo "sum.golang.org now recognizes ${REPO_PATH}@$NEW_TAG"
+                break
+              fi
+              echo "sum.golang.org does not yet recognize ${REPO_PATH}@$NEW_TAG; sleeping ${BACKOFF}s..."
+              sleep $BACKOFF
+              waited=$((waited+BACKOFF))
+              BACKOFF=$(( BACKOFF * 2 ))
+              if [ $BACKOFF -gt 30 ]; then BACKOFF=30; fi
+            done
+            if [ $waited -ge $MAX_WAIT ]; then
+              echo "[ERROR] sum.golang.org did not index ${REPO_PATH}@$NEW_TAG after ${MAX_WAIT}s"
+              exit 1
+            fi
+          fi
+
+      - name: Update websocket go.mod, commit, and tag
+        run: |
+          NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
+          if [ -z "$NEW_TAG" ]; then
+            NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
+          fi
+          cd websocket
+          go mod edit -require=github.com/sillen102/simba@$NEW_TAG
+          # Use direct VCS fetching to avoid Go proxy race conditions during CI
+          GOPROXY=direct GOSUMDB=off go mod tidy
+          git add go.mod go.sum
+          git commit -m "Bump Simba dependency to $NEW_TAG" || echo "No changes to commit"
+          MODULE_PREFIX="websocket"
+          MODULE_TAG="${MODULE_PREFIX}/${NEW_TAG}"
+          if git rev-parse "$MODULE_TAG" >/dev/null 2>&1; then
+            echo "Tag $MODULE_TAG already exists for websocket, skipping."
+          else
+            git tag "$MODULE_TAG"
+            git push origin "$MODULE_TAG"
+          fi
+
+      - name: Update telemetry go.mod, commit, and tag
+        run: |
+          NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
+          if [ -z "$NEW_TAG" ]; then
+            NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
+          fi
+          cd telemetry
+          go mod edit -require=github.com/sillen102/simba@$NEW_TAG
+          # Use direct VCS fetching to avoid Go proxy race conditions during CI
+          GOPROXY=direct GOSUMDB=off go mod tidy
+          git add go.mod go.sum
+          git commit -m "Bump Simba dependency to $NEW_TAG" || echo "No changes to commit"
+          MODULE_PREFIX="telemetry"
+          MODULE_TAG="${MODULE_PREFIX}/${NEW_TAG}"
+          if git rev-parse "$MODULE_TAG" >/dev/null 2>&1; then
+            echo "Tag $MODULE_TAG already exists for telemetry, skipping."
+          else
+            git tag "$MODULE_TAG"
+            git push origin "$MODULE_TAG"
+          fi
+
+      - name: Export NEW_TAG for downstream steps
+        run: |
+          NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
+          if [ -z "$NEW_TAG" ]; then
+            NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
+          fi
+          if [ -z "$NEW_TAG" ]; then
+            echo "No NEW_TAG found, aborting"
+            exit 1
+          fi
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+
+      - name: Create GitHub prerelease for monorepo
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.NEW_TAG }}
+          release_name: ${{ env.NEW_TAG }}
+          body: |
+            Automated prerelease for ${GITHUB_REPOSITORY}.
+            Modules included:
+            - simba
+            - websocket
+            - telemetry
+          draft: false
+          prerelease: true

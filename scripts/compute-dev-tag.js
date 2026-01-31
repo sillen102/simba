@@ -9,12 +9,13 @@ const git = simpleGit();
     await git.fetch(['--tags']);
     const tags = (await git.tags()).all;
 
-    const coerced = semver.coerce(stable) || { major: 0, minor: 0 };
+    const coerced = semver.coerce(stable) || { major: 0, minor: 0, patch: 0 };
     const major = coerced.major;
     const minor = coerced.minor + 1;
-    const base = `${major}.${minor}`;
+    const patch = 0;
+    const base = `${major}.${minor}.${patch}`;
 
-    const devRegex = new RegExp(`^v${major}\\.${minor}-dev(\\d+)$`);
+    const devRegex = new RegExp(`^v${major}\\.${minor}\\.${patch}-dev(\\d+)$`);
     const existingNums = tags
       .map(t => {
         const m = t.match(devRegex);
