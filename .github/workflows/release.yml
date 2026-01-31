@@ -225,14 +225,36 @@ jobs:
           else
             echo "Skipping push for $MODULE because no changes"
           fi
-          # create module-prefixed tag and push (tag current HEAD)
-          TAG="${MODULE}/${NEW_TAG}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists locally"
+          # decide whether there are semantic-style commits that warrant a module release
+          echo "Determining whether module ${MODULE} has release-worthy commits..."
+          # get latest module-prefixed tag reachable in the repo
+          LATEST_TAG=$(git tag --list "${MODULE}/*" --sort=-creatordate | head -n1 || true)
+          if [ -n "$LATEST_TAG" ]; then
+            RANGE="$LATEST_TAG..HEAD"
           else
-            git tag -a "$TAG" -m "$TAG" HEAD
+            # if no previous module tag, compare against remote branch baseline
+            git fetch origin "${{ github.ref_name }}" || true
+            RANGE="origin/${{ github.ref_name }}..HEAD"
           fi
-          git push "$REPO_URL" "refs/tags/$TAG"
+          echo "Using commit range: $RANGE"
+          # collect commit subjects touching this module (we are inside module dir)
+          COMMITS=$(git log --pretty=%s $RANGE -- . 2>/dev/null || true)
+          echo "Commits in range:\n$COMMITS"
+          # exclude the auto bump commit and look for conventional commit types
+          if echo "$COMMITS" | grep -v "Bump Simba dependency to" | grep -E '^(feat|fix|perf|refactor|docs|chore|build|ci|test)(\(.+\))?(!)?:' >/dev/null 2>&1; then
+            echo "Found semantic-style commits, will create module tag and release"
+            echo "SHOULD_RELEASE=true" >> $GITHUB_ENV
+            TAG="${MODULE}/${NEW_TAG}"
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              echo "Tag $TAG already exists locally"
+            else
+              git tag -a "$TAG" -m "$TAG" HEAD
+            fi
+            git push "$REPO_URL" "refs/tags/$TAG"
+          else
+            echo "No semantic-style commits found for module ${MODULE}; skipping tag and release"
+            echo "SHOULD_RELEASE=false" >> $GITHUB_ENV
+          fi
 
       - name: Create GitHub release for module
         uses: actions/create-release@v1
