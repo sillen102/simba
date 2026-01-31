@@ -3,10 +3,11 @@ module websocket
 go 1.25.6
 
 replace github.com/sillen102/simba => ../../
+
 replace github.com/sillen102/simba/websocket => ../../websocket
 
 require (
-	github.com/sillen102/simba v0.30.0-dev
+	github.com/sillen102/simba v0.30.0-dev2
 	github.com/sillen102/simba/websocket v0.0.0-00010101000000-000000000000
 )
 

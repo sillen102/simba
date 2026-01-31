@@ -25,7 +25,7 @@ require (
 	github.com/swaggest/jsonschema-go v0.3.79
 	github.com/swaggest/refl v1.4.0 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
