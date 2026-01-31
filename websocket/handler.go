@@ -1,11 +1,11 @@
 package websocket
 
 import (
-
-	"github.com/sillen102/simba"
 	"context"
 	"net"
 	"net/http"
+
+	"github.com/sillen102/simba"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -30,19 +30,18 @@ type middlewareOption struct {
 }
 
 func (m middlewareOption) apply(handler any) {
-	// Use interface-based approach to work with generics
 	if v, ok := handler.(interface{ setMiddleware([]Middleware) }); ok {
 		v.setMiddleware(m.middleware)
 	}
 }
 
-// WithWebsocketMiddleware adds middleware to the WebSocket handler.
+// WithMiddleware adds middleware to the WebSocket handler.
 // Middleware runs before each callback invocation, allowing you to enrich the context.
 func WithMiddleware(middleware ...Middleware) HandlerOption {
 	return middlewareOption{middleware: middleware}
 }
 
-// WebSocketCallbackHandlerFunc handles WebSocket connections with callbacks.
+// CallbackHandlerFunc handles WebSocket connections with callbacks.
 type CallbackHandlerFunc[Params any] struct {
 	callbacks  Callbacks[Params]
 	middleware []Middleware
@@ -52,7 +51,7 @@ func (h *CallbackHandlerFunc[Params]) setMiddleware(middleware []Middleware) {
 	h.middleware = middleware
 }
 
-// WebSocketHandler creates a handler that uses callbacks for WebSocket lifecycle events.
+// Handler creates a handler that uses callbacks for WebSocket lifecycle events.
 //
 // Example usage:
 //
@@ -113,6 +112,13 @@ func (h *CallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Ensure the connection is closed on all paths. handleConnection also
+	// closes the connection as part of its cleanup, but adding a
+	// defensive close here satisfies static analyzers and protects
+	// against unexpected control-flow (panics) between upgrade and
+	// the handler returning.
+	defer func() { _ = conn.Close() }()
+
 	// Handle the connection synchronously - the HTTP server runs each
 	// request in its own goroutine, so blocking here is correct
 	h.handleConnection(ctx, conn, params)
@@ -120,7 +126,7 @@ func (h *CallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 
 // handleConnection manages the lifecycle of a WebSocket connection.
 func (h *CallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawConn net.Conn, params Params) {
-	// Create connection wrapper with unique ID
+	// Create a connection wrapper with unique ID
 	wsConn := &Connection{
 		ID:   uuid.New().String(),
 		conn: rawConn,
@@ -230,7 +236,7 @@ func (h *CallbackHandlerFunc[Params]) GetAuthHandler() any {
 	return nil
 }
 
-// AuthWebSocketCallbackHandlerFunc handles authenticated WebSocket connections with callbacks.
+// AuthCallbackHandlerFunc handles authenticated WebSocket connections with callbacks.
 type AuthCallbackHandlerFunc[Params, AuthModel any] struct {
 	callbacks   AuthCallbacks[Params, AuthModel]
 	authHandler simba.AuthHandler[AuthModel]
@@ -241,7 +247,7 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) setMiddleware(middleware []
 	h.middleware = middleware
 }
 
-// AuthWebSocketHandler creates an authenticated handler that uses callbacks for WebSocket lifecycle events.
+// AuthHandler creates an authenticated handler that uses callbacks for WebSocket lifecycle events.
 //
 // Example usage:
 //
@@ -290,7 +296,7 @@ func AuthHandler[Params, AuthModel any](
 func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Authenticate before upgrading connection
+	// Authenticate before upgrading the connection
 	authModel, err := simba.HandleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		statusCode := http.StatusUnauthorized
@@ -325,6 +331,13 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWr
 		return
 	}
 
+	// Ensure the connection is closed on all paths. handleConnection also
+	// closes the connection as part of its cleanup, but adding a
+	// defensive close here satisfies static analyzers and protects
+	// against unexpected control-flow (panics) between upgrade and
+	// the handler returning.
+	defer func() { _ = conn.Close() }()
+
 	// Handle the connection synchronously - the HTTP server runs each
 	// request in its own goroutine, so blocking here is correct
 	h.handleConnection(ctx, conn, params, authModel)
@@ -332,7 +345,7 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWr
 
 // handleConnection manages the lifecycle of an authenticated WebSocket connection.
 func (h *AuthCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth AuthModel) {
-	// Create connection wrapper with unique ID
+	// Create a connection wrapper with unique ID
 	wsConn := &Connection{
 		ID:   uuid.New().String(),
 		conn: rawConn,
