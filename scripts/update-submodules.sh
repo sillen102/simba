@@ -39,8 +39,16 @@ for m in "${MODULES[@]}"; do
 done
 
 if [ "${changed}" = true ]; then
-  git commit -m "chore(release): bump submodules to ${NEW_TAG} [skip ci]" || true
-  git push
+  if [ -n "${DRY_RUN:-}" ]; then
+    echo "[dry-run] Would commit: chore(release): bump submodules to ${NEW_TAG} [skip ci] with changed go.mod/go.sum"
+  else
+    git commit -m "chore(release): bump submodules to ${NEW_TAG} [skip ci]" || true
+    if [ -z "${SKIP_GIT_PUSH:-}" ]; then
+      git push
+    else
+      echo "SKIP_GIT_PUSH set; skipping git push (dry-run)"
+    fi
+  fi
 else
   echo "No go.mod/go.sum changes detected."
 fi

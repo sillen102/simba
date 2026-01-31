@@ -1,6 +1,8 @@
-const git = require('simple-git')();
+// Pure ESM: use import not require, for Node >=16+ with type: module
 
 (async () => {
+  const simpleGit = (await import('simple-git')).default;
+  const git = simpleGit();
   try {
     await git.fetch(['--tags']);
     const tags = (await git.tags()).all;
@@ -11,7 +13,7 @@ const git = require('simple-git')();
       process.stdout.write('0.0.0');
       return;
     }
-    const semver = require('semver');
+    const semver = (await import('semver')).default;
     prod.sort((a,b) => semver.rcompare(a,b));
     process.stdout.write(prod[0]);
   } catch (err) {

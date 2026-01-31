@@ -1,8 +1,11 @@
-name: Release (root + websocket + telemetry)
+name: Release
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main, dev ]
+    branches:
+      - dev
+      - main
 
 permissions:
   contents: write
@@ -11,28 +14,63 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    # Allow dry-run mode via workflow_dispatch (or injected env during manual test)
+    env:
+      DRY_RUN: ${{ github.event.inputs.dry_run || '' }}
+
     steps:
       - name: Checkout (full history & tags)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+          ref: ${{ github.sha }}
 
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.25'
 
+      - name: Test simba module
+        run: go test -v ./...
+      - name: Test websocket module
+        run: cd websocket && go test -v ./...
+      - name: Test telemetry module
+        run: cd telemetry && go test -v ./...
+
+      - name: golangci-lint on simba
+        uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: ./
+      - name: golangci-lint on websocket
+        uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: ./websocket
+      - name: golangci-lint on telemetry
+        uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: ./telemetry
+
+      - name: Install nilaway
+        run: go install go.uber.org/nilaway/cmd/nilaway@latest
+
+      - name: nilaway on simba
+        run: nilaway -test=false ./...
+      - name: nilaway on websocket
+        run: cd websocket && nilaway -test=false ./...
+      - name: nilaway on telemetry
+        run: cd telemetry && nilaway -test=false ./...
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Install Node deps
         run: npm ci
 
       - name: Compute next stable version (main only)
         id: compute_stable
-        if: github.ref == 'refs/heads/main'
+        if: ${{ startsWith(github.ref, 'refs/heads/main') }}
         run: |
           node ./scripts/compute-next-stable.js > /tmp/next-stable.txt
           echo "next_stable=$(cat /tmp/next-stable.txt)" >> $GITHUB_OUTPUT
@@ -45,31 +83,49 @@ jobs:
 
       - name: Compute dev tag (dev only)
         id: compute_dev
-        if: github.ref == 'refs/heads/dev'
+        if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
         run: |
           node ./scripts/compute-dev-tag.js "${{ steps.latest_stable.outputs.latest_stable }}" > /tmp/dev-tag.txt
+          echo "[DEBUG] Dev tag output: $(cat /tmp/dev-tag.txt)"
           echo "new_tag=$(cat /tmp/dev-tag.txt)" >> $GITHUB_OUTPUT
 
       - name: Set new tag for main (from semantic calculation)
         id: set_main_tag
-        if: github.ref == 'refs/heads/main'
+        if: ${{ startsWith(github.ref, 'refs/heads/main') }}
         run: |
           STABLE="${{ steps.compute_stable.outputs.next_stable }}"
           NEW_TAG="v${STABLE}"
           echo "new_tag=${NEW_TAG}" >> $GITHUB_OUTPUT
 
       - name: Update submodules go.mod/go.sum and commit
-        env:
-          NEW_TAG: ${{ steps.compute_dev.outputs.new_tag || steps.set_main_tag.outputs.new_tag }}
         run: |
+          NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
+          if [ -z "${NEW_TAG}" ]; then
+            NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
+          fi
+          if [ -z "${NEW_TAG}" ]; then
+            echo "[ERROR] No tag was computed, aborting tag operation."
+            exit 1
+          fi
+          echo "Using tag: ${NEW_TAG}"
           chmod +x ./scripts/update-submodules.sh
           ./scripts/update-submodules.sh "${NEW_TAG}"
+        env:
+          DRY_RUN: ${{ env.DRY_RUN }}
 
       - name: Create tags and GitHub releases for root & modules
         env:
-          NEW_TAG: ${{ steps.compute_dev.outputs.new_tag || steps.set_main_tag.outputs.new_tag }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          DRY_RUN: ${{ env.DRY_RUN }}
         run: |
+          NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
+          if [ -z "${NEW_TAG}" ]; then
+            NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
+          fi
+          echo "Tagging and releasing: ${NEW_TAG}"
           chmod +x ./scripts/create-tags-and-releases.sh
           ./scripts/create-tags-and-releases.sh "${NEW_TAG}"
+
+
+

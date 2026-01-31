@@ -1,5 +1,7 @@
-const git = require('simple-git')();
-const semver = require('semver');
+import simpleGit from 'simple-git';
+import semver from 'semver';
+
+const git = simpleGit();
 
 (async () => {
   try {
