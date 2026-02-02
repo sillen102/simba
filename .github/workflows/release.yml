@@ -63,6 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_tag: ${{ steps.export_tag.outputs.new_tag }}
+      should_release: ${{ steps.check_commits.outputs.should_release }}
+      release_notes: ${{ steps.generate_notes.outputs.release_notes }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,22 +79,43 @@ jobs:
       - name: Install Node deps
         run: npm ci
 
+      - name: Check for conventional commits
+        id: check_commits
+        run: |
+          HAS_COMMITS=$(node ./scripts/has-conventional-commits.js)
+          echo "should_release=$HAS_COMMITS" >> $GITHUB_OUTPUT
+          if [ "$HAS_COMMITS" = "false" ]; then
+            echo "No conventional commits found since last tag. Skipping release."
+          else
+            echo "Conventional commits found. Proceeding with release."
+          fi
+
+      - name: Generate release notes
+        id: generate_notes
+        if: steps.check_commits.outputs.should_release == 'true'
+        run: |
+          NOTES=$(node ./scripts/generate-release-notes.js)
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Get latest stable tag
         id: latest_stable
+        if: steps.check_commits.outputs.should_release == 'true'
         run: |
           node ./scripts/get-latest-stable.js > /tmp/latest-stable.txt
           echo "latest_stable=$(cat /tmp/latest-stable.txt)" >> $GITHUB_OUTPUT
 
       - name: Compute dev tag (dev only)
         id: compute_dev
-        if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
+        if: ${{ startsWith(github.ref, 'refs/heads/dev') && steps.check_commits.outputs.should_release == 'true' }}
         run: |
           node ./scripts/compute-dev-tag.js "${{ steps.latest_stable.outputs.latest_stable }}" > /tmp/dev-tag.txt
           echo "new_tag=$(cat /tmp/dev-tag.txt)" >> $GITHUB_OUTPUT
 
       - name: Set new tag for main (from semantic calculation)
         id: set_main_tag
-        if: ${{ startsWith(github.ref, 'refs/heads/main') }}
+        if: ${{ startsWith(github.ref, 'refs/heads/main') && steps.check_commits.outputs.should_release == 'true' }}
         run: |
           node ./scripts/compute-next-stable.js > /tmp/next-stable.txt
           STABLE="$(cat /tmp/next-stable.txt)"
@@ -101,22 +124,17 @@ jobs:
 
       - name: Export NEW_TAG
         id: export_tag
+        if: steps.check_commits.outputs.should_release == 'true'
         run: |
           set -euo pipefail
-          # prefer compute_dev, then set_main_tag; if both skipped/empty, compute fallback locally
+          # prefer compute_dev, then set_main_tag
           NEW_TAG="${{ steps.compute_dev.outputs.new_tag }}"
           if [ -z "$NEW_TAG" ]; then
             NEW_TAG="${{ steps.set_main_tag.outputs.new_tag }}"
           fi
           if [ -z "$NEW_TAG" ]; then
-            echo "[DEBUG] No tag in previous steps — computing fallback based on branch"
-            if [[ "${GITHUB_REF}" == refs/heads/main* ]]; then
-              STABLE=$(node ./scripts/compute-next-stable.js)
-              NEW_TAG="v${STABLE}"
-            else
-              LATEST="${{ steps.latest_stable.outputs.latest_stable }}"
-              NEW_TAG=$(node ./scripts/compute-dev-tag.js "${LATEST}")
-            fi
+            echo "ERROR: No tag computed despite should_release=true"
+            exit 1
           fi
           echo "Computed NEW_TAG=${NEW_TAG}"
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
@@ -125,6 +143,7 @@ jobs:
   # Create root tag and release using minimal bash + action
   release_simba:
     needs: compute_tag
+    if: needs.compute_tag.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     env:
       NEW_TAG: ${{ needs.compute_tag.outputs.new_tag }}
@@ -159,7 +178,7 @@ jobs:
         with:
           tag_name: ${{ env.NEW_TAG }}
           release_name: ${{ env.NEW_TAG }}
-          body: Automated release for root
+          body: ${{ needs.compute_tag.outputs.release_notes }}
           draft: false
           prerelease: true
 
@@ -183,6 +202,14 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: "1.25"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Node deps
+        run: npm ci
 
       - name: Update module dependency, tidy, commit and push
         run: |
@@ -253,6 +280,13 @@ jobs:
               git tag -a "$TAG" -m "$TAG" HEAD
             fi
             git push "$REPO_URL" "refs/tags/$TAG"
+            # Generate release notes for this module
+            cd /
+            cd "$GITHUB_WORKSPACE"
+            NOTES=$(node ./scripts/generate-module-release-notes.js "$MODULE")
+            echo "MODULE_RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+            echo "$NOTES" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
           else
             echo "No semantic-style commits found for module ${MODULE}; skipping tag and release"
             echo "SHOULD_RELEASE=false" >> $GITHUB_ENV
@@ -266,6 +300,6 @@ jobs:
         with:
           tag_name: ${{ matrix.module }}/${{ env.NEW_TAG }}
           release_name: ${{ matrix.module }}/${{ env.NEW_TAG }}
-          body: Automated release for module ${{ matrix.module }}
+          body: ${{ env.MODULE_RELEASE_NOTES }}
           draft: false
           prerelease: true
