@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/coder/websocket"
 )
@@ -19,20 +18,15 @@ type Connection struct {
 	ID string
 
 	conn *websocket.Conn
-	mu   sync.Mutex
 }
 
 // WriteText sends a text message to the client (thread-safe).
 func (c *Connection) WriteText(msg string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	return c.conn.Write(context.Background(), websocket.MessageText, []byte(msg))
 }
 
 // WriteBinary sends a binary message to the client (thread-safe).
 func (c *Connection) WriteBinary(data []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	return c.conn.Write(context.Background(), websocket.MessageBinary, data)
 }
 
@@ -43,8 +37,6 @@ func (c *Connection) WriteJSON(v any) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	return c.conn.Write(context.Background(), websocket.MessageText, data)
 }
 
