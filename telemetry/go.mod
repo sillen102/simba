@@ -3,7 +3,7 @@ module github.com/sillen102/simba/telemetry
 go 1.25.6
 
 require (
-	github.com/sillen102/simba v0.30.0-dev9
+	github.com/sillen102/simba v0.30.0-dev11
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.39.0
