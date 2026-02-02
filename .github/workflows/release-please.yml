@@ -1,0 +1,68 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      simba_released: ${{ steps.release.outputs['--release_created'] }}
+      simba_tag: ${{ steps.release.outputs['--tag_name'] }}
+      websocket_released: ${{ steps.release.outputs['websocket--release_created'] }}
+      websocket_tag: ${{ steps.release.outputs['websocket--tag_name'] }}
+      telemetry_released: ${{ steps.release.outputs['telemetry--release_created'] }}
+      telemetry_tag: ${{ steps.release.outputs['telemetry--tag_name'] }}
+    steps:
+      - name: Run Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          target-branch: ${{ github.ref_name }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Update module dependencies when root simba is released
+  update-modules:
+    needs: release-please
+    if: needs.release-please.outputs.simba_released == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        module: [websocket, telemetry]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.25"
+
+      - name: Update module dependency on new simba version
+        run: |
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          ROOT_TAG="${{ needs.release-please.outputs.simba_tag }}"
+
+          echo "Updating ${{ matrix.module }} to use simba@$ROOT_TAG"
+
+          chmod +x ./scripts/update-module-dependency.sh
+          ./scripts/update-module-dependency.sh \
+            "${{ matrix.module }}" \
+            "$ROOT_TAG" \
+            "$REPO_URL" \
+            "${{ github.ref_name }}" \
+            "github.com/${{ github.repository }}"
