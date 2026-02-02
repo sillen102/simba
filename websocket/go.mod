@@ -5,7 +5,7 @@ go 1.25.6
 require (
 	github.com/coder/websocket v1.8.14
 	github.com/google/uuid v1.6.0
-	github.com/sillen102/simba v0.30.0-dev9
+	github.com/sillen102/simba v0.30.0-dev10
 )
 
 require (
