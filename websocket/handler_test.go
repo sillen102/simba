@@ -351,7 +351,7 @@ func TestHandler_WriteOperations(t *testing.T) {
 			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
 				return simbawebsocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
-						return conn.WriteText("echo: " + string(data))
+						return conn.WriteText(ctx, "echo: "+string(data))
 					},
 				}
 			},
@@ -387,7 +387,7 @@ func TestHandler_WriteOperations(t *testing.T) {
 			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
 				return simbawebsocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
-						return conn.WriteBinary(expectedData)
+						return conn.WriteBinary(ctx, expectedData)
 					},
 				}
 			},
@@ -425,7 +425,7 @@ func TestHandler_WriteOperations(t *testing.T) {
 			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
 				return simbawebsocket.Callbacks[simbaModels.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
-						return conn.WriteJSON(TestMessage{Type: "response", Data: string(data)})
+						return conn.WriteJSON(ctx, TestMessage{Type: "response", Data: string(data)})
 					},
 				}
 			},
@@ -546,7 +546,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 		defer cancel()
 
 		if wsConn, ok := registry.Load(registeredConnID.Load().(string)); ok {
-			wsConn.(*simbawebsocket.Connection).WriteText("external message")
+			wsConn.(*simbawebsocket.Connection).WriteText(context.Background(), "external message")
 		}
 
 		_, msg, err := conn.Read(readCtx)
@@ -923,7 +923,7 @@ func TestHandler_ThreadSafety(t *testing.T) {
 			go func(writerID int) {
 				defer wg.Done()
 				for j := 0; j < messagesPerWriter; j++ {
-					wsConn.WriteText(fmt.Sprintf("writer-%d-msg-%d", writerID, j))
+					wsConn.WriteText(context.Background(), fmt.Sprintf("writer-%d-msg-%d", writerID, j))
 				}
 			}(i)
 		}
