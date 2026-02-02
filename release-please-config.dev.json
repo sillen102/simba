@@ -1,0 +1,46 @@
+{
+  "prerelease": true,
+  "prerelease-type": "dev",
+  "versioning": "prerelease",
+  "bump-minor-pre-major": false,
+  "bump-patch-for-minor-pre-major": false,
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "package-name": "simba",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false,
+      "extra-files": []
+    },
+    "websocket": {
+      "release-type": "go",
+      "package-name": "websocket",
+      "changelog-path": "CHANGELOG.md",
+      "component": "websocket",
+      "include-component-in-tag": true,
+      "extra-files": []
+    },
+    "telemetry": {
+      "release-type": "go",
+      "package-name": "telemetry",
+      "changelog-path": "CHANGELOG.md",
+      "component": "telemetry",
+      "include-component-in-tag": true,
+      "extra-files": []
+    }
+  },
+  "bootstrap-sha": "ba5f991",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "revert", "section": "Reverts" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "refactor", "section": "Code Refactoring" },
+    { "type": "chore", "hidden": true },
+    { "type": "style", "hidden": true },
+    { "type": "test", "hidden": true },
+    { "type": "build", "hidden": true },
+    { "type": "ci", "hidden": true }
+  ]
+}
