@@ -1,12 +1,12 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"sync"
 
-	"github.com/gobwas/ws/wsutil"
+	"github.com/coder/websocket"
 )
 
 // WebSocketConnection represents an active WebSocket connection.
@@ -18,7 +18,7 @@ type Connection struct {
 	// Use this to track connections in external registries.
 	ID string
 
-	conn net.Conn
+	conn *websocket.Conn
 	mu   sync.Mutex
 }
 
@@ -26,14 +26,14 @@ type Connection struct {
 func (c *Connection) WriteText(msg string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return wsutil.WriteServerText(c.conn, []byte(msg))
+	return c.conn.Write(context.Background(), websocket.MessageText, []byte(msg))
 }
 
 // WriteBinary sends a binary message to the client (thread-safe).
 func (c *Connection) WriteBinary(data []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return wsutil.WriteServerBinary(c.conn, data)
+	return c.conn.Write(context.Background(), websocket.MessageBinary, data)
 }
 
 // WriteJSON marshals v to JSON and sends it as a text message (thread-safe).
@@ -45,10 +45,10 @@ func (c *Connection) WriteJSON(v any) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return wsutil.WriteServerText(c.conn, data)
+	return c.conn.Write(context.Background(), websocket.MessageText, data)
 }
 
 // Close closes the WebSocket connection.
 func (c *Connection) Close() error {
-	return c.conn.Close()
+	return c.conn.CloseNow()
 }
