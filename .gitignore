@@ -108,3 +108,5 @@ node_modules/
 
 # Go sum
 go*.sum
+
+.claude/
