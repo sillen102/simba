@@ -14,13 +14,12 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
-      simba_released: ${{ steps.release.outputs['--release_created'] }}
-      simba_tag: ${{ steps.release.outputs['--tag_name'] }}
-      websocket_released: ${{ steps.release.outputs['websocket--release_created'] }}
-      websocket_tag: ${{ steps.release.outputs['websocket--tag_name'] }}
-      telemetry_released: ${{ steps.release.outputs['telemetry--release_created'] }}
-      telemetry_tag: ${{ steps.release.outputs['telemetry--tag_name'] }}
+      simba_released: ${{ steps.release_dev.outputs.release_created || steps.release_main.outputs.release_created }}
+      simba_tag: ${{ steps.release_dev.outputs.tag_name || steps.release_main.outputs.tag_name }}
+      websocket_released: ${{ steps.release_dev.outputs['websocket--release_created'] || steps.release_main.outputs['websocket--release_created'] }}
+      websocket_tag: ${{ steps.release_dev.outputs['websocket--tag_name'] || steps.release_main.outputs['websocket--tag_name'] }}
+      telemetry_released: ${{ steps.release_dev.outputs['telemetry--release_created'] || steps.release_main.outputs['telemetry--release_created'] }}
+      telemetry_tag: ${{ steps.release_dev.outputs['telemetry--tag_name'] || steps.release_main.outputs['telemetry--tag_name'] }}
     steps:
       - name: Run Release Please (dev)
         if: github.ref_name == 'dev'
@@ -40,34 +39,16 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      - name: Set outputs
-        id: release
-        run: |
-          if [ "${{ github.ref_name }}" = "dev" ]; then
-            echo "releases_created=${{ steps.release_dev.outputs.releases_created }}" >> $GITHUB_OUTPUT
-            echo "--release_created=${{ steps.release_dev.outputs['--release_created'] }}" >> $GITHUB_OUTPUT
-            echo "--tag_name=${{ steps.release_dev.outputs['--tag_name'] }}" >> $GITHUB_OUTPUT
-            echo "websocket--release_created=${{ steps.release_dev.outputs['websocket--release_created'] }}" >> $GITHUB_OUTPUT
-            echo "websocket--tag_name=${{ steps.release_dev.outputs['websocket--tag_name'] }}" >> $GITHUB_OUTPUT
-            echo "telemetry--release_created=${{ steps.release_dev.outputs['telemetry--release_created'] }}" >> $GITHUB_OUTPUT
-            echo "telemetry--tag_name=${{ steps.release_dev.outputs['telemetry--tag_name'] }}" >> $GITHUB_OUTPUT
-          else
-            echo "releases_created=${{ steps.release_main.outputs.releases_created }}" >> $GITHUB_OUTPUT
-            echo "--release_created=${{ steps.release_main.outputs['--release_created'] }}" >> $GITHUB_OUTPUT
-            echo "--tag_name=${{ steps.release_main.outputs['--tag_name'] }}" >> $GITHUB_OUTPUT
-            echo "websocket--release_created=${{ steps.release_main.outputs['websocket--release_created'] }}" >> $GITHUB_OUTPUT
-            echo "websocket--tag_name=${{ steps.release_main.outputs['websocket--tag_name'] }}" >> $GITHUB_OUTPUT
-            echo "telemetry--release_created=${{ steps.release_main.outputs['telemetry--release_created'] }}" >> $GITHUB_OUTPUT
-            echo "telemetry--tag_name=${{ steps.release_main.outputs['telemetry--tag_name'] }}" >> $GITHUB_OUTPUT
-          fi
-
   # Sync all module versions to match the root simba version.
   # Release-please only bumps packages that have relevant commits, so this
   # job force-updates the manifest, tags, and creates releases for any module
   # that was left behind.
   sync-versions:
     needs: release-please
-    if: needs.release-please.outputs.simba_released == 'true'
+    if: >-
+      always() &&
+      !failure() &&
+      (needs.release-please.outputs.simba_released == 'true')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -104,7 +85,6 @@ jobs:
           git config user.name "github-actions[bot]"
 
           MODULES="websocket telemetry"
-          MANIFEST_CHANGED=false
 
           for MODULE in $MODULES; do
             CURRENT=$(jq -r ".\"$MODULE\"" "$MANIFEST")
@@ -114,7 +94,6 @@ jobs:
             if [ "$CURRENT" != "$TARGET_VERSION" ]; then
               jq -r ".\"$MODULE\" = \"$TARGET_VERSION\"" "$MANIFEST" > "$MANIFEST.tmp"
               mv "$MANIFEST.tmp" "$MANIFEST"
-              MANIFEST_CHANGED=true
             fi
 
             # Always update the go.mod dependency on the root module
