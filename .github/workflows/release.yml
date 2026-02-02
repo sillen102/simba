@@ -168,6 +168,7 @@ jobs:
     needs: [release_simba, compute_tag]
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       matrix:
         module: [websocket, telemetry]
     env:
