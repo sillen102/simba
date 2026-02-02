@@ -105,3 +105,6 @@ fabric.properties
 
 # Node modules
 node_modules/
+
+# Go sum
+go*.sum
