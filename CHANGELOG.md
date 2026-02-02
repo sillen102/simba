@@ -1,0 +1,21 @@
+# Changelog
+
+## [0.31.0](https://github.com/sillen102/simba/compare/v0.30.0...v0.31.0) (2026-02-02)
+
+
+### Features
+
+* change library for websockets from gobwas/ws to coder/websocket ([cfe4643](https://github.com/sillen102/simba/commit/cfe4643413b978070981bcb5c0215e5576d35482))
+
+
+### Bug Fixes
+
+* **bug:** Only first file inside a package was being parsed when generating openapi documentation ([83a07bf](https://github.com/sillen102/simba/commit/83a07bf421628935157481879deacc563a966df5))
+* **docs:** Make generation of api documentation work with no tags for handlers that have a receiver ([ef47762](https://github.com/sillen102/simba/commit/ef477627fece75f2e80859290fca1fc0aad574ae))
+* **error-handling:** Improve error messages when body could not be processed ([2db02a2](https://github.com/sillen102/simba/commit/2db02a2f532b6666be07ec2948602319eac412c2))
+* **improvement:** Add support for auth functions returning errors with custom status codes ([d1841c0](https://github.com/sillen102/simba/commit/d1841c0be0bcce1eb0decc710f8b601d6b0841b9))
+* **params:** Allow cookies to be part of params ([9d0ad6c](https://github.com/sillen102/simba/commit/9d0ad6c77ee349987a5a80a3c1dd443f0343c709))
+* **params:** Fix cookie params handling ([10afa52](https://github.com/sillen102/simba/commit/10afa527a5011eb5325497ba213213b5f252b069))
+* release workflow improvements and fixes ([f47915c](https://github.com/sillen102/simba/commit/f47915ce9f15f3b480399d5673bec5bd361755e4))
+* remove mutexes since the library writer is already thread safe ([058fae2](https://github.com/sillen102/simba/commit/058fae2cea30d88deff044d338ab51d5d266da6c))
+* use release please ([9d5e7fc](https://github.com/sillen102/simba/commit/9d5e7fcacc5f43879b0cc16a9d6fe5db5341150c))
