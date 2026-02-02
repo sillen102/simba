@@ -2,17 +2,15 @@ package websocket
 
 import (
 	"context"
-	"net"
 	"net/http"
 
 	"github.com/sillen102/simba"
-
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
-	"github.com/google/uuid"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaModels"
+
+	"github.com/coder/websocket"
+	"github.com/google/uuid"
 )
 
 // Middleware wraps a context to enrich it before callback invocations.
@@ -102,7 +100,9 @@ func (h *CallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 	}
 
 	// Upgrade the HTTP connection to WebSocket
-	conn, _, _, err := ws.UpgradeHTTP(r, w)
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: true, // Match gobwas behavior (no origin check)
+	})
 	if err != nil {
 		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(
 			http.StatusBadRequest,
@@ -117,7 +117,7 @@ func (h *CallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 	// defensive close here satisfies static analyzers and protects
 	// against unexpected control-flow (panics) between upgrade and
 	// the handler returning.
-	defer func() { _ = conn.Close() }()
+	defer func() { _ = conn.CloseNow() }()
 
 	// Handle the connection synchronously - the HTTP server runs each
 	// request in its own goroutine, so blocking here is correct
@@ -125,11 +125,11 @@ func (h *CallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 }
 
 // handleConnection manages the lifecycle of a WebSocket connection.
-func (h *CallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawConn net.Conn, params Params) {
+func (h *CallbackHandlerFunc[Params]) handleConnection(ctx context.Context, conn *websocket.Conn, params Params) {
 	// Create a connection wrapper with unique ID
 	wsConn := &Connection{
 		ID:   uuid.New().String(),
-		conn: rawConn,
+		conn: conn,
 	}
 
 	// Add connectionID to context (persistent for entire connection)
@@ -138,7 +138,7 @@ func (h *CallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawC
 	// Always cleanup
 	var handlerErr error
 	defer func() {
-		_ = rawConn.Close()
+		_ = conn.CloseNow()
 		if h.callbacks.OnDisconnect != nil {
 			// Use background context for cleanup as connection context may be cancelled
 			// Apply middleware for OnDisconnect
@@ -159,38 +159,41 @@ func (h *CallbackHandlerFunc[Params]) handleConnection(ctx context.Context, rawC
 
 	// Message loop
 	for {
-		select {
-		case <-ctx.Done():
-			handlerErr = ctx.Err()
+		// Context cancellation is handled automatically by conn.Read
+		_, msg, err := conn.Read(ctx)
+		if err != nil {
+			// Check for clean close
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				return
+			}
+			// Check for context cancellation
+			if ctx.Err() != nil {
+				handlerErr = ctx.Err()
+				return
+			}
+			// Other errors
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
+				}
+			}
+			handlerErr = err
 			return
-		default:
-			// Read message from client
-			msg, _, err := wsutil.ReadClientData(rawConn)
-			if err != nil {
-				// Check if OnError wants to continue
-				if h.callbacks.OnError != nil {
-					errorCtx := h.applyMiddleware(ctx)
-					if h.callbacks.OnError(errorCtx, wsConn, err) {
-						continue
-					}
-				}
-				handlerErr = err
-				return
-			}
+		}
 
-			// Call OnMessage with middleware (fresh context per message)
-			messageCtx := h.applyMiddleware(ctx)
-			if err := h.callbacks.OnMessage(messageCtx, wsConn, msg); err != nil {
-				// Check if OnError wants to continue
-				if h.callbacks.OnError != nil {
-					errorCtx := h.applyMiddleware(ctx)
-					if h.callbacks.OnError(errorCtx, wsConn, err) {
-						continue
-					}
+		// Call OnMessage with middleware (fresh context per message)
+		messageCtx := h.applyMiddleware(ctx)
+		if err := h.callbacks.OnMessage(messageCtx, wsConn, msg); err != nil {
+			// Check if OnError wants to continue
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
 				}
-				handlerErr = err
-				return
 			}
+			handlerErr = err
+			return
 		}
 	}
 }
@@ -321,7 +324,9 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWr
 	}
 
 	// Upgrade the HTTP connection to WebSocket
-	conn, _, _, err := ws.UpgradeHTTP(r, w)
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: true, // Match gobwas behavior (no origin check)
+	})
 	if err != nil {
 		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(
 			http.StatusBadRequest,
@@ -336,7 +341,7 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWr
 	// defensive close here satisfies static analyzers and protects
 	// against unexpected control-flow (panics) between upgrade and
 	// the handler returning.
-	defer func() { _ = conn.Close() }()
+	defer func() { _ = conn.CloseNow() }()
 
 	// Handle the connection synchronously - the HTTP server runs each
 	// request in its own goroutine, so blocking here is correct
@@ -344,11 +349,11 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWr
 }
 
 // handleConnection manages the lifecycle of an authenticated WebSocket connection.
-func (h *AuthCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, rawConn net.Conn, params Params, auth AuthModel) {
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, conn *websocket.Conn, params Params, auth AuthModel) {
 	// Create a connection wrapper with unique ID
 	wsConn := &Connection{
 		ID:   uuid.New().String(),
-		conn: rawConn,
+		conn: conn,
 	}
 
 	// Add connectionID to context (persistent for entire connection)
@@ -357,7 +362,7 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx contex
 	// Always cleanup
 	var handlerErr error
 	defer func() {
-		_ = rawConn.Close()
+		_ = conn.CloseNow()
 		if h.callbacks.OnDisconnect != nil {
 			// Use background context for cleanup as connection context may be cancelled
 			// Apply middleware for OnDisconnect
@@ -378,38 +383,41 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx contex
 
 	// Message loop
 	for {
-		select {
-		case <-ctx.Done():
-			handlerErr = ctx.Err()
+		// Context cancellation is handled automatically by conn.Read
+		_, msg, err := conn.Read(ctx)
+		if err != nil {
+			// Check for clean close
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				return
+			}
+			// Check for context cancellation
+			if ctx.Err() != nil {
+				handlerErr = ctx.Err()
+				return
+			}
+			// Other errors
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
+				}
+			}
+			handlerErr = err
 			return
-		default:
-			// Read message from client
-			msg, _, err := wsutil.ReadClientData(rawConn)
-			if err != nil {
-				// Check if OnError wants to continue
-				if h.callbacks.OnError != nil {
-					errorCtx := h.applyMiddleware(ctx)
-					if h.callbacks.OnError(errorCtx, wsConn, err) {
-						continue
-					}
-				}
-				handlerErr = err
-				return
-			}
+		}
 
-			// Call OnMessage with middleware (fresh context per message)
-			messageCtx := h.applyMiddleware(ctx)
-			if err := h.callbacks.OnMessage(messageCtx, wsConn, msg, auth); err != nil {
-				// Check if OnError wants to continue
-				if h.callbacks.OnError != nil {
-					errorCtx := h.applyMiddleware(ctx)
-					if h.callbacks.OnError(errorCtx, wsConn, err) {
-						continue
-					}
+		// Call OnMessage with middleware (fresh context per message)
+		messageCtx := h.applyMiddleware(ctx)
+		if err := h.callbacks.OnMessage(messageCtx, wsConn, msg, auth); err != nil {
+			// Check if OnError wants to continue
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
 				}
-				handlerErr = err
-				return
 			}
+			handlerErr = err
+			return
 		}
 	}
 }
