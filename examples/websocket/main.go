@@ -38,7 +38,9 @@ func echoCallbacks() websocket.Callbacks[simbaModels.NoParams] {
 			// Logger from middleware includes connectionID and traceID
 			logger := logging.From(ctx)
 			logger.Info("Connection established")
-			return conn.WriteText("Welcome! Send me messages and I'll echo them back.")
+
+			// WriteText propagates context (with traceID, timeout, cancellation)
+			return conn.WriteText(ctx, "Welcome! Send me messages and I'll echo them back.")
 		},
 
 		OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
@@ -50,7 +52,8 @@ func echoCallbacks() websocket.Callbacks[simbaModels.NoParams] {
 			traceID := simbaContext.GetTraceID(ctx)
 			connID, _ := ctx.Value(simbaContext.ConnectionIDKey).(string)
 
-			return conn.WriteText(fmt.Sprintf("Echo: %s (traceID: %s, connID: %s)",
+			// WriteText propagates context with traceID for distributed tracing
+			return conn.WriteText(ctx, fmt.Sprintf("Echo: %s (traceID: %s, connID: %s)",
 				string(data), traceID[:8], connID[:8]))
 		},
 
@@ -73,16 +76,18 @@ func chatCallbacks() websocket.AuthCallbacks[simbaModels.NoParams, User] {
 		OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, user User) error {
 			logger := logging.From(ctx)
 			logger.Info("User connected", "user", user.Name)
-			return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
+
+			// WriteText propagates context for tracing and cancellation
+			return conn.WriteText(ctx, fmt.Sprintf("Welcome %s!", user.Name))
 		},
 
 		OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, user User) error {
 			logger := logging.From(ctx)
 			logger.Info("Chat message", "user", user.Name, "message", string(data))
 
-			// Echo back with user name
+			// Echo back with user name, propagating context
 			message := fmt.Sprintf("[%s]: %s", user.Name, string(data))
-			return conn.WriteText(message)
+			return conn.WriteText(ctx, message)
 		},
 
 		OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, user User, err error) {

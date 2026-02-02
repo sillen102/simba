@@ -21,23 +21,23 @@ type Connection struct {
 }
 
 // WriteText sends a text message to the client (thread-safe).
-func (c *Connection) WriteText(msg string) error {
-	return c.conn.Write(context.Background(), websocket.MessageText, []byte(msg))
+func (c *Connection) WriteText(ctx context.Context, msg string) error {
+	return c.conn.Write(ctx, websocket.MessageText, []byte(msg))
 }
 
 // WriteBinary sends a binary message to the client (thread-safe).
-func (c *Connection) WriteBinary(data []byte) error {
-	return c.conn.Write(context.Background(), websocket.MessageBinary, data)
+func (c *Connection) WriteBinary(ctx context.Context, data []byte) error {
+	return c.conn.Write(ctx, websocket.MessageBinary, data)
 }
 
 // WriteJSON marshals v to JSON and sends it as a text message (thread-safe).
-func (c *Connection) WriteJSON(v any) error {
+func (c *Connection) WriteJSON(ctx context.Context, v any) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	return c.conn.Write(context.Background(), websocket.MessageText, data)
+	return c.conn.Write(ctx, websocket.MessageText, data)
 }
 
 // Close closes the WebSocket connection.
