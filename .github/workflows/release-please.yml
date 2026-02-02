@@ -61,15 +61,14 @@ jobs:
             echo "telemetry--tag_name=${{ steps.release_main.outputs['telemetry--tag_name'] }}" >> $GITHUB_OUTPUT
           fi
 
-  # Update module dependencies when root simba is released
-  update-modules:
+  # Sync all module versions to match the root simba version.
+  # Release-please only bumps packages that have relevant commits, so this
+  # job force-updates the manifest, tags, and creates releases for any module
+  # that was left behind.
+  sync-versions:
     needs: release-please
     if: needs.release-please.outputs.simba_released == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 1
-      matrix:
-        module: [websocket, telemetry]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,37 +82,96 @@ jobs:
         with:
           go-version: "1.25"
 
-      - name: Update module dependency on new simba version
-        run: |
-          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-          ROOT_TAG="${{ needs.release-please.outputs.simba_tag }}"
-
-          echo "Updating ${{ matrix.module }} to use simba@$ROOT_TAG"
-
-          chmod +x ./scripts/update-module-dependency.sh
-          ./scripts/update-module-dependency.sh \
-            "${{ matrix.module }}" \
-            "$ROOT_TAG" \
-            "$REPO_URL" \
-            "${{ github.ref_name }}" \
-            "github.com/${{ github.repository }}"
-
-          # Create module tag and release
-          MODULE_TAG="${{ matrix.module }}/$ROOT_TAG"
-          cd "${{ matrix.module }}"
-          git tag -a "$MODULE_TAG" -m "Release $MODULE_TAG" HEAD 2>/dev/null || echo "Tag may already exist"
-          git push "$REPO_URL" "refs/tags/$MODULE_TAG" || true
-
-      - name: Create GitHub release for module
-        uses: actions/create-release@v1
+      - name: Sync versions and update dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ matrix.module }}/${{ needs.release-please.outputs.simba_tag }}
-          release_name: ${{ matrix.module }}/${{ needs.release-please.outputs.simba_tag }}
-          body: |
-            Updated to use simba@${{ needs.release-please.outputs.simba_tag }}
+        run: |
+          set -euo pipefail
 
-            This module release is synchronized with the root simba release.
-          draft: false
-          prerelease: true
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          BRANCH="${{ github.ref_name }}"
+          ROOT_TAG="${{ needs.release-please.outputs.simba_tag }}"
+          # Strip the leading 'v' to get the bare version (e.g. "0.31.0-dev.1")
+          TARGET_VERSION="${ROOT_TAG#v}"
+
+          if [ "$BRANCH" = "dev" ]; then
+            MANIFEST=".release-please-manifest.dev.json"
+          else
+            MANIFEST=".release-please-manifest.json"
+          fi
+
+          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+
+          MODULES="websocket telemetry"
+          MANIFEST_CHANGED=false
+
+          for MODULE in $MODULES; do
+            CURRENT=$(jq -r ".\"$MODULE\"" "$MANIFEST")
+            echo "$MODULE: current=$CURRENT target=$TARGET_VERSION"
+
+            # Update manifest entry if it doesn't already match
+            if [ "$CURRENT" != "$TARGET_VERSION" ]; then
+              jq -r ".\"$MODULE\" = \"$TARGET_VERSION\"" "$MANIFEST" > "$MANIFEST.tmp"
+              mv "$MANIFEST.tmp" "$MANIFEST"
+              MANIFEST_CHANGED=true
+            fi
+
+            # Always update the go.mod dependency on the root module
+            cd "$MODULE"
+            go mod edit -require="github.com/${{ github.repository }}@$ROOT_TAG"
+            go mod tidy || (echo "Retrying go mod tidy..." && sleep 5 && go mod tidy)
+            cd ..
+          done
+
+          # Commit everything together if anything changed
+          git add "$MANIFEST" websocket/go.mod websocket/go.sum telemetry/go.mod telemetry/go.sum || true
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: sync all modules to $ROOT_TAG"
+            git push "$REPO_URL" "HEAD:refs/heads/$BRANCH"
+          fi
+
+          # Tag and release any module that was behind
+          for MODULE in $MODULES; do
+            MODULE_TAG="${MODULE}/v${TARGET_VERSION}"
+
+            # Skip if tag already exists (release-please already released this module)
+            if git rev-parse --verify "refs/tags/$MODULE_TAG" >/dev/null 2>&1; then
+              echo "$MODULE already tagged at $MODULE_TAG, skipping"
+              continue
+            fi
+
+            git tag -a "$MODULE_TAG" -m "Release $MODULE_TAG" HEAD
+            git push "$REPO_URL" "refs/tags/$MODULE_TAG"
+            echo "Tagged and pushed $MODULE_TAG"
+
+            # Store which modules need a GitHub release created
+            echo "$MODULE" >> /tmp/modules_to_release
+          done
+
+      - name: Create GitHub releases for synced modules
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f /tmp/modules_to_release ]; then
+            echo "No modules need a GitHub release"
+            exit 0
+          fi
+
+          ROOT_TAG="${{ needs.release-please.outputs.simba_tag }}"
+          TARGET_VERSION="${ROOT_TAG#v}"
+          PRERELEASE="false"
+          if [ "${{ github.ref_name }}" = "dev" ]; then
+            PRERELEASE="true"
+          fi
+
+          while read -r MODULE; do
+            MODULE_TAG="${MODULE}/v${TARGET_VERSION}"
+            echo "Creating release for $MODULE_TAG"
+            gh release create "$MODULE_TAG" \
+              --title "$MODULE_TAG" \
+              --body "Synchronized with root simba release $ROOT_TAG" \
+              --prerelease="$PRERELEASE" \
+              --repo "${{ github.repository }}"
+          done < /tmp/modules_to_release
