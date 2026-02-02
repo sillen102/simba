@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0-dev.2](https://github.com/sillen102/simba/compare/v0.30.0-dev.1...v0.30.0-dev.2) (2026-02-02)
+
+
+### Bug Fixes
+
+* add modules version sync to release script ([a3c1cbf](https://github.com/sillen102/simba/commit/a3c1cbf64afdd6ab2e42ae5b2c96b961067b3630))
+
 ## [0.30.0-dev.1](https://github.com/sillen102/simba/compare/v0.30.0-dev.0...v0.30.0-dev.1) (2026-02-02)
 
 
