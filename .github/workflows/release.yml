@@ -26,12 +26,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25'
+          go-version: "1.25"
 
       - name: Setup Node (for scripts)
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install Node deps
         run: npm ci
@@ -72,7 +72,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install Node deps
         run: npm ci
@@ -181,7 +181,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25'
+          go-version: "1.25"
 
       - name: Update module dependency, tidy, commit and push
         run: |
@@ -199,7 +199,8 @@ jobs:
           git config user.name "github-actions[bot]" || true
           echo "Setting dependency to github.com/${{ github.repository }}@$NEW_TAG"
           go mod edit -require=github.com/${{ github.repository }}@$NEW_TAG
-          GOPROXY=direct GOSUMDB=off go mod tidy
+          # Use default Go proxy and retry on failure
+          go mod tidy || (echo "First tidy attempt failed, retrying..." && sleep 5 && go mod tidy)
           git add go.mod go.sum || true
           if git diff --staged --quiet; then
             echo "No dependency changes for $MODULE"
@@ -257,6 +258,7 @@ jobs:
           fi
 
       - name: Create GitHub release for module
+        if: env.SHOULD_RELEASE == 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
