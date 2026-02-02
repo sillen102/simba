@@ -1,0 +1,119 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      simba_released: ${{ steps.release.outputs['--release_created'] }}
+      simba_tag: ${{ steps.release.outputs['--tag_name'] }}
+      websocket_released: ${{ steps.release.outputs['websocket--release_created'] }}
+      websocket_tag: ${{ steps.release.outputs['websocket--tag_name'] }}
+      telemetry_released: ${{ steps.release.outputs['telemetry--release_created'] }}
+      telemetry_tag: ${{ steps.release.outputs['telemetry--tag_name'] }}
+    steps:
+      - name: Run Release Please (dev)
+        if: github.ref_name == 'dev'
+        id: release_dev
+        uses: googleapis/release-please-action@v4
+        with:
+          target-branch: dev
+          config-file: release-please-config.dev.json
+          manifest-file: .release-please-manifest.dev.json
+
+      - name: Run Release Please (main)
+        if: github.ref_name == 'main'
+        id: release_main
+        uses: googleapis/release-please-action@v4
+        with:
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Set outputs
+        id: release
+        run: |
+          if [ "${{ github.ref_name }}" = "dev" ]; then
+            echo "releases_created=${{ steps.release_dev.outputs.releases_created }}" >> $GITHUB_OUTPUT
+            echo "--release_created=${{ steps.release_dev.outputs['--release_created'] }}" >> $GITHUB_OUTPUT
+            echo "--tag_name=${{ steps.release_dev.outputs['--tag_name'] }}" >> $GITHUB_OUTPUT
+            echo "websocket--release_created=${{ steps.release_dev.outputs['websocket--release_created'] }}" >> $GITHUB_OUTPUT
+            echo "websocket--tag_name=${{ steps.release_dev.outputs['websocket--tag_name'] }}" >> $GITHUB_OUTPUT
+            echo "telemetry--release_created=${{ steps.release_dev.outputs['telemetry--release_created'] }}" >> $GITHUB_OUTPUT
+            echo "telemetry--tag_name=${{ steps.release_dev.outputs['telemetry--tag_name'] }}" >> $GITHUB_OUTPUT
+          else
+            echo "releases_created=${{ steps.release_main.outputs.releases_created }}" >> $GITHUB_OUTPUT
+            echo "--release_created=${{ steps.release_main.outputs['--release_created'] }}" >> $GITHUB_OUTPUT
+            echo "--tag_name=${{ steps.release_main.outputs['--tag_name'] }}" >> $GITHUB_OUTPUT
+            echo "websocket--release_created=${{ steps.release_main.outputs['websocket--release_created'] }}" >> $GITHUB_OUTPUT
+            echo "websocket--tag_name=${{ steps.release_main.outputs['websocket--tag_name'] }}" >> $GITHUB_OUTPUT
+            echo "telemetry--release_created=${{ steps.release_main.outputs['telemetry--release_created'] }}" >> $GITHUB_OUTPUT
+            echo "telemetry--tag_name=${{ steps.release_main.outputs['telemetry--tag_name'] }}" >> $GITHUB_OUTPUT
+          fi
+
+  # Update module dependencies when root simba is released
+  update-modules:
+    needs: release-please
+    if: needs.release-please.outputs.simba_released == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        module: [websocket, telemetry]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.25"
+
+      - name: Update module dependency on new simba version
+        run: |
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          ROOT_TAG="${{ needs.release-please.outputs.simba_tag }}"
+
+          echo "Updating ${{ matrix.module }} to use simba@$ROOT_TAG"
+
+          chmod +x ./scripts/update-module-dependency.sh
+          ./scripts/update-module-dependency.sh \
+            "${{ matrix.module }}" \
+            "$ROOT_TAG" \
+            "$REPO_URL" \
+            "${{ github.ref_name }}" \
+            "github.com/${{ github.repository }}"
+
+          # Create module tag and release
+          MODULE_TAG="${{ matrix.module }}/$ROOT_TAG"
+          cd "${{ matrix.module }}"
+          git tag -a "$MODULE_TAG" -m "Release $MODULE_TAG" HEAD 2>/dev/null || echo "Tag may already exist"
+          git push "$REPO_URL" "refs/tags/$MODULE_TAG" || true
+
+      - name: Create GitHub release for module
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ matrix.module }}/${{ needs.release-please.outputs.simba_tag }}
+          release_name: ${{ matrix.module }}/${{ needs.release-please.outputs.simba_tag }}
+          body: |
+            Updated to use simba@${{ needs.release-please.outputs.simba_tag }}
+
+            This module release is synchronized with the root simba release.
+          draft: false
+          prerelease: true
