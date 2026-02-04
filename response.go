@@ -67,8 +67,6 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 		simbaErrors.HandleUnexpectedError(w)
 		return
 	}
-
-	return
 }
 
 // writeJSON is a helper function for writing JSON responses
