@@ -50,9 +50,15 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 	if resp.Status != 0 {
 		status = resp.Status
 	} else if any(resp.Body) == (simbaModels.NoBody{}) {
-		status = http.StatusNoContent
+		status = http.StatusNoContent // 204 No Content for NoBody responses
 	} else {
-		status = http.StatusOK
+		status = http.StatusOK // Default to 200 OK if not specified
+	}
+
+	// Return early for No Content responses without a body
+	if status == http.StatusNoContent {
+		w.WriteHeader(status)
+		return
 	}
 
 	err = writeJSON(w, status, resp.Body)
