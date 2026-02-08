@@ -9,7 +9,6 @@
   "release-search-depth": 400,
   "skip-github-release": false,
   "always-link-local": true,
-  "last-release-sha": "4853fa88f6786c82ee161e969109f169de8cd60d",
   "plugins": [
     {
       "type": "linked-versions",
