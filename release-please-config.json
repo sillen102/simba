@@ -11,14 +11,14 @@
       "package-name": "websocket",
       "changelog-path": "CHANGELOG.md",
       "component": "websocket",
-      "include-component-in-tag": false
+      "include-component-in-tag": true
     },
     "telemetry": {
       "release-type": "go",
       "package-name": "telemetry",
       "changelog-path": "CHANGELOG.md",
       "component": "telemetry",
-      "include-component-in-tag": false
+      "include-component-in-tag": true
     }
   },
   "bootstrap-sha": "ba5f991",
