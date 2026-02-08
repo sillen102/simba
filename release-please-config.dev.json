@@ -23,7 +23,7 @@
       "package-name": "simba",
       "component": "simba",
       "changelog-path": "CHANGELOG.md",
-      "include-component-in-tag": true,
+      "include-component-in-tag": false,
       "extra-files": []
     },
     "websocket": {
@@ -31,7 +31,7 @@
       "package-name": "websocket",
       "changelog-path": "CHANGELOG.md",
       "component": "websocket",
-      "include-component-in-tag": true,
+      "include-component-in-tag": false,
       "extra-files": []
     },
     "telemetry": {
@@ -39,7 +39,7 @@
       "package-name": "telemetry",
       "changelog-path": "CHANGELOG.md",
       "component": "telemetry",
-      "include-component-in-tag": true,
+      "include-component-in-tag": false,
       "extra-files": []
     }
   },
