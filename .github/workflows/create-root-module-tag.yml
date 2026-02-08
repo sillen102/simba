@@ -1,0 +1,40 @@
+name: Create Root Module Tag
+
+on:
+  push:
+    tags:
+      - 'simba/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create root module tag
+        run: |
+          # Get the tag that triggered this workflow (e.g., simba/v0.30.1-dev)
+          FULL_TAG="${GITHUB_REF#refs/tags/}"
+          echo "Full tag: $FULL_TAG"
+
+          # Extract just the version part (e.g., v0.30.1-dev)
+          VERSION_TAG="${FULL_TAG#simba/}"
+          echo "Version tag: $VERSION_TAG"
+
+          # Check if the version tag already exists
+          if git rev-parse "$VERSION_TAG" >/dev/null 2>&1; then
+            echo "Tag $VERSION_TAG already exists, skipping"
+            exit 0
+          fi
+
+          # Create the version tag pointing to the same commit as the full tag
+          git tag "$VERSION_TAG" "$FULL_TAG"
+          git push origin "$VERSION_TAG"
+
+          echo "Created and pushed tag: $VERSION_TAG"
