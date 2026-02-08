@@ -21,21 +21,6 @@ jobs:
       telemetry_released: ${{ steps.release_dev.outputs['telemetry--release_created'] || steps.release_main.outputs['telemetry--release_created'] }}
       telemetry_tag: ${{ steps.release_dev.outputs['telemetry--tag_name'] || steps.release_main.outputs['telemetry--tag_name'] }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Ensure all modules have commits
-        run: |
-          # Touch marker files in each module to ensure they all get released together
-          mkdir -p websocket telemetry
-          touch .release-marker websocket/.release-marker telemetry/.release-marker
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .release-marker websocket/.release-marker telemetry/.release-marker
-          git diff --cached --quiet || git commit -m "chore: sync module versions for release"
-          git push || true
-
       - name: Run Release Dev
         id: release_dev
         uses: googleapis/release-please-action@v4
