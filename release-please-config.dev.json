@@ -34,7 +34,7 @@
       "extra-files": []
     }
   },
-  "bootstrap-sha": "dcf5f37",
+  "bootstrap-sha": "bd51898",
   "changelog-sections": [
     { "type": "feat", "section": "Features" },
     { "type": "fix", "section": "Bug Fixes" },
