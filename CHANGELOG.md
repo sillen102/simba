@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.30.1-dev.10](https://github.com/sillen102/simba/compare/v0.30.0-dev.10...v0.30.1-dev.10) (2026-02-08)
+
+
+### Features
+
+* add linked-versions plugin for synchronized releases ([9a71b25](https://github.com/sillen102/simba/commit/9a71b25390b9340b29dc764ca3af0948f758eaa2))
+* create dev release action ([98325d6](https://github.com/sillen102/simba/commit/98325d68c611cfa845f064aeff07996c0a59cf10))
+
+
+### Bug Fixes
+
+* attempting to serialize body for 204 responses ([c8aa0e9](https://github.com/sillen102/simba/commit/c8aa0e90ee251f0b4a2ca25c3a3c30e5b01dd576))
+* linting error ([d819b8f](https://github.com/sillen102/simba/commit/d819b8f33358fcf82d271206fe2f5dd03900c468))
+* sync module versions ([52d4469](https://github.com/sillen102/simba/commit/52d446934d61f6b362e58c97f4193538ea2f688c))
+
 ## [0.30.0-dev.2](https://github.com/sillen102/simba/compare/v0.30.0-dev.1...v0.30.0-dev.2) (2026-02-02)
 
 
