@@ -1,0 +1,114 @@
+name: Sync Dev Version
+
+on:
+  workflow_run:
+    workflows: ["Release Main"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-dev-version:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Get latest main release
+        id: main_release
+        run: |
+          # Get the latest release tag from main (non-dev)
+          LATEST_TAG=$(git tag --list "v*" --sort=-version:refname | grep -v "dev" | head -1)
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+          # Parse version
+          VERSION=${LATEST_TAG#v}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+
+          # Calculate next minor version for dev
+          NEXT_MINOR=$((MINOR + 1))
+          DEV_VERSION="${MAJOR}.${NEXT_MINOR}.0-dev"
+
+          echo "dev_version=$DEV_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Latest main release: $LATEST_TAG"
+          echo "Dev should be at: $DEV_VERSION"
+
+      - name: Checkout dev branch
+        run: |
+          git checkout dev
+          git pull origin dev
+
+      - name: Check current dev version
+        id: current_dev
+        run: |
+          CURRENT_DEV=$(jq -r '."."' .release-please-manifest.dev.json)
+          echo "version=$CURRENT_DEV" >> $GITHUB_OUTPUT
+          echo "Current dev version: $CURRENT_DEV"
+
+      - name: Update dev manifest if needed
+        id: update
+        run: |
+          CURRENT_DEV="${{ steps.current_dev.outputs.version }}"
+          TARGET_DEV="${{ steps.main_release.outputs.dev_version }}"
+
+          # Remove -dev suffix for comparison
+          CURRENT_BASE=$(echo $CURRENT_DEV | sed 's/-dev.*//')
+          TARGET_BASE=$(echo $TARGET_DEV | sed 's/-dev.*//')
+
+          echo "Current dev base: $CURRENT_BASE"
+          echo "Target dev base: $TARGET_BASE"
+
+          # Simple version comparison
+          if [ "$CURRENT_BASE" != "$TARGET_BASE" ]; then
+            echo "Updating dev manifest from $CURRENT_DEV to $TARGET_DEV"
+
+            # Update manifest
+            jq --arg ver "$TARGET_DEV" '
+              . = {
+                ".": $ver,
+                "websocket": $ver,
+                "telemetry": $ver
+              }
+            ' .release-please-manifest.dev.json > .release-please-manifest.dev.json.tmp
+            mv .release-please-manifest.dev.json.tmp .release-please-manifest.dev.json
+
+            echo "updated=true" >> $GITHUB_OUTPUT
+          else
+            echo "Dev version is already correct"
+            echo "updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR to update dev version
+        if: steps.update.outputs.updated == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BRANCH_NAME="sync-dev-to-${{ steps.main_release.outputs.dev_version }}"
+
+          git checkout -b "$BRANCH_NAME"
+          git add .release-please-manifest.dev.json
+          git commit -m "chore: sync dev version to ${{ steps.main_release.outputs.dev_version }} after main release ${{ steps.main_release.outputs.tag }}"
+          git push origin "$BRANCH_NAME"
+
+          # Create PR using GitHub CLI
+          gh pr create \
+            --base dev \
+            --head "$BRANCH_NAME" \
+            --title "chore: sync dev version to ${{ steps.main_release.outputs.dev_version }}" \
+            --body "Automatically updating dev version to ${{ steps.main_release.outputs.dev_version }} after main branch released ${{ steps.main_release.outputs.tag }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
