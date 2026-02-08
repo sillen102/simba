@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.30.1-dev](https://github.com/sillen102/simba/compare/v0.30.0-dev...v0.30.1-dev) (2026-02-08)
+
+
+### Features
+
+* add linked-versions plugin for synchronized releases ([d067756](https://github.com/sillen102/simba/commit/d0677561d0f1164209cda7fac8947f45e3b284d7))
+* add linked-versions plugin for synchronized releases ([9a71b25](https://github.com/sillen102/simba/commit/9a71b25390b9340b29dc764ca3af0948f758eaa2))
+* create dev release action ([98325d6](https://github.com/sillen102/simba/commit/98325d68c611cfa845f064aeff07996c0a59cf10))
+* fix release version pattern ([773f876](https://github.com/sillen102/simba/commit/773f8768d0188fc1e49ec7a0e1bc52b660a34cf5))
+
+
+### Bug Fixes
+
+* set includeComponentInTag to true for linked-versions plugin ([1d900df](https://github.com/sillen102/simba/commit/1d900df4bb6e264f1dac2a7aabf8a2bc103807dd))
+* set includeComponentInTag to true for linked-versions plugin ([ff8386a](https://github.com/sillen102/simba/commit/ff8386ac7518a53160d8db3679e1902752853ac6))
+* update group PR title pattern to include placeholders ([a598bc0](https://github.com/sillen102/simba/commit/a598bc04a35ee0fb6cdebd1abf7dc2cd428021cb))
+
 ## [0.30.1-dev](https://github.com/sillen102/simba/compare/simba-v0.30.0-dev...simba-v0.30.1-dev) (2026-02-08)
 
 
