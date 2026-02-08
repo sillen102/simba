@@ -21,6 +21,7 @@
     ".": {
       "release-type": "go",
       "package-name": "simba",
+      "component": "simba",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false,
       "extra-files": []
