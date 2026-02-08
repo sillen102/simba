@@ -23,7 +23,7 @@
       "package-name": "simba",
       "component": "simba",
       "changelog-path": "CHANGELOG.md",
-      "include-component-in-tag": false,
+      "include-component-in-tag": true,
       "extra-files": []
     },
     "websocket": {
