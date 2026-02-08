@@ -3,6 +3,11 @@
 ## [0.30.1-dev](https://github.com/sillen102/simba/compare/websocket-v0.30.0-dev...websocket-v0.30.1-dev) (2026-02-08)
 
 
+* **websocket:** Synchronize simba-monorepo versions
+
+## [0.30.1-dev](https://github.com/sillen102/simba/compare/websocket-v0.30.0-dev...websocket-v0.30.1-dev) (2026-02-08)
+
+
 ### Features
 
 * change library for websockets from gobwas/ws to coder/websocket ([cfe4643](https://github.com/sillen102/simba/commit/cfe4643413b978070981bcb5c0215e5576d35482))
