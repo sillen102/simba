@@ -15,16 +15,15 @@
     {
       "type": "linked-versions",
       "groupName": "simba-monorepo",
-      "components": ["simba", "websocket", "telemetry"]
+      "components": ["websocket", "telemetry"]
     }
   ],
   "packages": {
     ".": {
       "release-type": "go",
       "package-name": "simba",
-      "component": "simba",
       "changelog-path": "CHANGELOG.md",
-      "include-component-in-tag": true,
+      "include-component-in-tag": false,
       "extra-files": []
     },
     "websocket": {
