@@ -1,9 +1,12 @@
 {
   "prerelease": true,
   "prerelease-type": "dev",
-  "versioning": "prerelease",
+  "versioning": "always-bump-patch",
   "bump-minor-pre-major": false,
   "bump-patch-for-minor-pre-major": false,
+  "separate-pull-requests": false,
+  "group-pull-request-title-pattern": "chore: release dev",
+  "release-search-depth": 400,
   "packages": {
     ".": {
       "release-type": "go",
