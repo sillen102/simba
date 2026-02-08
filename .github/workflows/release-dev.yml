@@ -1,0 +1,30 @@
+name: Release Dev
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release-dev:
+    runs-on: ubuntu-latest
+    outputs:
+      simba_released: ${{ steps.release_dev.outputs.release_created || steps.release_main.outputs.release_created }}
+      simba_tag: ${{ steps.release_dev.outputs.tag_name || steps.release_main.outputs.tag_name }}
+      websocket_released: ${{ steps.release_dev.outputs['websocket--release_created'] || steps.release_main.outputs['websocket--release_created'] }}
+      websocket_tag: ${{ steps.release_dev.outputs['websocket--tag_name'] || steps.release_main.outputs['websocket--tag_name'] }}
+      telemetry_released: ${{ steps.release_dev.outputs['telemetry--release_created'] || steps.release_main.outputs['telemetry--release_created'] }}
+      telemetry_tag: ${{ steps.release_dev.outputs['telemetry--tag_name'] || steps.release_main.outputs['telemetry--tag_name'] }}
+    steps:
+      - name: Run Release Dev
+        id: release_dev
+        uses: googleapis/release-please-action@v4
+        with:
+          target-branch: dev
+          config-file: release-please-config.dev.json
+          manifest-file: .release-please-manifest.dev.json
