@@ -11,7 +11,8 @@ import (
 func TestNewContextCopier(t *testing.T) {
 	t.Parallel()
 
-	src := context.WithValue(context.Background(), "key", "value")
+	type testKey string
+	src := context.WithValue(context.Background(), testKey("key"), "value")
 	copier := simbaContext.NewContextCopier(src)
 
 	if copier == nil {
