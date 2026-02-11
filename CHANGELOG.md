@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.30.2-dev](https://github.com/sillen102/simba/compare/simba/v0.30.1-dev...simba/v0.30.2-dev) (2026-02-11)
+
+
+### Bug Fixes
+
+* add function to copy context ([acbfe4f](https://github.com/sillen102/simba/commit/acbfe4f0ca11026bd69f39bafe1740470b17df5c))
+* add function to copy context ([c718463](https://github.com/sillen102/simba/commit/c718463aa9068356dfde1f42dacd7d57be25c2b3))
+* add functions to work with contexts ([36b64cc](https://github.com/sillen102/simba/commit/36b64cc74f088e97126da151bb292b78e800d54b))
+* add possibility to set timeout on copied context ([5c27e03](https://github.com/sillen102/simba/commit/5c27e039e0263f1b3a85f4b9f913b3ef92283d91))
+* linting error ([445a150](https://github.com/sillen102/simba/commit/445a150b371cb58558d35110ed5912032344a595))
+
 ## [0.30.1-dev](https://github.com/sillen102/simba/compare/simba/v0.30.0-dev...simba/v0.30.1-dev) (2026-02-08)
 
 
