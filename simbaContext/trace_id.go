@@ -43,9 +43,3 @@ func WithTraceIDLogger(ctx context.Context) context.Context {
 	)
 	return context.WithValue(ctx, LoggerKey, logger)
 }
-
-// WithTraceIDAndLogger returns a context with a trace ID (existing or new) and a logger that includes the trace ID.
-func WithTraceIDAndLogger(ctx context.Context) context.Context {
-	ctx = WithExistingOrNewTraceID(ctx)
-	return WithTraceIDLogger(ctx)
-}
