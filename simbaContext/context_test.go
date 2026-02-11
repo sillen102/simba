@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/sillen102/simba/simbaContext"
 )
@@ -43,6 +44,37 @@ func TestContextCopier_WithLogger(t *testing.T) {
 	if got, ok := dst.Value(simbaContext.LoggerKey).(*slog.Logger); !ok || got != logger {
 		t.Errorf("logger was not copied correctly")
 	}
+}
+
+func TestContextCopier_WithTimeout(t *testing.T) {
+	t.Parallel()
+
+	t.Run("context cancels after timeout", func(t *testing.T) {
+		src := context.Background()
+		ctx := simbaContext.NewContextCopier(src).
+			WithTimeout(50 * time.Millisecond).
+			Build()
+
+		// Context should not be cancelled immediately
+		select {
+		case <-ctx.Done():
+			t.Error("context cancelled immediately")
+		default:
+		}
+
+		// Wait for timeout to expire
+		time.Sleep(100 * time.Millisecond)
+
+		// Context should now be cancelled
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != context.DeadlineExceeded {
+				t.Errorf("expected context.DeadlineExceeded, got %v", err)
+			}
+		default:
+			t.Error("context not cancelled after timeout")
+		}
+	})
 }
 
 func TestCopyDefault(t *testing.T) {
