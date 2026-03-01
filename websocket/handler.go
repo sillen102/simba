@@ -18,18 +18,58 @@ type authModelContextKey struct{}
 // additional node configuration before the node starts accepting connections.
 type SetupFunc func(node *centrifuge.Node) error
 
+// AuthenticatedConnectingHandler is a Centrifuge connecting handler that also
+// receives the authenticated Simba auth model.
+type AuthenticatedConnectingHandler[AuthModel any] func(
+	ctx context.Context,
+	event centrifuge.ConnectEvent,
+	authModel *AuthModel,
+) (centrifuge.ConnectReply, error)
+
+// OnConnecting is a typed identity helper to make config literals read naturally.
+func OnConnecting[H any](handler H) H {
+	return handler
+}
+
+// OnConnect is a typed identity helper to make config literals read naturally.
+func OnConnect(handler centrifuge.ConnectHandler) centrifuge.ConnectHandler {
+	return handler
+}
+
 // Config configures the embedded Centrifuge node and websocket handler.
 type Config struct {
-	Node      centrifuge.Config
-	Websocket centrifuge.WebsocketConfig
-	Setup     SetupFunc
+	Node         centrifuge.Config
+	Websocket    centrifuge.WebsocketConfig
+	OnConnecting centrifuge.ConnectingHandler
+	OnConnect    centrifuge.ConnectHandler
+	Setup        SetupFunc
+}
+
+// Handler creates a websocket handler and panics if the configuration is invalid.
+func (config Config) Handler() *Handler {
+	handler, err := New(config)
+	if err != nil {
+		panic(err)
+	}
+	return handler
 }
 
 // AuthenticatedConfig configures an authenticated websocket handler.
-// Auth must be a Simba auth handler (for example simba.BearerAuth(...)).
 type AuthenticatedConfig[AuthModel any] struct {
-	Config
-	Auth any
+	Node         centrifuge.Config
+	Websocket    centrifuge.WebsocketConfig
+	OnConnecting AuthenticatedConnectingHandler[AuthModel]
+	OnConnect    centrifuge.ConnectHandler
+	Setup        SetupFunc
+}
+
+// Handler creates an authenticated websocket handler and panics if the configuration is invalid.
+func (config AuthenticatedConfig[AuthModel]) Handler() *AuthenticatedHandler[AuthModel] {
+	handler, err := NewAuthenticatedHandler(config)
+	if err != nil {
+		panic(err)
+	}
+	return handler
 }
 
 // Handler wraps a Centrifuge node together with its websocket HTTP handler.
@@ -42,38 +82,85 @@ type Handler struct {
 	authHandler any
 }
 
+// AuthenticatedHandler is a websocket handler that carries the auth model type
+// so AuthHandler can infer it without an explicit type argument.
+type AuthenticatedHandler[AuthModel any] struct {
+	*Handler
+}
+
+// AuthenticatedHandlerBuilder allows route registration to accept a constructor
+// function and keep websocket setup inline, similar to Simba's other auth helpers.
+type AuthenticatedHandlerBuilder[AuthModel any] func() *AuthenticatedHandler[AuthModel]
+
 // New creates, configures, and starts a Centrifuge node backed by the
 // in-memory broker/presence implementations, then exposes the websocket HTTP handler.
 func New(config Config) (*Handler, error) {
 	return newHandler(config, nil, nil, nil)
 }
 
-// NewAuthenticated creates a websocket handler that authenticates the HTTP handshake
-// using a Simba auth handler before the connection is upgraded.
-func NewAuthenticated[AuthModel any](config AuthenticatedConfig[AuthModel]) (*Handler, error) {
-	if config.Auth == nil {
-		return nil, errors.New("auth handler is required")
+// NewAuthenticatedHandler creates a websocket handler whose OnConnecting callback
+// expects an authenticated Simba auth model to be available in context.
+// Apply handshake authentication by wrapping the handler with NewAuthenticated(...)
+// before mounting it in a Simba route.
+func NewAuthenticatedHandler[AuthModel any](config AuthenticatedConfig[AuthModel]) (*AuthenticatedHandler[AuthModel], error) {
+	var authModel AuthModel
+
+	baseConfig := Config{
+		Node:      config.Node,
+		Websocket: config.Websocket,
+		OnConnect: config.OnConnect,
+		Setup:     config.Setup,
 	}
 
-	authFn, err := getAuthHandlerFunc[AuthModel](config.Auth)
+	if config.OnConnecting != nil {
+		baseConfig.OnConnecting = func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+			model, ok := AuthModelFromContext[AuthModel](ctx)
+			if !ok {
+				return centrifuge.ConnectReply{}, centrifuge.ErrorUnauthorized
+			}
+			return config.OnConnecting(ctx, event, &model)
+		}
+	}
+
+	handler, err := newHandler(baseConfig, authModel, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	return &AuthenticatedHandler[AuthModel]{Handler: handler}, nil
+}
+
+// NewAuthenticated wraps a websocket handler with a Simba auth handler so that
+// the HTTP upgrade request is authenticated before the WebSocket handshake.
+func NewAuthenticated[AuthModel any](handler *AuthenticatedHandler[AuthModel], auth any) *Handler {
 	var authModel AuthModel
+	authFn, ok := getAuthHandlerFunc[AuthModel](auth)
 
-	return newHandler(config.Config, authModel, config.Auth, func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			model, err := authFn(r)
-			if err != nil {
-				writeAuthError(w, r, err)
-				return
-			}
+	wrapped := *handler.Handler
+	wrapped.handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !ok {
+			http.Error(w, "invalid websocket auth handler", http.StatusInternalServerError)
+			return
+		}
 
-			ctx := context.WithValue(r.Context(), authModelContextKey{}, model)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+		model, err := authFn(r)
+		if err != nil {
+			writeAuthError(w, r, err)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), authModelContextKey{}, model)
+		handler.Handler.handler.ServeHTTP(w, r.WithContext(ctx))
 	})
+	wrapped.authModel = authModel
+	wrapped.authHandler = auth
+
+	return &wrapped
+}
+
+// AuthHandler wraps an authenticated websocket handler factory with handshake auth.
+func AuthHandler[AuthModel any](handler AuthenticatedHandlerBuilder[AuthModel], auth any) *Handler {
+	return NewAuthenticated(handler(), auth)
 }
 
 func newHandler(
@@ -85,6 +172,13 @@ func newHandler(
 	node, err := centrifuge.New(config.Node)
 	if err != nil {
 		return nil, fmt.Errorf("create centrifuge node: %w", err)
+	}
+
+	if config.OnConnecting != nil {
+		node.OnConnecting(config.OnConnecting)
+	}
+	if config.OnConnect != nil {
+		node.OnConnect(config.OnConnect)
 	}
 
 	if config.Setup != nil {
@@ -114,6 +208,14 @@ func newHandler(
 // inspect presence, or attach additional handlers.
 func (h *Handler) Node() *centrifuge.Node {
 	return h.node
+}
+
+// Publish sends data into a Centrifuge channel using the underlying node.
+func (h *Handler) Publish(channel string, data []byte, opts ...centrifuge.PublishOption) (centrifuge.PublishResult, error) {
+	if h == nil || h.node == nil {
+		return centrifuge.PublishResult{}, errors.New("websocket handler is not initialized")
+	}
+	return h.node.Publish(channel, data, opts...)
 }
 
 // HTTPHandler returns the underlying HTTP handler used for websocket handshakes.
@@ -186,19 +288,15 @@ func AuthModelFromContext[AuthModel any](ctx context.Context) (AuthModel, bool) 
 	return authModel, ok
 }
 
-func getAuthHandlerFunc[AuthModel any](authHandler any) (func(*http.Request) (AuthModel, error), error) {
+func getAuthHandlerFunc[AuthModel any](authHandler any) (func(*http.Request) (AuthModel, error), bool) {
 	method := reflect.ValueOf(authHandler).MethodByName("GetHandler")
-	if !method.IsValid() {
-		return nil, errors.New("auth handler must expose GetHandler()")
-	}
-
-	if method.Type().NumIn() != 0 || method.Type().NumOut() != 1 {
-		return nil, errors.New("auth handler GetHandler() has an unsupported signature")
+	if !method.IsValid() || method.Type().NumIn() != 0 || method.Type().NumOut() != 1 {
+		return nil, false
 	}
 
 	handlerFunc := method.Call(nil)[0]
 	if handlerFunc.Kind() != reflect.Func {
-		return nil, errors.New("auth handler GetHandler() must return a function")
+		return nil, false
 	}
 
 	authModelType := reflect.TypeFor[AuthModel]()
@@ -227,7 +325,7 @@ func getAuthHandlerFunc[AuthModel any](authHandler any) (func(*http.Request) (Au
 		}
 
 		return model, nil
-	}, nil
+	}, true
 }
 
 func writeAuthError(w http.ResponseWriter, r *http.Request, err error) {

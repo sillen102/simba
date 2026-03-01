@@ -31,25 +31,20 @@ func TestCentrifugalHandlerMountedInSimbaRouter_AllowsRPCOverWebsocket(t *testin
 				return true
 			},
 		},
-		Setup: func(node *centrifuge.Node) error {
-			node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-				return centrifuge.ConnectReply{
-					Credentials: &centrifuge.Credentials{
-						UserID: "integration-test-user",
-					},
-				}, nil
+		OnConnecting: ws.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+			return centrifuge.ConnectReply{
+				Credentials: &centrifuge.Credentials{
+					UserID: "integration-test-user",
+				},
+			}, nil
+		}),
+		OnConnect: ws.OnConnect(func(client *centrifuge.Client) {
+			client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
+				callback(centrifuge.RPCReply{
+					Data: []byte(`{"echo":` + string(event.Data) + `}`),
+				}, nil)
 			})
-
-			node.OnConnect(func(client *centrifuge.Client) {
-				client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
-					callback(centrifuge.RPCReply{
-						Data: []byte(`{"echo":` + string(event.Data) + `}`),
-					}, nil)
-				})
-			})
-
-			return nil
-		},
+		}),
 	})
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
@@ -126,49 +121,46 @@ func TestAuthenticatedCentrifugalHandler_UsesSimbaAuthHandler(t *testing.T) {
 		Description: "Bearer token authentication",
 	})
 
-	handler, err := ws.NewAuthenticated(ws.AuthenticatedConfig[integrationAuthUser]{
-		Config: ws.Config{
-			Websocket: centrifuge.WebsocketConfig{
-				CheckOrigin: func(r *http.Request) bool {
-					return true
-				},
-			},
-			Setup: func(node *centrifuge.Node) error {
-				node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-					authUser, ok := ws.AuthModelFromContext[integrationAuthUser](ctx)
-					if !ok {
-						t.Fatal("expected auth user in connect context")
-					}
-					return centrifuge.ConnectReply{
-						Credentials: &centrifuge.Credentials{UserID: authUser.ID},
-					}, nil
-				})
-
-				node.OnConnect(func(client *centrifuge.Client) {
-					client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
-						authUser, ok := ws.AuthModelFromContext[integrationAuthUser](client.Context())
-						if !ok {
-							callback(centrifuge.RPCReply{}, errors.New("missing auth user"))
-							return
-						}
-						payload, err := json.Marshal(map[string]string{
-							"userId": authUser.ID,
-						})
-						if err != nil {
-							callback(centrifuge.RPCReply{}, err)
-							return
-						}
-						callback(centrifuge.RPCReply{Data: payload}, nil)
-					})
-				})
-				return nil
+	handler, err := ws.NewAuthenticatedHandler(ws.AuthenticatedConfig[integrationAuthUser]{
+		Websocket: centrifuge.WebsocketConfig{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
 			},
 		},
-		Auth: bearerAuth,
+		OnConnecting: ws.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent, authUser *integrationAuthUser) (centrifuge.ConnectReply, error) {
+			if authUser == nil {
+				t.Fatal("expected auth user in connect context")
+			}
+			return centrifuge.ConnectReply{
+				Credentials: &centrifuge.Credentials{UserID: authUser.ID},
+				Subscriptions: map[string]centrifuge.SubscribeOptions{
+					"user:" + authUser.ID: {},
+				},
+			}, nil
+		}),
+		OnConnect: ws.OnConnect(func(client *centrifuge.Client) {
+			client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
+				authUser, ok := ws.AuthModelFromContext[integrationAuthUser](client.Context())
+				if !ok {
+					callback(centrifuge.RPCReply{}, errors.New("missing auth user"))
+					return
+				}
+				payload, err := json.Marshal(map[string]string{
+					"userId": authUser.ID,
+				})
+				if err != nil {
+					callback(centrifuge.RPCReply{}, err)
+					return
+				}
+				callback(centrifuge.RPCReply{Data: payload}, nil)
+			})
+		}),
 	})
 	if err != nil {
 		t.Fatalf("create authenticated handler: %v", err)
 	}
+
+	routeHandler := ws.NewAuthenticated(handler, bearerAuth)
 	t.Cleanup(func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -178,7 +170,7 @@ func TestAuthenticatedCentrifugalHandler_UsesSimbaAuthHandler(t *testing.T) {
 	})
 
 	app := simba.New()
-	app.Router.GET("/ws-auth", handler)
+	app.Router.GET("/ws-auth", routeHandler)
 
 	server := httptest.NewServer(app.Router)
 	defer server.Close()
@@ -228,6 +220,22 @@ func TestAuthenticatedCentrifugalHandler_UsesSimbaAuthHandler(t *testing.T) {
 	if string(rpcReply.Rpc.Data) != `{"userId":"user-123"}` {
 		t.Fatalf("unexpected rpc payload: %s", string(rpcReply.Rpc.Data))
 	}
+
+	_, err = handler.Publish("user:user-123", []byte(`{"type":"notification"}`))
+	if err != nil {
+		t.Fatalf("publish to user channel: %v", err)
+	}
+
+	pushReply := readReply(t, ctx, conn)
+	if pushReply.Push == nil || pushReply.Push.Pub == nil {
+		t.Fatalf("expected publication push, got %#v", pushReply)
+	}
+	if pushReply.Push.Channel != "user:user-123" {
+		t.Fatalf("unexpected push channel: %s", pushReply.Push.Channel)
+	}
+	if string(pushReply.Push.Pub.Data) != `{"type":"notification"}` {
+		t.Fatalf("unexpected push payload: %s", string(pushReply.Push.Pub.Data))
+	}
 }
 
 func sendCommandAndReadReply(t *testing.T, ctx context.Context, conn *cws.Conn, cmd *protocol.Command) protocol.Reply {
@@ -241,6 +249,12 @@ func sendCommandAndReadReply(t *testing.T, ctx context.Context, conn *cws.Conn, 
 	if err = conn.Write(ctx, cws.MessageText, payload); err != nil {
 		t.Fatalf("write command: %v", err)
 	}
+
+	return readReply(t, ctx, conn)
+}
+
+func readReply(t *testing.T, ctx context.Context, conn *cws.Conn) protocol.Reply {
+	t.Helper()
 
 	typ, replyPayload, err := conn.Read(ctx)
 	if err != nil {

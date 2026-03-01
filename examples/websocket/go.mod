@@ -8,7 +8,7 @@ replace github.com/sillen102/simba/websocket => ../../websocket
 
 require (
 	github.com/centrifugal/centrifuge v0.38.0
-	github.com/sillen102/simba v0.30.0-dev15
+	github.com/sillen102/simba v0.0.0-00010101000000-000000000000
 	github.com/sillen102/simba/websocket v0.0.0-00010101000000-000000000000
 )
 
