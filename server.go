@@ -65,15 +65,29 @@ func (a *Application) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Shutdown telemetry provider first to ensure all spans and metrics are exported
+	var shutdownErrs []error
+
+	// First stop accepting new HTTP requests.
+	if err := a.Server.Shutdown(ctx); err != nil {
+		shutdownErrs = append(shutdownErrs, err)
+	}
+
+	// Then run registered cleanup hooks for optional modules such as websockets.
+	for _, hook := range a.shutdownHooks {
+		if err := hook(ctx); err != nil {
+			shutdownErrs = append(shutdownErrs, err)
+		}
+	}
+
+	// Shutdown telemetry last so hook activity can still emit spans and metrics.
 	if a.telemetryProvider != nil {
 		if err := a.telemetryProvider.Shutdown(ctx); err != nil {
 			a.Settings.Logger.Error("Failed to shutdown telemetry provider", "error", err)
+			shutdownErrs = append(shutdownErrs, err)
 		} else {
 			a.Settings.Logger.Debug("Telemetry provider shutdown successfully")
 		}
 	}
 
-	// Then shutdown the HTTP server
-	return a.Server.Shutdown(ctx)
+	return errors.Join(shutdownErrs...)
 }

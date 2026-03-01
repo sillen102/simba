@@ -66,6 +66,51 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handler.ServeHTTP(w, r)
 }
 
+// GetRequestBody returns nil because WebSocket upgrade routes do not use Simba request decoding.
+func (h *Handler) GetRequestBody() any {
+	return nil
+}
+
+// GetParams returns nil because WebSocket upgrade routes currently do not expose typed Simba params.
+func (h *Handler) GetParams() any {
+	return nil
+}
+
+// GetResponseBody returns nil because WebSocket routes do not produce a typed HTTP response body.
+func (h *Handler) GetResponseBody() any {
+	return nil
+}
+
+// GetAccepts returns an empty content type because WebSocket upgrade routes are not regular REST handlers.
+func (h *Handler) GetAccepts() string {
+	return ""
+}
+
+// GetProduces returns an empty content type because WebSocket upgrade routes are not regular REST handlers.
+func (h *Handler) GetProduces() string {
+	return ""
+}
+
+// GetHandler returns the underlying HTTP handler.
+func (h *Handler) GetHandler() any {
+	return h.handler
+}
+
+// GetAuthModel returns nil because auth is handled inside Centrifuge callbacks.
+func (h *Handler) GetAuthModel() any {
+	return nil
+}
+
+// GetAuthHandler returns nil because auth is handled inside Centrifuge callbacks.
+func (h *Handler) GetAuthHandler() any {
+	return nil
+}
+
+// ShouldDocument disables OpenAPI generation for WebSocket upgrade routes.
+func (h *Handler) ShouldDocument() bool {
+	return false
+}
+
 // Shutdown gracefully stops the underlying Centrifuge node.
 func (h *Handler) Shutdown(ctx context.Context) error {
 	if h == nil || h.node == nil {
