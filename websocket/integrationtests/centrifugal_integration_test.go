@@ -58,7 +58,7 @@ func TestCentrifugalHandlerMountedInSimbaRouter_AllowsRPCOverWebsocket(t *testin
 	})
 
 	app := simba.New()
-	app.Router.HandleHTTP(http.MethodGet, "/ws", handler)
+	app.Router.GET("/ws", handler)
 
 	server := httptest.NewServer(app.Router)
 	defer server.Close()
