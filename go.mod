@@ -1,6 +1,6 @@
 module github.com/sillen102/simba
 
-go 1.25.6
+go 1.26
 
 require (
 	github.com/go-playground/validator/v10 v10.30.1
