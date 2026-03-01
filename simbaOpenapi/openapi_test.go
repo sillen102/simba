@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba/mimetypes"
-	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaOpenapi"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/sillen102/simba/simbaTest"
@@ -749,8 +749,8 @@ func TestValidateRequiredField(t *testing.T) {
 		Name string `json:"name" validate:"required"`
 	}
 
-	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-		return &simbaModels.Response[simbaModels.NoBody]{}, nil
+	handler := func(ctx context.Context, req *models.Request[reqBody, models.NoParams]) (*models.Response[models.NoBody], error) {
+		return &models.Response[models.NoBody]{}, nil
 	}
 
 	generator := simbaOpenapi.NewOpenAPIGenerator()
@@ -762,8 +762,8 @@ func TestValidateRequiredField(t *testing.T) {
 			Produces: mimetypes.ApplicationJSON,
 			Handler:  handler,
 			ReqBody:  reqBody{},
-			RespBody: simbaModels.NoParams{},
-			Params:   simbaModels.NoBody{},
+			RespBody: models.NoParams{},
+			Params:   models.NoBody{},
 		},
 	}
 
@@ -783,8 +783,8 @@ func TestValidateMinField(t *testing.T) {
 		Items  []string `json:"items" validate:"min=5"`
 	}
 
-	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-		return &simbaModels.Response[simbaModels.NoBody]{}, nil
+	handler := func(ctx context.Context, req *models.Request[reqBody, models.NoParams]) (*models.Response[models.NoBody], error) {
+		return &models.Response[models.NoBody]{}, nil
 	}
 
 	generator := simbaOpenapi.NewOpenAPIGenerator()
@@ -796,8 +796,8 @@ func TestValidateMinField(t *testing.T) {
 			Produces: mimetypes.ApplicationJSON,
 			Handler:  handler,
 			ReqBody:  reqBody{},
-			RespBody: simbaModels.NoParams{},
-			Params:   simbaModels.NoBody{},
+			RespBody: models.NoParams{},
+			Params:   models.NoBody{},
 		},
 	}
 
@@ -839,8 +839,8 @@ func TestValidateMaxField(t *testing.T) {
 		Items  []string `json:"items" validate:"max=5"`
 	}
 
-	handler := func(ctx context.Context, req *simbaModels.Request[reqBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-		return &simbaModels.Response[simbaModels.NoBody]{}, nil
+	handler := func(ctx context.Context, req *models.Request[reqBody, models.NoParams]) (*models.Response[models.NoBody], error) {
+		return &models.Response[models.NoBody]{}, nil
 	}
 
 	generator := simbaOpenapi.NewOpenAPIGenerator()
@@ -852,8 +852,8 @@ func TestValidateMaxField(t *testing.T) {
 			Produces: mimetypes.ApplicationJSON,
 			Handler:  handler,
 			ReqBody:  reqBody{},
-			RespBody: simbaModels.NoParams{},
-			Params:   simbaModels.NoBody{},
+			RespBody: models.NoParams{},
+			Params:   models.NoBody{},
 		},
 	}
 

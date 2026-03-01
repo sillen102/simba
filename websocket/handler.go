@@ -2,366 +2,465 @@ package websocket
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
-	"reflect"
-	"time"
 
-	"github.com/centrifugal/centrifuge"
+	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/auth"
+	"github.com/sillen102/simba/models"
+	"github.com/sillen102/simba/simbaContext"
+	"github.com/sillen102/simba/simbaErrors"
+
+	"github.com/coder/websocket"
+	"github.com/google/uuid"
 )
 
-type authModelContextKey struct{}
+// Middleware wraps a context to enrich it before callback invocations.
+// Middleware runs before each callback (OnConnect, OnMessage, OnDisconnect, OnError).
+type Middleware func(ctx context.Context) context.Context
 
-// SetupFunc allows callers to attach Centrifuge callbacks and
-// additional node configuration before the node starts accepting connections.
-type SetupFunc func(node *centrifuge.Node) error
+// HandlerOption is an option for configuring WebSocket handlers.
+type HandlerOption interface {
+	apply(handler any)
+}
 
-// AuthenticatedConnectingHandler is a Centrifuge connecting handler that also
-// receives the authenticated Simba auth model.
-type AuthenticatedConnectingHandler[AuthModel any] func(
-	ctx context.Context,
-	event centrifuge.ConnectEvent,
-	authModel *AuthModel,
-) (centrifuge.ConnectReply, error)
+// middlewareOption implements HandlerOption for middleware.
+type middlewareOption struct {
+	middleware []Middleware
+}
 
-// OnConnecting is a typed identity helper to make config literals read naturally.
-func OnConnecting[H any](handler H) H {
+func (m middlewareOption) apply(handler any) {
+	if v, ok := handler.(interface{ setMiddleware([]Middleware) }); ok {
+		v.setMiddleware(m.middleware)
+	}
+}
+
+// WithMiddleware adds middleware to the WebSocket handler.
+// Middleware runs before each callback invocation, allowing you to enrich the context.
+func WithMiddleware(middleware ...Middleware) HandlerOption {
+	return middlewareOption{middleware: middleware}
+}
+
+// CallbackHandlerFunc handles WebSocket connections with callbacks.
+type CallbackHandlerFunc[Params any] struct {
+	callbacks  Callbacks[Params]
+	middleware []Middleware
+}
+
+func (h *CallbackHandlerFunc[Params]) setMiddleware(middleware []Middleware) {
+	h.middleware = middleware
+}
+
+// Handler creates a handler that uses callbacks for WebSocket lifecycle events.
+//
+// Example usage:
+//
+//	app.Router.GET("/ws/echo", simba.WebSocketHandler(
+//		echoCallbacks,
+//		simba.WithMiddleware(
+//			wsMiddleware.TraceID(),
+//			wsMiddleware.Logger(),
+//		),
+//	))
+//
+// Where echoCallbacks is a function:
+//
+//	func echoCallbacks() simba.Callbacks[models.NoParams] {
+//		return simba.Callbacks[models.NoParams]{
+//			OnMessage: func(ctx context.Context, conn *simba.Connection, data []byte) error {
+//				return conn.WriteText("Echo: " + string(data))
+//			},
+//		}
+//	}
+func Handler[Params any](callbacksFunc func() Callbacks[Params], options ...HandlerOption) simba.Handler {
+	callbacks := callbacksFunc()
+	if callbacks.OnMessage == nil {
+		panic("OnMessage callback is required")
+	}
+
+	handler := &CallbackHandlerFunc[Params]{
+		callbacks: callbacks,
+	}
+
+	// Apply options
+	for _, opt := range options {
+		opt.apply(handler)
+	}
+
 	return handler
 }
 
-// OnConnect is a typed identity helper to make config literals read naturally.
-func OnConnect(handler centrifuge.ConnectHandler) centrifuge.ConnectHandler {
-	return handler
-}
+// ServeHTTP implements the http.Handler interface.
+func (h *CallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
-// Config configures the embedded Centrifuge node and websocket handler.
-type Config struct {
-	Node         centrifuge.Config
-	Websocket    centrifuge.WebsocketConfig
-	OnConnecting centrifuge.ConnectingHandler
-	OnConnect    centrifuge.ConnectHandler
-	Setup        SetupFunc
-}
-
-// Handler creates a websocket handler and panics if the configuration is invalid.
-func (config Config) Handler() *Handler {
-	handler, err := New(config)
+	// Parse and validate params before upgrading connection
+	params, err := simba.ParseAndValidateParams[Params](r)
 	if err != nil {
-		panic(err)
+		simbaErrors.WriteError(w, r, err)
+		return
 	}
-	return handler
-}
 
-// AuthenticatedConfig configures an authenticated websocket handler.
-type AuthenticatedConfig[AuthModel any] struct {
-	Node         centrifuge.Config
-	Websocket    centrifuge.WebsocketConfig
-	OnConnecting AuthenticatedConnectingHandler[AuthModel]
-	OnConnect    centrifuge.ConnectHandler
-	Setup        SetupFunc
-}
-
-// Handler creates an authenticated websocket handler and panics if the configuration is invalid.
-func (config AuthenticatedConfig[AuthModel]) Handler() *AuthenticatedHandler[AuthModel] {
-	handler, err := NewAuthenticatedHandler(config)
+	// Upgrade the HTTP connection to WebSocket
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: true, // Match gobwas behavior (no origin check)
+	})
 	if err != nil {
-		panic(err)
-	}
-	return handler
-}
-
-// Handler wraps a Centrifuge node together with its websocket HTTP handler.
-// It implements http.Handler so it can be mounted directly in Simba via Router.HandleHTTP.
-type Handler struct {
-	node    *centrifuge.Node
-	handler http.Handler
-
-	authModel   any
-	authHandler any
-}
-
-// AuthenticatedHandler is a websocket handler that carries the auth model type
-// so AuthHandler can infer it without an explicit type argument.
-type AuthenticatedHandler[AuthModel any] struct {
-	*Handler
-}
-
-// AuthenticatedHandlerBuilder allows route registration to accept a constructor
-// function and keep websocket setup inline, similar to Simba's other auth helpers.
-type AuthenticatedHandlerBuilder[AuthModel any] func() *AuthenticatedHandler[AuthModel]
-
-// New creates, configures, and starts a Centrifuge node backed by the
-// in-memory broker/presence implementations, then exposes the websocket HTTP handler.
-func New(config Config) (*Handler, error) {
-	return newHandler(config, nil, nil, nil)
-}
-
-// NewAuthenticatedHandler creates a websocket handler whose OnConnecting callback
-// expects an authenticated Simba auth model to be available in context.
-// Apply handshake authentication by wrapping the handler with NewAuthenticated(...)
-// before mounting it in a Simba route.
-func NewAuthenticatedHandler[AuthModel any](config AuthenticatedConfig[AuthModel]) (*AuthenticatedHandler[AuthModel], error) {
-	var authModel AuthModel
-
-	baseConfig := Config{
-		Node:      config.Node,
-		Websocket: config.Websocket,
-		OnConnect: config.OnConnect,
-		Setup:     config.Setup,
+		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(
+			http.StatusBadRequest,
+			"failed to upgrade connection",
+			err,
+		))
+		return
 	}
 
-	if config.OnConnecting != nil {
-		baseConfig.OnConnecting = func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-			model, ok := AuthModelFromContext[AuthModel](ctx)
-			if !ok {
-				return centrifuge.ConnectReply{}, centrifuge.ErrorUnauthorized
-			}
-			return config.OnConnecting(ctx, event, &model)
+	// Ensure the connection is closed on all paths. handleConnection also
+	// closes the connection as part of its cleanup, but adding a
+	// defensive close here satisfies static analyzers and protects
+	// against unexpected control-flow (panics) between upgrade and
+	// the handler returning.
+	defer func() { _ = conn.CloseNow() }()
+
+	// Handle the connection synchronously - the HTTP server runs each
+	// request in its own goroutine, so blocking here is correct
+	h.handleConnection(ctx, conn, params)
+}
+
+// handleConnection manages the lifecycle of a WebSocket connection.
+func (h *CallbackHandlerFunc[Params]) handleConnection(ctx context.Context, conn *websocket.Conn, params Params) {
+	// Create a connection wrapper with unique ID
+	wsConn := &Connection{
+		ID:   uuid.New().String(),
+		conn: conn,
+	}
+
+	// Add connectionID to context (persistent for entire connection)
+	ctx = context.WithValue(ctx, simbaContext.ConnectionIDKey, wsConn.ID)
+
+	// Always cleanup
+	var handlerErr error
+	defer func() {
+		_ = conn.CloseNow()
+		if h.callbacks.OnDisconnect != nil {
+			// Use background context for cleanup as connection context may be cancelled
+			// Apply middleware for OnDisconnect
+			disconnectCtx := h.applyMiddleware(context.Background())
+			disconnectCtx = context.WithValue(disconnectCtx, simbaContext.ConnectionIDKey, wsConn.ID)
+			h.callbacks.OnDisconnect(disconnectCtx, wsConn.ID, params, handlerErr)
 		}
-	}
+	}()
 
-	handler, err := newHandler(baseConfig, authModel, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return &AuthenticatedHandler[AuthModel]{Handler: handler}, nil
-}
-
-// NewAuthenticated wraps a websocket handler with a Simba auth handler so that
-// the HTTP upgrade request is authenticated before the WebSocket handshake.
-func NewAuthenticated[AuthModel any](handler *AuthenticatedHandler[AuthModel], auth any) *Handler {
-	var authModel AuthModel
-	authFn, ok := getAuthHandlerFunc[AuthModel](auth)
-
-	wrapped := *handler.Handler
-	wrapped.handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !ok {
-			http.Error(w, "invalid websocket auth handler", http.StatusInternalServerError)
+	// Call OnConnect with middleware
+	if h.callbacks.OnConnect != nil {
+		connectCtx := h.applyMiddleware(ctx)
+		if err := h.callbacks.OnConnect(connectCtx, wsConn, params); err != nil {
+			handlerErr = err
 			return
 		}
+	}
 
-		model, err := authFn(r)
+	// Message loop
+	for {
+		// Context cancellation is handled automatically by conn.Read
+		_, msg, err := conn.Read(ctx)
 		if err != nil {
-			writeAuthError(w, r, err)
+			// Check for clean close
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				return
+			}
+			// Check for context cancellation
+			if ctx.Err() != nil {
+				handlerErr = ctx.Err()
+				return
+			}
+			// Other errors
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
+				}
+			}
+			handlerErr = err
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), authModelContextKey{}, model)
-		handler.Handler.handler.ServeHTTP(w, r.WithContext(ctx))
-	})
-	wrapped.authModel = authModel
-	wrapped.authHandler = auth
-
-	return &wrapped
-}
-
-// AuthHandler wraps an authenticated websocket handler factory with handshake auth.
-func AuthHandler[AuthModel any](handler AuthenticatedHandlerBuilder[AuthModel], auth any) *Handler {
-	return NewAuthenticated(handler(), auth)
-}
-
-func newHandler(
-	config Config,
-	authModel any,
-	authHandler any,
-	wrapper func(http.Handler) http.Handler,
-) (*Handler, error) {
-	node, err := centrifuge.New(config.Node)
-	if err != nil {
-		return nil, fmt.Errorf("create centrifuge node: %w", err)
-	}
-
-	if config.OnConnecting != nil {
-		node.OnConnecting(config.OnConnecting)
-	}
-	if config.OnConnect != nil {
-		node.OnConnect(config.OnConnect)
-	}
-
-	if config.Setup != nil {
-		if err = config.Setup(node); err != nil {
-			return nil, fmt.Errorf("setup centrifuge node: %w", err)
-		}
-	}
-
-	if err = node.Run(); err != nil {
-		return nil, fmt.Errorf("run centrifuge node: %w", err)
-	}
-
-	httpHandler := http.Handler(centrifuge.NewWebsocketHandler(node, config.Websocket))
-	if wrapper != nil {
-		httpHandler = wrapper(httpHandler)
-	}
-
-	return &Handler{
-		node:        node,
-		handler:     httpHandler,
-		authModel:   authModel,
-		authHandler: authHandler,
-	}, nil
-}
-
-// Node returns the underlying Centrifuge node so callers can publish,
-// inspect presence, or attach additional handlers.
-func (h *Handler) Node() *centrifuge.Node {
-	return h.node
-}
-
-// Publish sends data into a Centrifuge channel using the underlying node.
-func (h *Handler) Publish(channel string, data []byte, opts ...centrifuge.PublishOption) (centrifuge.PublishResult, error) {
-	if h == nil || h.node == nil {
-		return centrifuge.PublishResult{}, errors.New("websocket handler is not initialized")
-	}
-	return h.node.Publish(channel, data, opts...)
-}
-
-// HTTPHandler returns the underlying HTTP handler used for websocket handshakes.
-func (h *Handler) HTTPHandler() http.Handler {
-	return h.handler
-}
-
-// ServeHTTP proxies the request to the underlying Centrifuge websocket handler.
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.handler.ServeHTTP(w, r)
-}
-
-// GetRequestBody returns nil because WebSocket upgrade routes do not use Simba request decoding.
-func (h *Handler) GetRequestBody() any {
-	return nil
-}
-
-// GetParams returns nil because WebSocket upgrade routes currently do not expose typed Simba params.
-func (h *Handler) GetParams() any {
-	return nil
-}
-
-// GetResponseBody returns nil because WebSocket routes do not produce a typed HTTP response body.
-func (h *Handler) GetResponseBody() any {
-	return nil
-}
-
-// GetAccepts returns an empty content type because WebSocket upgrade routes are not regular REST handlers.
-func (h *Handler) GetAccepts() string {
-	return ""
-}
-
-// GetProduces returns an empty content type because WebSocket upgrade routes are not regular REST handlers.
-func (h *Handler) GetProduces() string {
-	return ""
-}
-
-// GetHandler returns the underlying HTTP handler.
-func (h *Handler) GetHandler() any {
-	return h.handler
-}
-
-// GetAuthModel returns nil because auth is handled inside Centrifuge callbacks.
-func (h *Handler) GetAuthModel() any {
-	return h.authModel
-}
-
-// GetAuthHandler returns the auth handler used for handshake authentication.
-func (h *Handler) GetAuthHandler() any {
-	return h.authHandler
-}
-
-// ShouldDocument disables OpenAPI generation for WebSocket upgrade routes.
-func (h *Handler) ShouldDocument() bool {
-	return false
-}
-
-// Shutdown gracefully stops the underlying Centrifuge node.
-func (h *Handler) Shutdown(ctx context.Context) error {
-	if h == nil || h.node == nil {
-		return nil
-	}
-	return h.node.Shutdown(ctx)
-}
-
-// AuthModelFromContext returns the authenticated Simba auth model stored on the
-// websocket connection context when using NewAuthenticated.
-func AuthModelFromContext[AuthModel any](ctx context.Context) (AuthModel, bool) {
-	authModel, ok := ctx.Value(authModelContextKey{}).(AuthModel)
-	return authModel, ok
-}
-
-func getAuthHandlerFunc[AuthModel any](authHandler any) (func(*http.Request) (AuthModel, error), bool) {
-	method := reflect.ValueOf(authHandler).MethodByName("GetHandler")
-	if !method.IsValid() || method.Type().NumIn() != 0 || method.Type().NumOut() != 1 {
-		return nil, false
-	}
-
-	handlerFunc := method.Call(nil)[0]
-	if handlerFunc.Kind() != reflect.Func {
-		return nil, false
-	}
-
-	authModelType := reflect.TypeFor[AuthModel]()
-
-	return func(r *http.Request) (AuthModel, error) {
-		var zero AuthModel
-
-		if handlerFunc.Type().NumIn() != 1 || handlerFunc.Type().NumOut() != 2 {
-			return zero, errors.New("auth handler function has an unsupported signature")
-		}
-
-		out := handlerFunc.Call([]reflect.Value{reflect.ValueOf(r)})
-
-		if !out[0].Type().AssignableTo(authModelType) {
-			return zero, fmt.Errorf("auth handler returned %s, expected %s", out[0].Type(), authModelType)
-		}
-
-		model := out[0].Interface().(AuthModel)
-
-		if !out[1].IsNil() {
-			err, ok := out[1].Interface().(error)
-			if !ok {
-				return zero, errors.New("auth handler returned a non-error value")
+		// Call OnMessage with middleware (fresh context per message)
+		messageCtx := h.applyMiddleware(ctx)
+		if err := h.callbacks.OnMessage(messageCtx, wsConn, msg); err != nil {
+			// Check if OnError wants to continue
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
+				}
 			}
-			return zero, err
+			handlerErr = err
+			return
 		}
-
-		return model, nil
-	}, true
+	}
 }
 
-func writeAuthError(w http.ResponseWriter, r *http.Request, err error) {
-	statusCode := http.StatusUnauthorized
-	message := http.StatusText(statusCode)
-	var details any
+// applyMiddleware applies the middleware chain to the context.
+func (h *CallbackHandlerFunc[Params]) applyMiddleware(ctx context.Context) context.Context {
+	for _, mw := range h.middleware {
+		ctx = mw(ctx)
+	}
+	return ctx
+}
 
-	type statusCodeProvider interface {
-		StatusCode() int
-	}
-	type publicMessageProvider interface {
-		PublicMessage() string
-	}
-	type detailProvider interface {
-		Details() any
+func (h *CallbackHandlerFunc[Params]) GetRequestBody() any {
+	return models.NoBody{}
+}
+
+func (h *CallbackHandlerFunc[Params]) GetResponseBody() any {
+	return models.NoBody{}
+}
+
+func (h *CallbackHandlerFunc[Params]) GetParams() any {
+	var p Params
+	return p
+}
+
+func (h *CallbackHandlerFunc[Params]) GetAccepts() string {
+	return ""
+}
+
+func (h *CallbackHandlerFunc[Params]) GetProduces() string {
+	return ""
+}
+
+func (h *CallbackHandlerFunc[Params]) GetHandler() any {
+	return h.callbacks
+}
+
+func (h *CallbackHandlerFunc[Params]) GetAuthModel() any {
+	return nil
+}
+
+func (h *CallbackHandlerFunc[Params]) GetAuthHandler() any {
+	return nil
+}
+
+// AuthCallbackHandlerFunc handles authenticated WebSocket connections with callbacks.
+type AuthCallbackHandlerFunc[Params, AuthModel any] struct {
+	callbacks   AuthCallbacks[Params, AuthModel]
+	authHandler auth.Handler[AuthModel]
+	middleware  []Middleware
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) setMiddleware(middleware []Middleware) {
+	h.middleware = middleware
+}
+
+// AuthHandler creates an authenticated handler that uses callbacks for WebSocket lifecycle events.
+//
+// Example usage:
+//
+//	bearerAuth := simba.BearerAuth(authFunc, simba.BearerAuthConfig{...})
+//
+//	app.Router.GET("/ws/chat", simba.AuthWebSocketHandler(
+//		simba.AuthCallbacks[Params, User]{
+//			OnConnect: func(ctx context.Context, conn *simba.Connection, params Params, user User) error {
+//				registry.Add(user.ID, conn)
+//				return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
+//			},
+//			OnMessage: func(ctx context.Context, conn *simba.Connection, msgType simba.MessageType, data []byte, user User) error {
+//				// Handle message with user context
+//				return nil
+//			},
+//			OnDisconnect: func(ctx context.Context, connID string, params Params, user User, err error) {
+//				registry.Remove(user.ID, connID)
+//			},
+//		},
+//		bearerAuth,
+//	))
+func AuthHandler[Params, AuthModel any](
+	callbacksFunc func() AuthCallbacks[Params, AuthModel],
+	authHandler auth.Handler[AuthModel],
+	options ...HandlerOption,
+) simba.Handler {
+	callbacks := callbacksFunc()
+	if callbacks.OnMessage == nil {
+		panic("OnMessage callback is required")
 	}
 
-	if provider, ok := err.(statusCodeProvider); ok {
-		statusCode = provider.StatusCode()
-	}
-	if provider, ok := err.(publicMessageProvider); ok {
-		message = provider.PublicMessage()
-	}
-	if provider, ok := err.(detailProvider); ok {
-		details = provider.Details()
+	handler := &AuthCallbackHandlerFunc[Params, AuthModel]{
+		callbacks:   callbacks,
+		authHandler: authHandler,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"timestamp": time.Now().UTC(),
-		"status":    statusCode,
-		"error":     http.StatusText(statusCode),
-		"path":      r.URL.Path,
-		"method":    r.Method,
-		"message":   message,
-		"details":   details,
+	// Apply options
+	for _, opt := range options {
+		opt.apply(handler)
+	}
+
+	return handler
+}
+
+// ServeHTTP implements the http.Handler interface.
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Authenticate before upgrading the connection
+	authModel, err := auth.HandleAuthRequest[AuthModel](h.authHandler, r)
+	if err != nil {
+		statusCode := http.StatusUnauthorized
+		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
+			statusCode = statusCoder.StatusCode()
+		}
+
+		errorMessage := "unauthorized"
+		if msgProvider, ok := err.(simbaErrors.PublicMessageProvider); ok {
+			errorMessage = msgProvider.PublicMessage()
+		}
+
+		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(statusCode, errorMessage, err))
+		return
+	}
+
+	// Parse and validate params before upgrading connection
+	params, err := simba.ParseAndValidateParams[Params](r)
+	if err != nil {
+		simbaErrors.WriteError(w, r, err)
+		return
+	}
+
+	// Upgrade the HTTP connection to WebSocket
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: true, // Match gobwas behavior (no origin check)
 	})
+	if err != nil {
+		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(
+			http.StatusBadRequest,
+			"failed to upgrade connection",
+			err,
+		))
+		return
+	}
+
+	// Ensure the connection is closed on all paths. handleConnection also
+	// closes the connection as part of its cleanup, but adding a
+	// defensive close here satisfies static analyzers and protects
+	// against unexpected control-flow (panics) between upgrade and
+	// the handler returning.
+	defer func() { _ = conn.CloseNow() }()
+
+	// Handle the connection synchronously - the HTTP server runs each
+	// request in its own goroutine, so blocking here is correct
+	h.handleConnection(ctx, conn, params, authModel)
+}
+
+// handleConnection manages the lifecycle of an authenticated WebSocket connection.
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) handleConnection(ctx context.Context, conn *websocket.Conn, params Params, auth AuthModel) {
+	// Create a connection wrapper with unique ID
+	wsConn := &Connection{
+		ID:   uuid.New().String(),
+		conn: conn,
+	}
+
+	// Add connectionID to context (persistent for entire connection)
+	ctx = context.WithValue(ctx, simbaContext.ConnectionIDKey, wsConn.ID)
+
+	// Always cleanup
+	var handlerErr error
+	defer func() {
+		_ = conn.CloseNow()
+		if h.callbacks.OnDisconnect != nil {
+			// Use background context for cleanup as connection context may be cancelled
+			// Apply middleware for OnDisconnect
+			disconnectCtx := h.applyMiddleware(context.Background())
+			disconnectCtx = context.WithValue(disconnectCtx, simbaContext.ConnectionIDKey, wsConn.ID)
+			h.callbacks.OnDisconnect(disconnectCtx, wsConn.ID, params, auth, handlerErr)
+		}
+	}()
+
+	// Call OnConnect with middleware
+	if h.callbacks.OnConnect != nil {
+		connectCtx := h.applyMiddleware(ctx)
+		if err := h.callbacks.OnConnect(connectCtx, wsConn, params, auth); err != nil {
+			handlerErr = err
+			return
+		}
+	}
+
+	// Message loop
+	for {
+		// Context cancellation is handled automatically by conn.Read
+		_, msg, err := conn.Read(ctx)
+		if err != nil {
+			// Check for clean close
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				return
+			}
+			// Check for context cancellation
+			if ctx.Err() != nil {
+				handlerErr = ctx.Err()
+				return
+			}
+			// Other errors
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
+				}
+			}
+			handlerErr = err
+			return
+		}
+
+		// Call OnMessage with middleware (fresh context per message)
+		messageCtx := h.applyMiddleware(ctx)
+		if err := h.callbacks.OnMessage(messageCtx, wsConn, msg, auth); err != nil {
+			// Check if OnError wants to continue
+			if h.callbacks.OnError != nil {
+				errorCtx := h.applyMiddleware(ctx)
+				if h.callbacks.OnError(errorCtx, wsConn, err) {
+					continue
+				}
+			}
+			handlerErr = err
+			return
+		}
+	}
+}
+
+// applyMiddleware applies the middleware chain to the context.
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) applyMiddleware(ctx context.Context) context.Context {
+	for _, mw := range h.middleware {
+		ctx = mw(ctx)
+	}
+	return ctx
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetRequestBody() any {
+	return models.NoBody{}
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetResponseBody() any {
+	return models.NoBody{}
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetParams() any {
+	var p Params
+	return p
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetAccepts() string {
+	return ""
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetProduces() string {
+	return ""
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetHandler() any {
+	return h.callbacks
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetAuthModel() any {
+	var am AuthModel
+	return am
+}
+
+func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetAuthHandler() any {
+	return h.authHandler
 }

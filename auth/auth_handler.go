@@ -1,4 +1,4 @@
-package simba
+package auth
 
 import (
 	"context"
@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/sillen102/simba/constants"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
+
 	oapi "github.com/swaggest/openapi-go"
 )
 
-type AuthHandler[AuthModel any] interface {
+type Handler[AuthModel any] interface {
 	GetType() openapiModels.AuthType
 	GetName() string
 	GetFieldName() string
@@ -35,7 +37,7 @@ type BasicAuthHandlerFunc[AuthModel any] func(ctx context.Context, username, pas
 func BasicAuth[AuthModel any](
 	handler BasicAuthHandlerFunc[AuthModel],
 	config BasicAuthConfig,
-) AuthHandler[AuthModel] {
+) Handler[AuthModel] {
 	return BasicAuthType[AuthModel]{
 		Name:        config.Name,
 		Description: config.Description,
@@ -58,7 +60,7 @@ func (t BasicAuthType[AuthModel]) GetName() string {
 }
 
 func (t BasicAuthType[AuthModel]) GetFieldName() string {
-	return AuthHeader
+	return constants.AuthHeader
 }
 
 func (t BasicAuthType[AuthModel]) GetFormat() string {
@@ -77,30 +79,30 @@ func (t BasicAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 	return func(r *http.Request) (AuthModel, error) {
 		var zero AuthModel
 
-		authHeader := r.Header.Get(AuthHeader)
+		authHeader := r.Header.Get(constants.AuthHeader)
 		if authHeader == "" {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("missing Authorization header"),
 			)
 		}
 
-		if !strings.HasPrefix(authHeader, BasicPrefix) {
+		if !strings.HasPrefix(authHeader, constants.BasicPrefix) {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("invalid Authorization header format, expected Basic authentication"),
 			)
 		}
 
-		encoded := authHeader[len(BasicPrefix):]
+		encoded := authHeader[len(constants.BasicPrefix):]
 
 		decoded, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("invalid base64 in Authorization header"),
 			)
 		}
@@ -109,7 +111,7 @@ func (t BasicAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 		if len(credentials) != 2 {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("invalid Basic auth format, expected 'username:password'"),
 			)
 		}
@@ -136,7 +138,7 @@ type APIKeyAuthHandlerFunc[AuthModel any] func(ctx context.Context, apiKey strin
 func APIKeyAuth[AuthModel any](
 	handler APIKeyAuthHandlerFunc[AuthModel],
 	config APIKeyAuthConfig,
-) AuthHandler[AuthModel] {
+) Handler[AuthModel] {
 	return APIKeyAuthType[AuthModel]{
 		Name:        config.Name,
 		FieldName:   config.FieldName,
@@ -186,7 +188,7 @@ func (t APIKeyAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 		if apiKey == "" {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("missing API key"),
 			)
 		}
@@ -210,7 +212,7 @@ type BearerAuthHandlerFunc[AuthModel any] func(ctx context.Context, token string
 func BearerAuth[AuthModel any](
 	handler BearerAuthHandlerFunc[AuthModel],
 	config BearerAuthConfig,
-) AuthHandler[AuthModel] {
+) Handler[AuthModel] {
 	return BearerAuthType[AuthModel]{
 		Name:        config.Name,
 		Format:      config.Format,
@@ -235,7 +237,7 @@ func (t BearerAuthType[AuthModel]) GetName() string {
 }
 
 func (t BearerAuthType[AuthModel]) GetFieldName() string {
-	return AuthHeader
+	return constants.AuthHeader
 }
 
 func (t BearerAuthType[AuthModel]) GetFormat() string {
@@ -254,28 +256,28 @@ func (t BearerAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel] {
 	return func(r *http.Request) (AuthModel, error) {
 		var zero AuthModel
 
-		authHeader := r.Header.Get(AuthHeader)
+		authHeader := r.Header.Get(constants.AuthHeader)
 		if authHeader == "" {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("missing Authorization header"),
 			)
 		}
 
-		if !strings.HasPrefix(authHeader, BearerPrefix) {
+		if !strings.HasPrefix(authHeader, constants.BearerPrefix) {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("invalid Authorization header format, expected Bearer authentication"),
 			)
 		}
 
-		token := authHeader[len(BearerPrefix):]
+		token := authHeader[len(constants.BearerPrefix):]
 		if token == "" {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("missing token"),
 			)
 		}
@@ -298,7 +300,7 @@ type SessionCookieAuthHandlerFunc[AuthModel any] func(ctx context.Context, cooki
 func SessionCookieAuth[AuthModel any](
 	handler SessionCookieAuthHandlerFunc[AuthModel],
 	config SessionCookieAuthConfig[AuthModel],
-) AuthHandler[AuthModel] {
+) Handler[AuthModel] {
 	return SessionCookieAuthType[AuthModel]{
 		CookieName:  config.CookieName,
 		Description: config.Description,
@@ -344,14 +346,14 @@ func (t SessionCookieAuthType[AuthModel]) GetHandler() AuthHandlerFunc[AuthModel
 		if err != nil || cookie == nil {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("missing session cookie"),
 			)
 		}
 		if cookie.Value == "" {
 			return zero, simbaErrors.NewSimbaError(
 				http.StatusUnauthorized,
-				UnauthorizedErrMsg,
+				constants.UnauthorizedErrMsg,
 				errors.New("empty session cookie"),
 			)
 		}
@@ -367,7 +369,7 @@ type AuthHandlerFunc[AuthModel any] func(r *http.Request) (AuthModel, error)
 // HandleAuthRequest is a helper function that parses the parameters and calls the authentication
 // function with the parsed parameters.
 func HandleAuthRequest[AuthModel any](
-	authHandler AuthHandler[AuthModel],
+	authHandler Handler[AuthModel],
 	r *http.Request,
 ) (AuthModel, error) {
 	return authHandler.GetHandler()(r)

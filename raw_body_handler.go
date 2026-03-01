@@ -5,18 +5,19 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/sillen102/simba/auth"
 	"github.com/sillen102/simba/mimetypes"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 )
 
 // RawBodyHandlerFunc is a function type for handling routes with Request body and params
-type RawBodyHandlerFunc[Params, ResponseBody any] func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, Params]) (*simbaModels.Response[ResponseBody], error)
+type RawBodyHandlerFunc[Params, ResponseBody any] func(ctx context.Context, req *models.Request[io.ReadCloser, Params]) (*models.Response[ResponseBody], error)
 
 // AuthenticatedRawBodyHandlerFunc is a function type for handling authenticated routes with Request body and params
 type AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody any] struct {
-	handler     func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error)
-	authHandler AuthHandler[AuthModel]
+	handler     func(ctx context.Context, req *models.Request[io.ReadCloser, Params], authModel AuthModel) (*models.Response[ResponseBody], error)
+	authHandler auth.Handler[AuthModel]
 }
 
 // RawBodyHandler handles a Request with the Request body and params.
@@ -88,8 +89,8 @@ func (h RawBodyHandlerFunc[Params, ResponseBody]) GetAuthHandler() any {
 //
 //	Mux.POST("/test/{id}", simba.AuthRawBodyHandler(handler))
 func AuthRawBodyHandler[Params, AuthModel, ResponseBody any](
-	handler func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error),
-	authHandler AuthHandler[AuthModel],
+	handler func(ctx context.Context, req *models.Request[io.ReadCloser, Params], authModel AuthModel) (*models.Response[ResponseBody], error),
+	authHandler auth.Handler[AuthModel],
 ) Handler {
 	return AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]{
 		handler:     handler,
@@ -101,7 +102,7 @@ func AuthRawBodyHandler[Params, AuthModel, ResponseBody any](
 func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := HandleAuthRequest[AuthModel](h.authHandler, r)
+	authModel, err := auth.HandleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		statusCode := http.StatusUnauthorized // Default status code for unauthorized access
 		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
@@ -169,13 +170,13 @@ func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetAut
 }
 
 // handleRequest handles extracting body and params from the Request
-func handleRawRequest[Params any](r *http.Request) (*simbaModels.Request[io.ReadCloser, Params], error) {
+func handleRawRequest[Params any](r *http.Request) (*models.Request[io.ReadCloser, Params], error) {
 	params, err := ParseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
 	}
 
-	return &simbaModels.Request[io.ReadCloser, Params]{
+	return &models.Request[io.ReadCloser, Params]{
 		Body:   r.Body,
 		Params: params,
 	}, nil

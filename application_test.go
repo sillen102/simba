@@ -8,17 +8,17 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 func TestDefaultApplication(t *testing.T) {
 	t.Parallel()
 
-	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
+	handler := func(ctx context.Context, req *models.Request[models.NoBody, models.NoParams]) (*models.Response[models.NoBody], error) {
+		return &models.Response[models.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	app := simba.Default()
