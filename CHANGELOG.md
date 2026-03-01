@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.3-dev](https://github.com/sillen102/simba/compare/simba/v0.30.2-dev...simba/v0.30.3-dev) (2026-03-01)
+
+
+### Features
+
+* add create-root-module-tag workflow ([d097a53](https://github.com/sillen102/simba/commit/d097a53d8bc1ff196edbe08af7ab2fc007324255))
+
 ## [0.30.2-dev](https://github.com/sillen102/simba/compare/simba/v0.30.1-dev...simba/v0.30.2-dev) (2026-02-11)
 
 

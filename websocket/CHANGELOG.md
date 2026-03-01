@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.30.3-dev](https://github.com/sillen102/simba/compare/websocket/v0.30.2-dev...websocket/v0.30.3-dev) (2026-03-01)
+
+
+* **websocket:** Synchronize simba-monorepo versions
+
 ## [0.30.2-dev](https://github.com/sillen102/simba/compare/websocket/v0.30.1-dev...websocket/v0.30.2-dev) (2026-02-11)
 
 
