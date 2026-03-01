@@ -173,91 +173,72 @@ return &simba.Response[ResponseBody]{
 
 ## WebSocket Support
 
-Simba provides first-class generic WebSocket support (with middleware and optional authentication):
+Simba's WebSocket support is provided by the optional `github.com/sillen102/simba/websocket`
+module, which wraps a Centrifugal/Centrifuge server and mounts it directly as a Simba route.
 
 ```go
 import (
     "context"
+    "net/http"
+
+    "github.com/centrifugal/centrifuge"
     "github.com/sillen102/simba"
     "github.com/sillen102/simba/websocket"
-    wsmw "github.com/sillen102/simba/websocket/middleware"
 )
-
-type User struct {
-    ID   int
-    Name string
-}
-
-// Simple bearer token authentication function
-func authHandler(ctx context.Context, token string) (User, error) {
-    if token == "valid-token" {
-        return User{ID: 1, Name: "John Doe"}, nil
-    }
-    return User{}, fmt.Errorf("invalid token")
-}
-
-// Echo handler
-func echoCallbacks() websocket.Callbacks[simba.NoParams] {
-    return websocket.Callbacks[simba.NoParams]{
-        OnConnect: func(ctx context.Context, conn *websocket.Connection, params simba.NoParams) error {
-            return conn.WriteText("Connected! Send messages and I'll echo them.")
-        },
-        OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
-            return conn.WriteText("Echo: " + string(data))
-        },
-    }
-}
-
-// Authenticated chat handler
-func chatCallbacks() websocket.AuthCallbacks[simba.NoParams, User] {
-    return websocket.AuthCallbacks[simba.NoParams, User]{
-        OnConnect: func(ctx context.Context, conn *websocket.Connection, params simba.NoParams, user User) error {
-            return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
-        },
-        OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, user User) error {
-            return conn.WriteText(fmt.Sprintf("[%s]: %s", user.Name, string(data)))
-        },
-    }
-}
 
 func main() {
     app := simba.Default()
-    // Unauthenticated echo endpoint
-    app.Router.GET("/ws/echo", websocket.Handler(
-        echoCallbacks(),
-        websocket.WithMiddleware(
-            wsmw.TraceID(),
-            wsmw.Logger(),
-        ),
-    ))
-    // Authenticated chat endpoint
-    bearer := simba.BearerAuth(authHandler, simba.BearerAuthConfig{
-        Name: "BearerAuth", Format: "JWT", Description: "Bearer token",
+
+    wsHandler, err := websocket.New(websocket.Config{
+        Websocket: centrifuge.WebsocketConfig{
+            CheckOrigin: func(r *http.Request) bool {
+                return true
+            },
+        },
+        Setup: func(node *centrifuge.Node) error {
+            node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+                return centrifuge.ConnectReply{
+                    Credentials: &centrifuge.Credentials{UserID: "anonymous"},
+                }, nil
+            })
+
+            node.OnConnect(func(client *centrifuge.Client) {
+                client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
+                    callback(centrifuge.RPCReply{
+                        Data: []byte(`{"ok":true}`),
+                    }, nil)
+                })
+            })
+
+            return nil
+        },
     })
-    app.Router.GET("/ws/chat", websocket.AuthHandler(
-        chatCallbacks(),
-        bearer,
-        websocket.WithMiddleware(
-            wsmw.TraceID(),
-            wsmw.Logger(),
-        ),
-    ))
+    if err != nil {
+        panic(err)
+    }
+
+    app.Router.GET("/ws", wsHandler)
+    app.RegisterShutdownHook(wsHandler.Shutdown)
+
     app.Start()
 }
 ```
 
-For protocol-specific handlers such as a Centrifugal/Centrifuge endpoint, you can mount a plain `http.Handler`
-without forcing REST/OpenAPI metadata:
+The important pieces are:
 
-```go
-centrifugeHandler := /* your Centrifugal HTTP handler */
+- `websocket.New(...)` creates and starts the Centrifuge node.
+- `Setup` is where you register `OnConnecting`, `OnConnect`, `client.OnRPC`, and other Centrifuge callbacks.
+- `app.Router.GET("/ws", wsHandler)` mounts the WebSocket endpoint directly, since `websocket.Handler` implements the Simba handler contract.
+- `app.RegisterShutdownHook(wsHandler.Shutdown)` ensures the Centrifuge node is closed when `simba.Application.Stop()` runs.
 
-app := simba.Default()
-app.Router.HandleHTTP(http.MethodGet, "/ws", centrifugeHandler)
+Clients connect using the Centrifugal protocol, for example:
 
-// or keep using Router.GET with an adapter:
-app.Router.GET("/ws", simba.HTTPHandler(centrifugeHandler))
+```json
+{"id":1,"connect":{}}
+{"id":2,"rpc":{"method":"echo","data":{"message":"hello"}}}
 ```
+
+See [`examples/websocket`](./examples/websocket) for a full working example.
 
 ---
 
