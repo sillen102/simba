@@ -1,4 +1,4 @@
-package simba
+package constants
 
 // Header constants for authentication
 // and authorization

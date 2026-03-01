@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 )
 
 // closeRequestBody automatically closes the Request body after processing
@@ -55,7 +55,7 @@ func getConfigurationFromContext(ctx context.Context) *settings.Request {
 // If the request body is of NoBody type, returns nil
 // If there are validation errors for the request body, returns an error
 func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
-	if _, isNoBody := any(*req).(simbaModels.NoBody); isNoBody {
+	if _, isNoBody := any(*req).(models.NoBody); isNoBody {
 		return nil
 	}
 

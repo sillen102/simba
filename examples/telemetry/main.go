@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/telemetry/config"
 
 	// NOTE: Telemetry usage is now handled via the OtelTelemetryProvider explicitly constructed and injected below.
@@ -58,7 +58,7 @@ var (
 )
 
 // createUserHandler demonstrates custom spans with attributes
-func createUserHandler(ctx context.Context, req *simbaModels.Request[CreateUserRequest, simbaModels.NoParams]) (*simbaModels.Response[UserResponse], error) {
+func createUserHandler(ctx context.Context, req *models.Request[CreateUserRequest, models.NoParams]) (*models.Response[UserResponse], error) {
 	// Create a custom span for validation
 	ctx, validateSpan := tracer.Start(ctx, "validate.user.input")
 	validateSpan.SetAttributes(
@@ -92,14 +92,14 @@ func createUserHandler(ctx context.Context, req *simbaModels.Request[CreateUserR
 	time.Sleep(20 * time.Millisecond) // Simulate email sending
 	emailSpan.End()
 
-	return &simbaModels.Response[UserResponse]{
+	return &models.Response[UserResponse]{
 		Body:   user,
 		Status: http.StatusCreated,
 	}, nil
 }
 
 // getUserHandler demonstrates nested spans and error handling
-func getUserHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, UserIDParams]) (*simbaModels.Response[UserResponse], error) {
+func getUserHandler(ctx context.Context, req *models.Request[models.NoBody, UserIDParams]) (*models.Response[UserResponse], error) {
 	// Parse user ID
 	userID, err := strconv.Atoi(req.Params.ID)
 	if err != nil {
@@ -128,19 +128,19 @@ func getUserHandler(ctx context.Context, req *simbaModels.Request[simbaModels.No
 		user.ExtraData = extraData
 	}
 
-	return &simbaModels.Response[UserResponse]{
+	return &models.Response[UserResponse]{
 		Body: user,
 	}, nil
 }
 
 // metricsDemoHandler demonstrates creating custom metrics
-func metricsDemoHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[MessageResponse], error) {
+func metricsDemoHandler(ctx context.Context, req *models.Request[models.NoBody, models.NoParams]) (*models.Response[MessageResponse], error) {
 	// Record custom metrics
 	if err := recordCustomMetrics(ctx); err != nil {
 		return nil, fmt.Errorf("failed to record metrics: %w", err)
 	}
 
-	return &simbaModels.Response[MessageResponse]{
+	return &models.Response[MessageResponse]{
 		Body: MessageResponse{
 			Message: "Custom metrics recorded successfully",
 		},

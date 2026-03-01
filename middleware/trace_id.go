@@ -3,9 +3,9 @@ package middleware
 import (
 	"net/http"
 
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaModels"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
@@ -23,7 +23,7 @@ func TraceID(next http.Handler) http.Handler {
 		} else {
 			// Fallback to existing Simba trace ID logic
 			requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.Request)
-			if ok && requestSettings.TraceIDMode == simbaModels.AcceptFromHeader {
+			if ok && requestSettings.TraceIDMode == models.AcceptFromHeader {
 				traceID = r.Header.Get(simbaContext.TraceIDHeader)
 			}
 

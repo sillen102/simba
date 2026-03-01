@@ -1,4 +1,4 @@
-package simbaModels
+package models
 
 type TraceIDMode string
 

@@ -5,18 +5,20 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/swaggest/openapi-go"
+
+	"github.com/sillen102/simba/auth"
+	"github.com/sillen102/simba/constants"
+	"github.com/sillen102/simba/models"
+	"github.com/sillen102/simba/simbaErrors"
 )
 
 // Receiver A dummy struct to test the OpenAPI generation with receiver functions.
 type Receiver struct{}
 
 // NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
-func (h *Receiver) NoTagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
-	return &simbaModels.Response[ResponseBody]{
+func (h *Receiver) NoTagsHandler(_ context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
+	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
@@ -39,8 +41,8 @@ func (h *Receiver) NoTagsHandler(_ context.Context, req *simbaModels.Request[Req
 //
 // description for the handler
 // @Error 409 Resource already exists
-func (h *Receiver) TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
-	return &simbaModels.Response[ResponseBody]{
+func (h *Receiver) TagsHandler(_ context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
+	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
@@ -55,8 +57,8 @@ func (h *Receiver) TagsHandler(_ context.Context, req *simbaModels.Request[Reque
 
 // DeprecatedHandler A dummy function to test the OpenAPI generation with deprecated tag.
 // @Deprecated
-func (h *Receiver) DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
-	return &simbaModels.Response[ResponseBody]{
+func (h *Receiver) DeprecatedHandler(ctx context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
+	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
@@ -69,8 +71,8 @@ func (h *Receiver) DeprecatedHandler(ctx context.Context, req *simbaModels.Reque
 }
 
 // NoTagsHandler A dummy function to test the OpenAPI generation without any tags in the comment.
-func NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
-	return &simbaModels.Response[ResponseBody]{
+func NoTagsHandler(ctx context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
+	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
@@ -93,8 +95,8 @@ func NoTagsHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Pa
 //
 // description for the handler
 // @Error 409 Resource already exists
-func TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
-	return &simbaModels.Response[ResponseBody]{
+func TagsHandler(_ context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
+	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
@@ -108,8 +110,8 @@ func TagsHandler(_ context.Context, req *simbaModels.Request[RequestBody, Params
 
 // DeprecatedHandler A dummy function to test the OpenAPI generation with deprecated tag.
 // @Deprecated
-func DeprecatedHandler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
-	return &simbaModels.Response[ResponseBody]{
+func DeprecatedHandler(ctx context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
+	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Headers: http.Header{"X-Trace-ID": []string{req.Params.TraceID}},
 		Body: ResponseBody{
@@ -125,7 +127,7 @@ func BasicAuthFunc(_ context.Context, username, password string) (*User, error) 
 	if username != "user" || password != "password" {
 		return nil, simbaErrors.NewSimbaError(
 			http.StatusUnauthorized,
-			simba.UnauthorizedErrMsg,
+			constants.UnauthorizedErrMsg,
 			errors.New("invalid username or password"),
 		)
 	}
@@ -136,9 +138,9 @@ func BasicAuthFunc(_ context.Context, username, password string) (*User, error) 
 	}, nil
 }
 
-var BasicAuthAuthenticationHandler = simba.BasicAuth[*User](
+var BasicAuthAuthenticationHandler = auth.BasicAuth[*User](
 	BasicAuthFunc,
-	simba.BasicAuthConfig{
+	auth.BasicAuthConfig{
 		Name:        "admin",
 		Description: "admin access only",
 	})
@@ -151,8 +153,8 @@ var BasicAuthAuthenticationHandler = simba.BasicAuth[*User](
 // description for the handler
 //
 // @Error 409 Resource already exists
-func BasicAuthHandler(_ context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
-	return &simbaModels.Response[simbaModels.NoBody]{
+func BasicAuthHandler(_ context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
+	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }
@@ -163,7 +165,7 @@ func ApiKeyAuthFunc(_ context.Context, apiKey string) (*User, error) {
 	if apiKey != "valid-key" {
 		return nil, simbaErrors.NewSimbaError(
 			http.StatusUnauthorized,
-			simba.UnauthorizedErrMsg,
+			constants.UnauthorizedErrMsg,
 			errors.New("invalid api key"),
 		)
 	}
@@ -174,9 +176,9 @@ func ApiKeyAuthFunc(_ context.Context, apiKey string) (*User, error) {
 	}, nil
 }
 
-var ApiKeyAuthAuthenticationHandler = simba.APIKeyAuth[*User](
+var ApiKeyAuthAuthenticationHandler = auth.APIKeyAuth[*User](
 	ApiKeyAuthFunc,
-	simba.APIKeyAuthConfig{
+	auth.APIKeyAuthConfig{
 		Name:        "User",
 		FieldName:   "sessionid",
 		In:          openapi.InCookie,
@@ -191,8 +193,8 @@ var ApiKeyAuthAuthenticationHandler = simba.APIKeyAuth[*User](
 // description for the handler
 //
 // @Error 409 Resource already exists
-func ApiKeyAuthHandler(_ context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
-	return &simbaModels.Response[simbaModels.NoBody]{
+func ApiKeyAuthHandler(_ context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
+	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }
@@ -203,7 +205,7 @@ func BearerAuthFunc(_ context.Context, token string) (*User, error) {
 	if token != "token" {
 		return nil, simbaErrors.NewSimbaError(
 			http.StatusUnauthorized,
-			simba.UnauthorizedErrMsg,
+			constants.UnauthorizedErrMsg,
 			errors.New("invalid token"),
 		)
 	}
@@ -214,9 +216,9 @@ func BearerAuthFunc(_ context.Context, token string) (*User, error) {
 	}, nil
 }
 
-var BearerAuthAuthenticationHandler = simba.BearerAuth[*User](
+var BearerAuthAuthenticationHandler = auth.BearerAuth[*User](
 	BearerAuthFunc,
-	simba.BearerAuthConfig{
+	auth.BearerAuthConfig{
 		Name:        "admin",
 		Format:      "jwt",
 		Description: "Bearer token",
@@ -230,8 +232,8 @@ var BearerAuthAuthenticationHandler = simba.BearerAuth[*User](
 // description for the handler
 //
 // @Error  409 	Resource already exists
-func BearerTokenAuthHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
-	return &simbaModels.Response[simbaModels.NoBody]{
+func BearerTokenAuthHandler(ctx context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
+	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }
@@ -240,7 +242,7 @@ func SessionCookieAuthFunc(_ context.Context, sessionID string) (*User, error) {
 	if sessionID != "valid-cookie" {
 		return nil, simbaErrors.NewSimbaError(
 			http.StatusUnauthorized,
-			simba.UnauthorizedErrMsg,
+			constants.UnauthorizedErrMsg,
 			errors.New("invalid session cookie"),
 		)
 	}
@@ -251,9 +253,9 @@ func SessionCookieAuthFunc(_ context.Context, sessionID string) (*User, error) {
 	}, nil
 }
 
-var SessionCookieAuthAuthenticationHandler = simba.SessionCookieAuth[*User](
+var SessionCookieAuthAuthenticationHandler = auth.SessionCookieAuth[*User](
 	SessionCookieAuthFunc,
-	simba.SessionCookieAuthConfig[*User]{
+	auth.SessionCookieAuthConfig[*User]{
 		CookieName:  "session",
 		Description: "Session cookie",
 	},
@@ -267,8 +269,8 @@ var SessionCookieAuthAuthenticationHandler = simba.SessionCookieAuth[*User](
 // description for the handler
 //
 // @Error 409 Resource already exists
-func SessionCookieAuthHandler(_ context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams], auth *User) (*simbaModels.Response[simbaModels.NoBody], error) {
-	return &simbaModels.Response[simbaModels.NoBody]{
+func SessionCookieAuthHandler(_ context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
+	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,
 	}, nil
 }

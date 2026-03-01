@@ -2,11 +2,14 @@ module github.com/sillen102/simba
 
 go 1.26
 
+replace github.com/sillen102/simba/models => ./models
+
 require (
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/google/uuid v1.6.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/sillen102/config-loader v0.3.0
+	github.com/sillen102/simba/models v0.0.0
 	github.com/swaggest/openapi-go v0.2.60
 	go.opentelemetry.io/otel/trace v1.39.0
 )

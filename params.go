@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 
 	"github.com/google/uuid"
 )
@@ -20,7 +20,7 @@ import (
 func ParseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	var instance Params
 	// If instance is NoParams or empty struct, return early
-	if _, ok := any(instance).(simbaModels.NoParams); ok {
+	if _, ok := any(instance).(models.NoParams); ok {
 		return instance, nil
 	}
 	t := reflect.TypeOf(&instance).Elem()

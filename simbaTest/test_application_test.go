@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaTest"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
@@ -16,8 +16,8 @@ func TestNew(t *testing.T) {
 	app := simbaTest.New()
 
 	// Add a test route
-	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[[]byte], error) {
-		return &simbaModels.Response[[]byte]{Status: http.StatusOK, Body: []byte("test response")}, nil
+	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *models.Request[models.NoBody, models.NoParams]) (*models.Response[[]byte], error) {
+		return &models.Response[[]byte]{Status: http.StatusOK, Body: []byte("test response")}, nil
 	}))
 
 	// Run test with the application
@@ -34,8 +34,8 @@ func TestDefault(t *testing.T) {
 	app := simbaTest.Default()
 
 	// Add a test route
-	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[[]byte], error) {
-		return &simbaModels.Response[[]byte]{Status: http.StatusOK, Body: []byte("test response")}, nil
+	app.Router.GET("/test", simba.JsonHandler(func(ctx context.Context, req *models.Request[models.NoBody, models.NoParams]) (*models.Response[[]byte], error) {
+		return &models.Response[[]byte]{Status: http.StatusOK, Body: []byte("test response")}, nil
 	}))
 
 	// Run test with the application

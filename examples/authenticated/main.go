@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/swaggest/openapi-go"
+
+	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/auth"
+	"github.com/sillen102/simba/models"
+	"github.com/sillen102/simba/simbaErrors"
 )
 
 type ResponseBody struct {
@@ -37,9 +39,9 @@ func authFunc(ctx context.Context, apiKey string) (*User, error) {
 	}, nil
 }
 
-var authHandler = simba.APIKeyAuth[*User](
+var authHandler = auth.APIKeyAuth[*User](
 	authFunc,
-	simba.APIKeyAuthConfig{
+	auth.APIKeyAuthConfig{
 		Name:        "admin",
 		FieldName:   "sessionid",
 		In:          openapi.InHeader,
@@ -52,11 +54,11 @@ var authHandler = simba.APIKeyAuth[*User](
 // @Description this is a handler that requires authentication
 func authenticatedHandler(
 	ctx context.Context,
-	req *simbaModels.Request[simbaModels.NoBody, struct {
-	UserID int `path:"userId"`
-}],
+	req *models.Request[models.NoBody, struct {
+		UserID int `path:"userId"`
+	}],
 	user *User,
-) (*simbaModels.Response[ResponseBody], error) {
+) (*models.Response[ResponseBody], error) {
 
 	// Access the request cookies
 	// req.Cookies
@@ -64,7 +66,7 @@ func authenticatedHandler(
 	// Access the request headers
 	// req.Headers
 
-	return &simbaModels.Response[ResponseBody]{
+	return &models.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role),
 		},

@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
 
@@ -152,7 +152,7 @@ func TestLoadTraceIDModeFromEnvironment(t *testing.T) {
 
 func TestWithTraceIDMode(t *testing.T) {
 	t.Parallel()
-	s, err := settings.Load(settings.WithTraceIDMode(simbaModels.AlwaysGenerate))
+	s, err := settings.Load(settings.WithTraceIDMode(models.AlwaysGenerate))
 	assert.NoError(t, err)
 	assert.Equal(t, "AlwaysGenerate", s.TraceIDMode.String())
 }

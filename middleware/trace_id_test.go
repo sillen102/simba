@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba/middleware"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
 
@@ -47,7 +47,7 @@ func TestTraceID(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set(simbaContext.TraceIDHeader, "test-trace-id")
 		req = req.WithContext(context.WithValue(req.Context(), simbaContext.RequestSettingsKey, &settings.Request{
-			TraceIDMode: simbaModels.AcceptFromHeader,
+			TraceIDMode: models.AcceptFromHeader,
 		}))
 		w := httptest.NewRecorder()
 
