@@ -231,6 +231,49 @@ The important pieces are:
 - `app.Router.GET("/ws", wsHandler)` mounts the WebSocket endpoint directly, since `websocket.Handler` implements the Simba handler contract.
 - `app.RegisterShutdownHook(wsHandler.Shutdown)` ensures the Centrifuge node is closed when `simba.Application.Stop()` runs.
 
+If you want to reuse Simba auth handlers for the WebSocket handshake, use `websocket.NewAuthenticated(...)`:
+
+```go
+type User struct {
+    ID string
+}
+
+bearerAuth := simba.BearerAuth(func(ctx context.Context, token string) (User, error) {
+    if token != "valid-token" {
+        return User{}, errors.New("invalid token")
+    }
+    return User{ID: "user-123"}, nil
+}, simba.BearerAuthConfig{
+    Name: "BearerAuth", Format: "JWT", Description: "Bearer token",
+})
+
+wsHandler, err := websocket.NewAuthenticated(websocket.AuthenticatedConfig[User]{
+    Config: websocket.Config{
+        Setup: func(node *centrifuge.Node) error {
+            node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+                user, ok := websocket.AuthModelFromContext[User](ctx)
+                if !ok {
+                    return centrifuge.ConnectReply{}, centrifuge.ErrorUnauthorized
+                }
+                return centrifuge.ConnectReply{
+                    Credentials: &centrifuge.Credentials{UserID: user.ID},
+                }, nil
+            })
+            return nil
+        },
+    },
+    Auth: bearerAuth,
+})
+if err != nil {
+    panic(err)
+}
+
+app.Router.GET("/ws", wsHandler)
+app.RegisterShutdownHook(wsHandler.Shutdown)
+```
+
+This authenticates the initial HTTP upgrade request using the same Simba auth handler you use for REST routes, then makes the authenticated model available in Centrifuge callbacks through `websocket.AuthModelFromContext(...)`.
+
 Clients connect using the Centrifugal protocol, for example:
 
 ```json
