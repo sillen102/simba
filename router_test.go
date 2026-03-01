@@ -457,6 +457,70 @@ func TestRouter_WithMiddleware(t *testing.T) {
 	})
 }
 
+func TestRouter_HandleHTTP(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	router.HandleHTTP(http.MethodGet, "/test-http-handler", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusSwitchingProtocols)
+		_, _ = w.Write([]byte("upgraded"))
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/test-http-handler", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusSwitchingProtocols, w.Code)
+	assert.Equal(t, "text/plain", w.Header().Get("Content-Type"))
+	assert.Equal(t, "upgraded", w.Body.String())
+}
+
+func TestRouter_HandleHTTP_AppliesMiddleware(t *testing.T) {
+	t.Parallel()
+
+	router := simba.New().Router
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-WS-Middleware", "applied")
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	router.HandleHTTP(http.MethodGet, "/test-get-http", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+		assert.Equal(t, "applied", r.Header.Get("X-WS-Middleware"))
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/test-get-http", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestRouter_GET_WithHTTPHandlerAdapter(t *testing.T) {
+	t.Parallel()
+
+	router := simba.Default().Router
+
+	router.GET("/test-http-adapter", simba.HTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte("wrapped"))
+	})))
+
+	req := httptest.NewRequest(http.MethodGet, "/test-http-adapter", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	assert.Equal(t, "wrapped", w.Body.String())
+}
+
 func TestRouter_HandlerWithPointerRequestBody(t *testing.T) {
 	t.Parallel()
 

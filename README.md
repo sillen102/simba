@@ -246,6 +246,19 @@ func main() {
 }
 ```
 
+For protocol-specific handlers such as a Centrifugal/Centrifuge endpoint, you can mount a plain `http.Handler`
+without forcing REST/OpenAPI metadata:
+
+```go
+centrifugeHandler := /* your Centrifugal HTTP handler */
+
+app := simba.Default()
+app.Router.HandleHTTP(http.MethodGet, "/ws", centrifugeHandler)
+
+// or keep using Router.GET with an adapter:
+app.Router.GET("/ws", simba.HTTPHandler(centrifugeHandler))
+```
+
 ---
 
 ## Logging

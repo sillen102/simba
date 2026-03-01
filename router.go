@@ -24,6 +24,10 @@ type Handler interface {
 	GetAuthHandler() any
 }
 
+type routeDocumentationController interface {
+	ShouldDocument() bool
+}
+
 type openApiGenerator interface {
 	GenerateDocumentation(ctx context.Context, title string, version string, routeInfos []openapiModels.RouteInfo) ([]byte, error)
 }
@@ -216,6 +220,12 @@ func (r *Router) Handle(method, path string, handler Handler) {
 	r.addRouteToDocs(method, path, handler)
 }
 
+// HandleHTTP registers a plain http.Handler for the given method and path.
+// This is useful for protocol upgrades such as WebSockets where OpenAPI metadata does not apply.
+func (r *Router) HandleHTTP(method, path string, handler http.Handler) {
+	r.addRoute(method, path, handler)
+}
+
 func (r *Router) addRoute(method, path string, handler http.Handler) {
 	r.Mux.Handle(fmt.Sprintf("%s %s", method, path), r.applyMiddleware(handler))
 }
@@ -228,6 +238,10 @@ func (r *Router) applyMiddleware(handler http.Handler) http.Handler {
 }
 
 func (r *Router) addRouteToDocs(method string, path string, handler Handler) {
+	if controller, ok := handler.(routeDocumentationController); ok && !controller.ShouldDocument() {
+		return
+	}
+
 	if r.docsSettings.GenerateOpenAPIDocs {
 		r.routes = append(r.routes, openapiModels.RouteInfo{
 			Method:      method,
