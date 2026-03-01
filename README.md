@@ -189,33 +189,25 @@ import (
 func main() {
     app := simba.Default()
 
-    wsHandler, err := websocket.New(websocket.Config{
+    wsHandler := (websocket.Config{
         Websocket: centrifuge.WebsocketConfig{
             CheckOrigin: func(r *http.Request) bool {
                 return true
             },
         },
-        Setup: func(node *centrifuge.Node) error {
-            node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-                return centrifuge.ConnectReply{
-                    Credentials: &centrifuge.Credentials{UserID: "anonymous"},
-                }, nil
+        OnConnecting: websocket.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+            return centrifuge.ConnectReply{
+                Credentials: &centrifuge.Credentials{UserID: "anonymous"},
+            }, nil
+        }),
+        OnConnect: websocket.OnConnect(func(client *centrifuge.Client) {
+            client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
+                callback(centrifuge.RPCReply{
+                    Data: []byte(`{"ok":true}`),
+                }, nil)
             })
-
-            node.OnConnect(func(client *centrifuge.Client) {
-                client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
-                    callback(centrifuge.RPCReply{
-                        Data: []byte(`{"ok":true}`),
-                    }, nil)
-                })
-            })
-
-            return nil
-        },
-    })
-    if err != nil {
-        panic(err)
-    }
+        }),
+    }).Handler()
 
     app.Router.GET("/ws", wsHandler)
     app.RegisterShutdownHook(wsHandler.Shutdown)
@@ -226,19 +218,20 @@ func main() {
 
 The important pieces are:
 
-- `websocket.New(...)` creates and starts the Centrifuge node.
-- `Setup` is where you register `OnConnecting`, `OnConnect`, `client.OnRPC`, and other Centrifuge callbacks.
+- `websocket.Config{...}.Handler()` creates and starts the Centrifuge node and keeps constructor errors inside the websocket package.
+- `OnConnecting` and `OnConnect` are the common Centrifuge hooks you configure directly on the config.
+- `Setup` remains available as an optional escape hatch for advanced node customization.
 - `app.Router.GET("/ws", wsHandler)` mounts the WebSocket endpoint directly, since `websocket.Handler` implements the Simba handler contract.
 - `app.RegisterShutdownHook(wsHandler.Shutdown)` ensures the Centrifuge node is closed when `simba.Application.Stop()` runs.
 
-If you want to reuse Simba auth handlers for the WebSocket handshake, use `websocket.NewAuthenticated(...)`:
+If you want to reuse Simba auth handlers for the WebSocket handshake, build an auth-aware handler and then wrap it at route registration time:
 
 ```go
 type User struct {
     ID string
 }
 
-bearerAuth := simba.BearerAuth(func(ctx context.Context, token string) (User, error) {
+var authHandler = simba.BearerAuth(func(ctx context.Context, token string) (User, error) {
     if token != "valid-token" {
         return User{}, errors.New("invalid token")
     }
@@ -247,32 +240,51 @@ bearerAuth := simba.BearerAuth(func(ctx context.Context, token string) (User, er
     Name: "BearerAuth", Format: "JWT", Description: "Bearer token",
 })
 
-wsHandler, err := websocket.NewAuthenticated(websocket.AuthenticatedConfig[User]{
-    Config: websocket.Config{
-        Setup: func(node *centrifuge.Node) error {
-            node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-                user, ok := websocket.AuthModelFromContext[User](ctx)
-                if !ok {
-                    return centrifuge.ConnectReply{}, centrifuge.ErrorUnauthorized
-                }
-                return centrifuge.ConnectReply{
-                    Credentials: &centrifuge.Credentials{UserID: user.ID},
-                }, nil
-            })
-            return nil
-        },
-    },
-    Auth: bearerAuth,
-})
-if err != nil {
-    panic(err)
+func newAuthenticatedWebsocketHandler() *websocket.AuthenticatedHandler[User] {
+    return (websocket.AuthenticatedConfig[User]{
+        OnConnecting: websocket.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent, user *User) (centrifuge.ConnectReply, error) {
+            return centrifuge.ConnectReply{
+                Credentials: &centrifuge.Credentials{UserID: user.ID},
+            }, nil
+        }),
+    }).Handler()
 }
 
-app.Router.GET("/ws", wsHandler)
+privateRouteHandler := websocket.AuthHandler(newAuthenticatedWebsocketHandler, authHandler)
+app.Router.GET("/ws", privateRouteHandler)
+app.RegisterShutdownHook(privateRouteHandler.Shutdown)
+```
+
+If you prefer to build the websocket handler ahead of time, wrap the existing authenticated handler with `websocket.NewAuthenticated(...)`:
+
+```go
+wsHandler := (websocket.AuthenticatedConfig[User]{
+    OnConnecting: websocket.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent, user *User) (centrifuge.ConnectReply, error) {
+        return centrifuge.ConnectReply{
+            Credentials: &centrifuge.Credentials{UserID: user.ID},
+        }, nil
+    }),
+}).Handler()
+
+app.Router.GET("/ws", websocket.NewAuthenticated(wsHandler, authHandler))
 app.RegisterShutdownHook(wsHandler.Shutdown)
 ```
 
-This authenticates the initial HTTP upgrade request using the same Simba auth handler you use for REST routes, then makes the authenticated model available in Centrifuge callbacks through `websocket.AuthModelFromContext(...)`.
+This keeps the concerns separate:
+
+- `websocket.AuthenticatedConfig{...}.Handler()` defines auth-aware Centrifuge callbacks and keeps constructor errors inside the websocket package.
+- `websocket.AuthHandler(...)` applies the Simba auth handler to the HTTP upgrade request when you want to pass a handler constructor function directly.
+- `websocket.NewAuthenticated(...)` applies the same wrapping to an already constructed authenticated websocket handler.
+- The authenticated model is injected directly into the `OnConnecting` callback.
+
+For server-to-client delivery, `websocket.Handler` also wraps the Centrifuge node:
+
+```go
+_, err = wsHandler.Publish("user:"+user.ID, []byte(`{"type":"notification"}`))
+if err != nil {
+    // handle the publish failure
+}
+```
 
 Clients connect using the Centrifugal protocol, for example:
 
