@@ -63,26 +63,13 @@ func (c *ContextCopier) Build() context.Context {
 }
 
 // CopyDefault creates a new context by copying the values added by simba by default, such as trace ID and logger.
-// If a timeout is provided, the returned context will automatically cancel after the specified duration.
-func CopyDefault(src context.Context, timeout ...time.Duration) context.Context {
+func CopyDefault(src context.Context) context.Context {
 	ctx := context.Background()
-
-	// Copy trace ID if present
 	if traceID := GetTraceID(src); traceID != "" {
 		ctx = WithTraceID(ctx, traceID)
 	}
-
-	// Copy logger if present
 	if logger, ok := src.Value(LoggerKey).(*slog.Logger); ok && logger != nil {
 		ctx = context.WithValue(ctx, LoggerKey, logger)
 	}
-
-	// If a timeout is provided, create a context with deadline
-	if len(timeout) > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout[0])
-		defer cancel()
-	}
-
 	return ctx
 }
