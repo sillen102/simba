@@ -20,38 +20,38 @@ Simba is telemetry-provider agnostic. To emit traces/metrics, inject any telemet
 
 ```go
 import (
-    "context"
-    "github.com/sillen102/simba"
-    "github.com/sillen102/simba/telemetry"
-    "github.com/sillen102/simba/telemetry/config"
+"context"
+"github.com/sillen102/simba"
+"github.com/sillen102/simba/telemetry"
+"github.com/sillen102/simba/telemetry/config"
 )
 
 func main() {
-    app := simba.Default() // or simba.New(...)
+app := simba.Default() // or simba.New(...)
 
-    tcfg := &config.TelemetryConfig{
-        Enabled:        true,
-        ServiceName:    "my-service",
-        ServiceVersion: "1.0.0",
-        Tracing:        config.TracingConfig{Enabled: true, Exporter: "otlp"},
-        Metrics:        config.MetricsConfig{Enabled: true, Exporter: "otlp"},
-    }
-    prov, err := telemetry.NewOtelTelemetryProvider(context.Background(), tcfg)
-    if err != nil {
-        panic("Failed to create telemetry provider: " + err.Error())
-    }
-    app.SetTelemetryProvider(prov)
+tcfg := &config.TelemetryConfig{
+Enabled:        true,
+ServiceName:    "my-service",
+ServiceVersion: "1.0.0",
+Tracing:        config.TracingConfig{Enabled: true, Exporter: "otlp"},
+Metrics:        config.MetricsConfig{Enabled: true, Exporter: "otlp"},
+}
+prov, err := telemetry.NewOtelTelemetryProvider(context.Background(), tcfg)
+if err != nil {
+panic("Failed to create telemetry provider: " + err.Error())
+}
+app.SetTelemetryProvider(prov)
 
-    // Advanced: Create custom spans/counters by type asserting your provider
-    // otel := prov.(*telemetry.OtelTelemetryProvider)
-    // meter := otel.Provider().Meter("my.custom")
-    // tracer := otel.Provider().Tracer("my.custom")
+// Advanced: Create custom spans/counters by type asserting your provider
+// otel := prov.(*telemetry.OtelTelemetryProvider)
+// meter := otel.Provider().Meter("my.custom")
+// tracer := otel.Provider().Tracer("my.custom")
 
-    app.Start()
+app.Start()
 }
 ```
 
-See [`examples/telemetry`](./examples/telemetry) for advanced provider use, custom spans and metrics. If you do not set a provider, Simba disables all. 
+See [`examples/telemetry`](./examples/telemetry) for advanced provider use, custom spans and metrics. If you do not set a provider, Simba disables all.
 
 ---
 
@@ -68,34 +68,34 @@ go get -u github.com/sillen102/simba
 ```go
 package main
 import (
-    "context"
-    "fmt"
-    "net/http"
-    "github.com/sillen102/simba"
+	"context"
+	"fmt"
+	"net/http"
+	"github.com/sillen102/simba"
 )
 
 type RequestBody struct {
-    Name string `json:"name"`
-    Age  int    `json:"age"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
 }
 
 type ResponseBody struct {
-    Message string `json:"message"`
+	Message string `json:"message"`
 }
 
 func handler(ctx context.Context, req *simba.Request[RequestBody, simba.NoParams]) (*simba.Response[ResponseBody], error) {
-    return &simba.Response[ResponseBody]{
-        Body: ResponseBody{
-            Message: fmt.Sprintf("Hello %s, you are %d years old", req.Body.Name, req.Body.Age),
-        },
-        Status: http.StatusOK,
-    }, nil
+	return &simba.Response[ResponseBody]{
+		Body: ResponseBody{
+			Message: fmt.Sprintf("Hello %s, you are %d years old", req.Body.Name, req.Body.Age),
+		},
+		Status: http.StatusOK,
+	}, nil
 }
 
 func main() {
-    app := simba.Default()
-    app.Router.POST("/users", simba.JsonHandler(handler))
-    app.Start()
+	app := simba.Default()
+	app.Router.POST("/users", simba.JsonHandler(handler))
+	app.Start()
 }
 ```
 
@@ -108,16 +108,16 @@ Simba provides deep parameter binding and validation from path, query, headers, 
 **Simple example:**
 ```go
 type Params struct {
-    UserID    string `path:"userId"`
-    Name      string `query:"name" validate:"required"`
-    Age       int    `header:"age" validate:"required"`
-    SessionID string `cookie:"session_id" validate:"required"`
-    Page      int64  `query:"page" default:"0"`
-    Size      int64  `query:"size" default:"10"`
+UserID    string `path:"userId"`
+Name      string `query:"name" validate:"required"`
+Age       int    `header:"age" validate:"required"`
+SessionID string `cookie:"session_id" validate:"required"`
+Page      int64  `query:"page" default:"0"`
+Size      int64  `query:"size" default:"10"`
 }
 
 func getUser(ctx context.Context, req *simba.Request[simba.NoBody, Params]) (*simba.Response[ResponseBody], error) {
-    // ... handler logic
+// ... handler logic
 }
 app.GET("/users/{userId}", simba.JsonHandler(getUser))
 ```
@@ -127,22 +127,22 @@ Handles custom types (`uuid.UUID`), booleans, floats, defaults, and OpenAPI mult
 ```go
 import "github.com/google/uuid"
 type Params struct {
-    Name   string      `header:"name" validate:"required"`
-    ID     uuid.UUID   `path:"id" validate:"required"`
-    Active bool        `query:"active" validate:"required"`
-    Page   int         `query:"page" validate:"omitempty,min=0" default:"1"`
-    Size   int64       `query:"size" validate:"omitempty,min=0" default:"10"`
-    Score  float64     `query:"score" default:"10.0"`
+Name   string      `header:"name" validate:"required"`
+ID     uuid.UUID   `path:"id" validate:"required"`
+Active bool        `query:"active" validate:"required"`
+Page   int         `query:"page" validate:"omitempty,min=0" default:"1"`
+Size   int64       `query:"size" validate:"omitempty,min=0" default:"10"`
+Score  float64     `query:"score" default:"10.0"`
 }
 
 // Handler with OpenAPI docs
 // This is a description of what the handler does.
 // Can span multiple lines.
 func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*simba.Response[ResponseBody], error) {
-    // req.Params.ID (uuid)
-    // req.Params.Active (bool, parsed from query)
-    // req.Params.Page (default/explicit)
-    // ...
+// req.Params.ID (uuid)
+// req.Params.Active (bool, parsed from query)
+// req.Params.Page (default/explicit)
+// ...
 }
 ```
 
@@ -152,7 +152,7 @@ func handler(ctx context.Context, req *simba.Request[RequestBody, Params]) (*sim
 To return a 204 No Content response:
 ```go
 func noBodyHandler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[simba.NoBody], error) {
-    return &simba.Response[simba.NoBody]{}, nil // No body = 204
+return &simba.Response[simba.NoBody]{}, nil // No body = 204
 }
 ```
 If you omit `Status`, Simba uses 200 for non-empty, 204 for empty bodies.
@@ -163,9 +163,9 @@ If you omit `Status`, Simba uses 200 for non-empty, 204 for empty bodies.
 Set headers/cookies in the response struct:
 ```go
 return &simba.Response[ResponseBody]{
-    Headers: map[string][]string{"My-Header": {"value"}},
-    Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "val"}},
-    Body: ...,
+Headers: map[string][]string{"My-Header": {"value"}},
+Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "val"}},
+Body: ...,
 }
 ```
 
@@ -173,127 +173,91 @@ return &simba.Response[ResponseBody]{
 
 ## WebSocket Support
 
-Simba's WebSocket support is provided by the optional `github.com/sillen102/simba/websocket`
-module, which wraps a Centrifugal/Centrifuge server and mounts it directly as a Simba route.
+Simba provides first-class generic WebSocket support (with middleware and optional authentication):
 
 ```go
 import (
     "context"
-    "net/http"
-
-    "github.com/centrifugal/centrifuge"
     "github.com/sillen102/simba"
     "github.com/sillen102/simba/websocket"
+    wsmw "github.com/sillen102/simba/websocket/middleware"
 )
+
+type User struct {
+    ID   int
+    Name string
+}
+
+// Simple bearer token authentication function
+func authHandler(ctx context.Context, token string) (User, error) {
+    if token == "valid-token" {
+        return User{ID: 1, Name: "John Doe"}, nil
+    }
+    return User{}, fmt.Errorf("invalid token")
+}
+
+// Echo handler
+func echoCallbacks() websocket.Callbacks[simba.NoParams] {
+    return websocket.Callbacks[simba.NoParams]{
+        OnConnect: func(ctx context.Context, conn *websocket.Connection, params simba.NoParams) error {
+            return conn.WriteText("Connected! Send messages and I'll echo them.")
+        },
+        OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte) error {
+            return conn.WriteText("Echo: " + string(data))
+        },
+    }
+}
+
+// Authenticated chat handler
+func chatCallbacks() websocket.AuthCallbacks[simba.NoParams, User] {
+    return websocket.AuthCallbacks[simba.NoParams, User]{
+        OnConnect: func(ctx context.Context, conn *websocket.Connection, params simba.NoParams, user User) error {
+            return conn.WriteText(fmt.Sprintf("Welcome %s!", user.Name))
+        },
+        OnMessage: func(ctx context.Context, conn *websocket.Connection, data []byte, user User) error {
+            return conn.WriteText(fmt.Sprintf("[%s]: %s", user.Name, string(data)))
+        },
+    }
+}
 
 func main() {
     app := simba.Default()
-
-    wsHandler := (websocket.Config{
-        Websocket: centrifuge.WebsocketConfig{
-            CheckOrigin: func(r *http.Request) bool {
-                return true
-            },
-        },
-        OnConnecting: websocket.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-            return centrifuge.ConnectReply{
-                Credentials: &centrifuge.Credentials{UserID: "anonymous"},
-            }, nil
-        }),
-        OnConnect: websocket.OnConnect(func(client *centrifuge.Client) {
-            client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
-                callback(centrifuge.RPCReply{
-                    Data: []byte(`{"ok":true}`),
-                }, nil)
-            })
-        }),
-    }).Handler()
-
-    app.Router.GET("/ws", wsHandler)
-    app.RegisterShutdownHook(wsHandler.Shutdown)
-
+    // Unauthenticated echo endpoint
+    app.Router.GET("/ws/echo", websocket.Handler(
+        echoCallbacks(),
+        websocket.WithMiddleware(
+            wsmw.TraceID(),
+            wsmw.Logger(),
+        ),
+    ))
+    // Authenticated chat endpoint
+    bearer := simba.BearerAuth(authHandler, simba.BearerAuthConfig{
+        Name: "BearerAuth", Format: "JWT", Description: "Bearer token",
+    })
+    app.Router.GET("/ws/chat", websocket.AuthHandler(
+        chatCallbacks(),
+        bearer,
+        websocket.WithMiddleware(
+            wsmw.TraceID(),
+            wsmw.Logger(),
+        ),
+    ))
     app.Start()
 }
 ```
 
-The important pieces are:
-
-- `websocket.Config{...}.Handler()` creates and starts the Centrifuge node and keeps constructor errors inside the websocket package.
-- `OnConnecting` and `OnConnect` are the common Centrifuge hooks you configure directly on the config.
-- `Setup` remains available as an optional escape hatch for advanced node customization.
-- `app.Router.GET("/ws", wsHandler)` mounts the WebSocket endpoint directly, since `websocket.Handler` implements the Simba handler contract.
-- `app.RegisterShutdownHook(wsHandler.Shutdown)` ensures the Centrifuge node is closed when `simba.Application.Stop()` runs.
-
-If you want to reuse Simba auth handlers for the WebSocket handshake, build an auth-aware handler and then wrap it at route registration time:
+For protocol-specific handlers such as a Centrifugal/Centrifuge endpoint, you can mount a plain `http.Handler`
+without forcing REST/OpenAPI metadata:
 
 ```go
-type User struct {
-    ID string
-}
+centrifugeHandler := /* your Centrifugal HTTP handler */
 
-var authHandler = simba.BearerAuth(func(ctx context.Context, token string) (User, error) {
-    if token != "valid-token" {
-        return User{}, errors.New("invalid token")
-    }
-    return User{ID: "user-123"}, nil
-}, simba.BearerAuthConfig{
-    Name: "BearerAuth", Format: "JWT", Description: "Bearer token",
-})
+app := simba.Default()
+app.Router.HandleHTTP(http.MethodGet, "/ws", centrifugeHandler)
 
-func newAuthenticatedWebsocketHandler() *websocket.AuthenticatedHandler[User] {
-    return (websocket.AuthenticatedConfig[User]{
-        OnConnecting: websocket.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent, user *User) (centrifuge.ConnectReply, error) {
-            return centrifuge.ConnectReply{
-                Credentials: &centrifuge.Credentials{UserID: user.ID},
-            }, nil
-        }),
-    }).Handler()
-}
-
-privateRouteHandler := websocket.AuthHandler(newAuthenticatedWebsocketHandler, authHandler)
-app.Router.GET("/ws", privateRouteHandler)
-app.RegisterShutdownHook(privateRouteHandler.Shutdown)
+// or keep using Router.GET with an adapter:
+app.Router.GET("/ws", simba.HTTPHandler(centrifugeHandler))
 ```
-
-If you prefer to build the websocket handler ahead of time, wrap the existing authenticated handler with `websocket.NewAuthenticated(...)`:
-
-```go
-wsHandler := (websocket.AuthenticatedConfig[User]{
-    OnConnecting: websocket.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent, user *User) (centrifuge.ConnectReply, error) {
-        return centrifuge.ConnectReply{
-            Credentials: &centrifuge.Credentials{UserID: user.ID},
-        }, nil
-    }),
-}).Handler()
-
-app.Router.GET("/ws", websocket.NewAuthenticated(wsHandler, authHandler))
-app.RegisterShutdownHook(wsHandler.Shutdown)
-```
-
-This keeps the concerns separate:
-
-- `websocket.AuthenticatedConfig{...}.Handler()` defines auth-aware Centrifuge callbacks and keeps constructor errors inside the websocket package.
-- `websocket.AuthHandler(...)` applies the Simba auth handler to the HTTP upgrade request when you want to pass a handler constructor function directly.
-- `websocket.NewAuthenticated(...)` applies the same wrapping to an already constructed authenticated websocket handler.
-- The authenticated model is injected directly into the `OnConnecting` callback.
-
-For server-to-client delivery, `websocket.Handler` also wraps the Centrifuge node:
-
-```go
-_, err = wsHandler.Publish("user:"+user.ID, []byte(`{"type":"notification"}`))
-if err != nil {
-    // handle the publish failure
-}
-```
-
-Clients connect using the Centrifugal protocol, for example:
-
-```json
-{"id":1,"connect":{}}
-{"id":2,"rpc":{"method":"echo","data":{"message":"hello"}}}
-```
-
-See [`examples/websocket`](./examples/websocket) for a full working example.
 
 ---
 
@@ -303,9 +267,9 @@ Simba uses `slog` for logging. With `simba.Default()`, a logger is injected into
 
 ```go
 import (
-    "log/slog"
-    "github.com/sillen102/simba"
-    "github.com/sillen102/simba/settings"
+"log/slog"
+"github.com/sillen102/simba"
+"github.com/sillen102/simba/settings"
 )
 logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 app := simba.Default(settings.WithLogger(logger))
@@ -314,8 +278,8 @@ Retrieve logger in handlers:
 ```go
 import "github.com/sillen102/simba/logging"
 func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParams]) (*simba.Response[ResponseBody], error) {
-    logger := logging.From(ctx)
-    logger.Info("handling request")
+logger := logging.From(ctx)
+logger.Info("handling request")
 }
 ```
 
@@ -326,10 +290,10 @@ func handler(ctx context.Context, req *simba.Request[simba.NoBody, simba.NoParam
 Register standard Go http.Handler compatible middleware:
 ```go
 func myMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // ...
-        next.ServeHTTP(w, r)
-    })
+return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// ...
+next.ServeHTTP(w, r)
+})
 }
 app.Router.Use(myMiddleware)
 ```
@@ -337,10 +301,10 @@ app.Router.Use(myMiddleware)
 You can inject data into request headers in middleware and access via validated handler params:
 ```go
 app.Router.Use(func(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        r.Header.Set("X-Middleware", "123")
-        next.ServeHTTP(w, r)
-    })
+return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+r.Header.Set("X-Middleware", "123")
+next.ServeHTTP(w, r)
+})
 })
 ```
 And access:
@@ -357,26 +321,26 @@ All Simba built-in authentication handlers use **pointer-based generics** for th
 ### API Key Auth (Canonical Example)
 ```go
 type User struct {
-    ID   int
-    Name string
-    Role string
+ID   int
+Name string
+Role string
 }
 
 func authFunc(ctx context.Context, apiKey string) (*User, error) {
-    if apiKey != "valid-key" {
-        return nil, fmt.Errorf("invalid api key")
-    }
-    return &User{ID: 1, Name: "John Doe", Role: "admin"}, nil
+if apiKey != "valid-key" {
+return nil, fmt.Errorf("invalid api key")
+}
+return &User{ID: 1, Name: "John Doe", Role: "admin"}, nil
 }
 
 authHandler := simba.APIKeyAuth[*User](authFunc, simba.APIKeyAuthConfig{
-    Name: "admin", FieldName: "sessionid", In: openapi.InHeader, Description: "admin only",
+Name: "admin", FieldName: "sessionid", In: openapi.InHeader, Description: "admin only",
 })
 
 func authenticatedHandler(ctx context.Context, req *simba.Request[simba.NoBody, struct { UserID int `path:"userId"` }], user *User) (*simba.Response[ResponseBody], error) {
-    return &simba.Response[ResponseBody]{
-        Body: ResponseBody{Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role)},
-    }, nil
+return &simba.Response[ResponseBody]{
+Body: ResponseBody{Message: fmt.Sprintf("Hello %s, you are an %s", user.Name, user.Role)},
+}, nil
 }
 
 app := simba.Default()
@@ -387,7 +351,7 @@ app.Router.GET("/users/{userId}", simba.AuthJsonHandler(authenticatedHandler, au
 ```go
 func bearerAuthFunc(ctx context.Context, token string) (*User, error) { /* ... */ }
 bearer := simba.BearerAuth[*User](bearerAuthFunc, simba.BearerAuthConfig{
-    Name: "bearer", Format: "jwt", Description: "token",
+Name: "bearer", Format: "jwt", Description: "token",
 })
 ```
 
@@ -395,7 +359,7 @@ bearer := simba.BearerAuth[*User](bearerAuthFunc, simba.BearerAuthConfig{
 ```go
 func basicAuthFunc(ctx context.Context, username, password string) (*User, error) { /* ... */ }
 basic := simba.BasicAuth[*User](basicAuthFunc, simba.BasicAuthConfig{
-    Name: "basic", Description: "desc",
+Name: "basic", Description: "desc",
 })
 ```
 
@@ -413,7 +377,7 @@ app.Settings.Docs.GenerateOpenAPIDocs = false       // Disable OpenAPI generatio
 
 ### Customizing OpenAPI Documentation
 
-Simba generates your OpenAPI specification using handler comments: 
+Simba generates your OpenAPI specification using handler comments:
 - The package and function names define operationId and grouping.
 - Use line comments above your handler function to add descriptions, summaries, and error information. Simba parses these for OpenAPI summaries/descriptions.
 
