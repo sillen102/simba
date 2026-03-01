@@ -2,22 +2,23 @@ package simba_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
 
 func TestDefaultApplication(t *testing.T) {
 	t.Parallel()
 
-	handler := func(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-		return &simbaModels.Response[simbaModels.NoBody]{Status: http.StatusOK}, nil
+	handler := func(ctx context.Context, req *models.Request[models.NoBody, models.NoParams]) (*models.Response[models.NoBody], error) {
+		return &models.Response[models.NoBody]{Status: http.StatusOK}, nil
 	}
 
 	app := simba.Default()
@@ -68,5 +69,42 @@ func TestNewApplication(t *testing.T) {
 		assert.Assert(t, app.Router != nil)
 		assert.Assert(t, app.Settings != nil)
 		assert.Equal(t, "localhost:8080", app.Server.Addr)
+	})
+}
+
+func TestApplicationRegisterShutdownHook(t *testing.T) {
+	t.Parallel()
+
+	t.Run("runs registered hooks during stop", func(t *testing.T) {
+		app := simba.New()
+
+		var order []string
+		app.RegisterShutdownHook(func(ctx context.Context) error {
+			order = append(order, "first")
+			return nil
+		})
+		app.RegisterShutdownHook(func(ctx context.Context) error {
+			order = append(order, "second")
+			return nil
+		})
+
+		err := app.Stop()
+		assert.Nil(t, err)
+		assert.Equal(t, 2, len(order))
+		assert.Equal(t, "first", order[0])
+		assert.Equal(t, "second", order[1])
+	})
+
+	t.Run("returns hook errors", func(t *testing.T) {
+		app := simba.New()
+		expectedErr := errors.New("shutdown failed")
+
+		app.RegisterShutdownHook(func(ctx context.Context) error {
+			return expectedErr
+		})
+
+		err := app.Stop()
+		assert.Assert(t, err != nil)
+		assert.Assert(t, errors.Is(err, expectedErr))
 	})
 }

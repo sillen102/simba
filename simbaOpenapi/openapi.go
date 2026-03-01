@@ -18,8 +18,8 @@ import (
 
 	"github.com/iancoleman/strcase"
 	simbaHttp "github.com/sillen102/simba/http"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
 	"github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
@@ -113,7 +113,7 @@ func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Refle
 
 	// Get response status code
 	if info.statusCode == 0 {
-		if routeInfo.RespBody == (simbaModels.NoBody{}) {
+		if routeInfo.RespBody == (models.NoBody{}) {
 			info.statusCode = http.StatusNoContent // Default for no response body
 		} else {
 			info.statusCode = http.StatusOK // Default for response body

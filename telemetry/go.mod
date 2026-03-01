@@ -1,9 +1,11 @@
 module github.com/sillen102/simba/telemetry
 
-go 1.25.6
+go 1.26
+
+replace github.com/sillen102/simba => ../
 
 require (
-	github.com/sillen102/simba v0.30.0-dev15
+	github.com/sillen102/simba v0.0.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.39.0

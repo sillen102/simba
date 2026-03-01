@@ -8,7 +8,7 @@ import (
 	"github.com/coder/websocket"
 )
 
-// WebSocketConnection represents an active WebSocket connection.
+// Connection represents an active WebSocket connection.
 // It provides thread-safe methods for sending messages.
 // The ID can be used to reference this connection in external systems
 // (e.g., Redis, database) for multi-instance message routing.

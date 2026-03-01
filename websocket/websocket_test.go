@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/auth"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest/assert"
 	simbawebsocket "github.com/sillen102/simba/websocket"
 
@@ -30,9 +30,9 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						connectCalled.Store(true)
 						receivedConnID.Store(conn.ID)
 						assert.NotNil(t, conn)
@@ -68,8 +68,8 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						messageCalled.Store(true)
 						receivedData.Store(string(data))
@@ -104,8 +104,8 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						receivedData.Store(data)
 						close(done)
@@ -139,12 +139,12 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return nil
 					},
-					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+					OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, err error) {
 						disconnectCalled.Store(true)
 						disconnectConnID.Store(connID)
 						close(done)
@@ -176,9 +176,9 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		disconnectDone := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						connectConnID.Store(conn.ID)
 						close(connectDone)
 						return nil
@@ -186,7 +186,7 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return nil
 					},
-					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+					OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, err error) {
 						disconnectConnID.Store(connID)
 						close(disconnectDone)
 					},
@@ -215,8 +215,8 @@ func TestHandler_ConnectionLifecycle(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return fmt.Errorf("test error")
 					},
@@ -257,9 +257,9 @@ func TestHandler_ConnectionID(t *testing.T) {
 		wg.Add(3)
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						mu.Lock()
 						defer mu.Unlock()
 						connIDs = append(connIDs, conn.ID)
@@ -308,9 +308,9 @@ func TestHandler_ConnectionID(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						connID.Store(conn.ID)
 						close(done)
 						return nil
@@ -348,8 +348,8 @@ func TestHandler_WriteOperations(t *testing.T) {
 
 		// Echo back text messages
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return conn.WriteText(ctx, "echo: "+string(data))
 					},
@@ -384,8 +384,8 @@ func TestHandler_WriteOperations(t *testing.T) {
 
 		// Echo back binary data
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return conn.WriteBinary(ctx, expectedData)
 					},
@@ -422,8 +422,8 @@ func TestHandler_WriteOperations(t *testing.T) {
 		}
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return conn.WriteJSON(ctx, TestMessage{Type: "response", Data: string(data)})
 					},
@@ -463,9 +463,9 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 		disconnectDone := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						registry.Store(conn.ID, conn)
 						close(connectDone)
 						return nil
@@ -473,7 +473,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return nil
 					},
-					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+					OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, err error) {
 						registry.Delete(connID)
 						close(disconnectDone)
 					},
@@ -515,9 +515,9 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						registeredConnID.Store(conn.ID)
 						registry.Store(conn.ID, conn)
 						close(done)
@@ -526,7 +526,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return nil
 					},
-					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+					OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, err error) {
 						registry.Delete(connID)
 					},
 				}
@@ -558,7 +558,7 @@ func TestHandler_ExternalRegistry(t *testing.T) {
 func TestAuthHandler_Authentication(t *testing.T) {
 	t.Parallel()
 
-	authHandler := simba.BearerAuth(
+	authHandler := auth.BearerAuth(
 		func(ctx context.Context, token string) (WSAuthModel, error) {
 			if token == "valid-token" {
 				return WSAuthModel{
@@ -568,7 +568,7 @@ func TestAuthHandler_Authentication(t *testing.T) {
 			}
 			return WSAuthModel{}, fmt.Errorf("invalid token")
 		},
-		simba.BearerAuthConfig{
+		auth.BearerAuthConfig{
 			Name:        "BearerAuth",
 			Format:      "JWT",
 			Description: "Test bearer auth",
@@ -582,9 +582,9 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.AuthHandler(
-			func() simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
-				return simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams, auth WSAuthModel) error {
+			func() simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel] {
+				return simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams, auth WSAuthModel) error {
 						authReceived.Store(auth)
 						close(done)
 						return nil
@@ -618,8 +618,8 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		t.Parallel()
 
 		handler := simbawebsocket.AuthHandler(
-			func() simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
-				return simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
+			func() simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel] {
+				return simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte, auth WSAuthModel) error {
 						return nil
 					},
@@ -646,8 +646,8 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.AuthHandler(
-			func() simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
-				return simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
+			func() simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel] {
+				return simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte, auth WSAuthModel) error {
 						messageAuth.Store(auth)
 						close(done)
@@ -687,16 +687,16 @@ func TestAuthHandler_Authentication(t *testing.T) {
 		disconnectDone := make(chan struct{})
 
 		handler := simbawebsocket.AuthHandler(
-			func() simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel] {
-				return simbawebsocket.AuthCallbacks[simbaModels.NoParams, WSAuthModel]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams, auth WSAuthModel) error {
+			func() simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel] {
+				return simbawebsocket.AuthCallbacks[models.NoParams, WSAuthModel]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams, auth WSAuthModel) error {
 						close(connectDone)
 						return nil
 					},
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte, auth WSAuthModel) error {
 						return nil
 					},
-					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, auth WSAuthModel, err error) {
+					OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, auth WSAuthModel, err error) {
 						disconnectConnID.Store(connID)
 						disconnectAuth.Store(auth)
 						close(disconnectDone)
@@ -740,9 +740,9 @@ func TestHandler_ConcurrentConnections(t *testing.T) {
 		disconnectWg.Add(numClients)
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						connectionCount.Add(1)
 						connectWg.Done()
 						return nil
@@ -750,7 +750,7 @@ func TestHandler_ConcurrentConnections(t *testing.T) {
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return nil
 					},
-					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+					OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, err error) {
 						connectionCount.Add(-1)
 						disconnectWg.Done()
 					},
@@ -806,8 +806,8 @@ func TestHandler_ErrorRecovery(t *testing.T) {
 		wg.Add(2)
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						messageCount.Add(1)
 						wg.Done()
@@ -848,15 +848,15 @@ func TestHandler_ErrorRecovery(t *testing.T) {
 		done := make(chan struct{})
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						return fmt.Errorf("error")
 					},
 					OnError: func(ctx context.Context, conn *simbawebsocket.Connection, err error) bool {
 						return false
 					},
-					OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+					OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, err error) {
 						disconnectCalled.Store(true)
 						close(done)
 					},
@@ -891,9 +891,9 @@ func TestHandler_ThreadSafety(t *testing.T) {
 		connReady.Add(1)
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						wsConn = conn
 						connReady.Done()
 						return nil
@@ -958,9 +958,9 @@ func TestHandler_Middleware(t *testing.T) {
 		}
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
-					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params simbaModels.NoParams) error {
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
+					OnConnect: func(ctx context.Context, conn *simbawebsocket.Connection, params models.NoParams) error {
 						callbackCalled.Store(true)
 						// Check that middleware added value to context
 						value := ctx.Value("test-key")
@@ -1003,8 +1003,8 @@ func TestHandler_Middleware(t *testing.T) {
 		}
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						wg.Done()
 						return nil
@@ -1055,8 +1055,8 @@ func TestHandler_Middleware(t *testing.T) {
 		}
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						// Check both middleware values are in context
 						assert.Equal(t, "value1", ctx.Value("mw1"))
@@ -1115,8 +1115,8 @@ func TestHandler_Middleware(t *testing.T) {
 		}
 
 		handler := simbawebsocket.Handler(
-			func() simbawebsocket.Callbacks[simbaModels.NoParams] {
-				return simbawebsocket.Callbacks[simbaModels.NoParams]{
+			func() simbawebsocket.Callbacks[models.NoParams] {
+				return simbawebsocket.Callbacks[models.NoParams]{
 					OnMessage: func(ctx context.Context, conn *simbawebsocket.Connection, data []byte) error {
 						wg.Done()
 						return nil

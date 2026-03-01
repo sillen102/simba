@@ -5,9 +5,10 @@ import (
 	"net/http"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/auth"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
@@ -63,8 +64,8 @@ func (h *CallbackHandlerFunc[Params]) setMiddleware(middleware []Middleware) {
 //
 // Where echoCallbacks is a function:
 //
-//	func echoCallbacks() simba.Callbacks[simbaModels.NoParams] {
-//		return simba.Callbacks[simbaModels.NoParams]{
+//	func echoCallbacks() simba.Callbacks[models.NoParams] {
+//		return simba.Callbacks[models.NoParams]{
 //			OnMessage: func(ctx context.Context, conn *simba.Connection, data []byte) error {
 //				return conn.WriteText("Echo: " + string(data))
 //			},
@@ -207,11 +208,11 @@ func (h *CallbackHandlerFunc[Params]) applyMiddleware(ctx context.Context) conte
 }
 
 func (h *CallbackHandlerFunc[Params]) GetRequestBody() any {
-	return simbaModels.NoBody{}
+	return models.NoBody{}
 }
 
 func (h *CallbackHandlerFunc[Params]) GetResponseBody() any {
-	return simbaModels.NoBody{}
+	return models.NoBody{}
 }
 
 func (h *CallbackHandlerFunc[Params]) GetParams() any {
@@ -242,7 +243,7 @@ func (h *CallbackHandlerFunc[Params]) GetAuthHandler() any {
 // AuthCallbackHandlerFunc handles authenticated WebSocket connections with callbacks.
 type AuthCallbackHandlerFunc[Params, AuthModel any] struct {
 	callbacks   AuthCallbacks[Params, AuthModel]
-	authHandler simba.AuthHandler[AuthModel]
+	authHandler auth.Handler[AuthModel]
 	middleware  []Middleware
 }
 
@@ -274,7 +275,7 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) setMiddleware(middleware []
 //	))
 func AuthHandler[Params, AuthModel any](
 	callbacksFunc func() AuthCallbacks[Params, AuthModel],
-	authHandler simba.AuthHandler[AuthModel],
+	authHandler auth.Handler[AuthModel],
 	options ...HandlerOption,
 ) simba.Handler {
 	callbacks := callbacksFunc()
@@ -300,7 +301,7 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWr
 	ctx := r.Context()
 
 	// Authenticate before upgrading the connection
-	authModel, err := simba.HandleAuthRequest[AuthModel](h.authHandler, r)
+	authModel, err := auth.HandleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		statusCode := http.StatusUnauthorized
 		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
@@ -431,11 +432,11 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) applyMiddleware(ctx context
 }
 
 func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetRequestBody() any {
-	return simbaModels.NoBody{}
+	return models.NoBody{}
 }
 
 func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetResponseBody() any {
-	return simbaModels.NoBody{}
+	return models.NoBody{}
 }
 
 func (h *AuthCallbackHandlerFunc[Params, AuthModel]) GetParams() any {

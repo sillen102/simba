@@ -7,11 +7,12 @@ import (
 	"os"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/auth"
 	"github.com/sillen102/simba/logging"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/websocket"
-	wsmw "github.com/sillen102/simba/websocket/middleware"
+	"github.com/sillen102/simba/websocket/middleware"
 )
 
 // User represents an authenticated user
@@ -32,9 +33,9 @@ func authHandler(ctx context.Context, token string) (User, error) {
 }
 
 // echoCallbacks returns WebSocket callbacks for a simple echo handler
-func echoCallbacks() websocket.Callbacks[simbaModels.NoParams] {
-	return websocket.Callbacks[simbaModels.NoParams]{
-		OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams) error {
+func echoCallbacks() websocket.Callbacks[models.NoParams] {
+	return websocket.Callbacks[models.NoParams]{
+		OnConnect: func(ctx context.Context, conn *websocket.Connection, params models.NoParams) error {
 			// Logger from middleware includes connectionID and traceID
 			logger := logging.From(ctx)
 			logger.Info("Connection established")
@@ -57,7 +58,7 @@ func echoCallbacks() websocket.Callbacks[simbaModels.NoParams] {
 				string(data), traceID[:8], connID[:8]))
 		},
 
-		OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, err error) {
+		OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, err error) {
 			logger := logging.From(ctx)
 			logger.Info("Connection closed", "error", err)
 		},
@@ -71,9 +72,9 @@ func echoCallbacks() websocket.Callbacks[simbaModels.NoParams] {
 }
 
 // chatCallbacks demonstrates authenticated WebSocket
-func chatCallbacks() websocket.AuthCallbacks[simbaModels.NoParams, User] {
-	return websocket.AuthCallbacks[simbaModels.NoParams, User]{
-		OnConnect: func(ctx context.Context, conn *websocket.Connection, params simbaModels.NoParams, user User) error {
+func chatCallbacks() websocket.AuthCallbacks[models.NoParams, User] {
+	return websocket.AuthCallbacks[models.NoParams, User]{
+		OnConnect: func(ctx context.Context, conn *websocket.Connection, params models.NoParams, user User) error {
 			logger := logging.From(ctx)
 			logger.Info("User connected", "user", user.Name)
 
@@ -90,7 +91,7 @@ func chatCallbacks() websocket.AuthCallbacks[simbaModels.NoParams, User] {
 			return conn.WriteText(ctx, message)
 		},
 
-		OnDisconnect: func(ctx context.Context, connID string, params simbaModels.NoParams, user User, err error) {
+		OnDisconnect: func(ctx context.Context, connID string, params models.NoParams, user User, err error) {
 			logger := logging.From(ctx)
 			logger.Info("User disconnected", "user", user.Name, "error", err)
 		},
@@ -111,7 +112,7 @@ func main() {
 	app := simba.Default()
 
 	// Bearer token auth handler for authenticated endpoints
-	bearerAuth := simba.BearerAuth(authHandler, simba.BearerAuthConfig{
+	bearerAuth := auth.BearerAuth(authHandler, auth.BearerAuthConfig{
 		Name:        "BearerAuth",
 		Format:      "JWT",
 		Description: "Bearer token authentication",
@@ -123,8 +124,8 @@ func main() {
 	app.Router.GET("/ws/echo", websocket.Handler(
 		echoCallbacks,
 		websocket.WithMiddleware(
-			wsmw.TraceID(), // Fresh traceID per callback
-			wsmw.Logger(),  // Logger with connectionID + traceID
+			middleware.TraceID(), // Fresh traceID per callback
+			middleware.Logger(),  // Logger with connectionID + traceID
 		)))
 
 	// Authenticated chat endpoint with middleware
@@ -133,8 +134,8 @@ func main() {
 		chatCallbacks,
 		bearerAuth,
 		websocket.WithMiddleware(
-			wsmw.TraceID(),
-			wsmw.Logger(),
+			middleware.TraceID(),
+			middleware.Logger(),
 		)))
 
 	slog.Info("Starting server with WebSocket support on :8080")

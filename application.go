@@ -1,6 +1,7 @@
 package simba
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -28,6 +29,9 @@ type Application struct {
 
 	// telemetryProvider manages tracing and metrics via a pluggable interface
 	telemetryProvider TelemetryProvider
+
+	// shutdownHooks are invoked during Stop to let optional modules clean up
+	shutdownHooks []func(context.Context) error
 }
 
 // Default returns a new [Application] application with default Simba
@@ -64,6 +68,15 @@ func New(opts ...settings.Option) *Application {
 // SetTelemetryProvider allows injection or replacement of the TelemetryProvider after application creation.
 func (a *Application) SetTelemetryProvider(tp TelemetryProvider) {
 	a.telemetryProvider = tp
+}
+
+// RegisterShutdownHook adds a callback invoked during Stop.
+// Hooks are executed in registration order.
+func (a *Application) RegisterShutdownHook(hook func(context.Context) error) {
+	if hook == nil {
+		return
+	}
+	a.shutdownHooks = append(a.shutdownHooks, hook)
 }
 
 // defaultMiddleware returns the middleware chain used in the default [Application] application

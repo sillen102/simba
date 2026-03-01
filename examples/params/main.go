@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/models"
 )
 
 type RequestBody struct {
@@ -37,7 +37,7 @@ type ResponseBody struct {
 // This is a description of what the handler does.
 //
 // It can span across multiple lines like this.
-func handler(ctx context.Context, req *simbaModels.Request[RequestBody, Params]) (*simbaModels.Response[ResponseBody], error) {
+func handler(ctx context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
 
 	// Access the request body and params fields
 	// req.Body.Age
@@ -53,7 +53,7 @@ func handler(ctx context.Context, req *simbaModels.Request[RequestBody, Params])
 	// Access the request headers
 	// req.Headers
 
-	return &simbaModels.Response[ResponseBody]{
+	return &models.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: fmt.Sprintf("Hello %s, you are %d years old", req.Params.Name, req.Body.Age),
 			ID:      req.Params.ID,

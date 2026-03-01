@@ -5,7 +5,7 @@ import (
 	"os"
 
 	configloader "github.com/sillen102/config-loader"
-	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/models"
 )
 
 // Simba is a struct that holds the application settings
@@ -60,7 +60,7 @@ type Request struct {
 	LogRequestBody bool `yaml:"log-request-body" env:"SIMBA_REQUEST_LOG_REQUEST_BODY" default:"false"`
 
 	// TraceIDMode determines how the Trace ID will be handled
-	TraceIDMode simbaModels.TraceIDMode `yaml:"trace-id-mode" env:"SIMBA_TRACE_ID_MODE" default:"AcceptFromHeader"`
+	TraceIDMode models.TraceIDMode `yaml:"trace-id-mode" env:"SIMBA_TRACE_ID_MODE" default:"AcceptFromHeader"`
 }
 
 type Docs struct {
@@ -184,7 +184,7 @@ func WithLogRequestBody(log bool) Option {
 }
 
 // WithTraceIDMode sets the trace ID mode
-func WithTraceIDMode(mode simbaModels.TraceIDMode) Option {
+func WithTraceIDMode(mode models.TraceIDMode) Option {
 	return func(s *Simba) {
 		s.TraceIDMode = mode
 	}
