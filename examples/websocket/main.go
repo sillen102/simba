@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"net/http"
 	"os"
 
 	"github.com/centrifugal/centrifuge"
@@ -13,6 +12,10 @@ import (
 )
 
 const validToken = "valid-token"
+
+type user struct {
+	ID string
+}
 
 type rpcResponse struct {
 	Method  string          `json:"method"`
@@ -26,57 +29,63 @@ func main() {
 
 	app := simba.Default()
 
-	wsHandler, err := websocket.New(websocket.Config{
-		Websocket: centrifuge.WebsocketConfig{
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
-		},
-		Setup: func(node *centrifuge.Node) error {
-			node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
-				userID := "anonymous"
-				if event.Token != "" {
-					if event.Token != validToken {
+	bearerAuth := simba.BearerAuth(func(ctx context.Context, token string) (user, error) {
+		if token != validToken {
+			return user{}, centrifuge.ErrorUnauthorized
+		}
+		return user{ID: "authenticated-user"}, nil
+	}, simba.BearerAuthConfig{
+		Name:        "BearerAuth",
+		Format:      "JWT",
+		Description: "Bearer token authentication",
+	})
+
+	wsHandler, err := websocket.NewAuthenticated(websocket.AuthenticatedConfig[user]{
+		Config: websocket.Config{
+			Setup: func(node *centrifuge.Node) error {
+				node.OnConnecting(func(ctx context.Context, event centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+					authUser, ok := websocket.AuthModelFromContext[user](ctx)
+					if !ok {
 						return centrifuge.ConnectReply{}, centrifuge.ErrorUnauthorized
 					}
-					userID = "authenticated-user"
-				}
 
-				slog.Info("client connecting", "client_id", event.ClientID, "user_id", userID)
+					slog.Info("client connecting", "client_id", event.ClientID, "user_id", authUser.ID)
 
-				return centrifuge.ConnectReply{
-					Credentials: &centrifuge.Credentials{UserID: userID},
-				}, nil
-			})
+					return centrifuge.ConnectReply{
+						Credentials: &centrifuge.Credentials{UserID: authUser.ID},
+					}, nil
+				})
 
-			node.OnConnect(func(client *centrifuge.Client) {
-				slog.Info("client connected", "client_id", client.ID(), "user_id", client.UserID())
+				node.OnConnect(func(client *centrifuge.Client) {
+					slog.Info("client connected", "client_id", client.ID(), "user_id", client.UserID())
 
-				client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
-					payload, err := json.Marshal(rpcResponse{
-						Method:  event.Method,
-						UserID:  client.UserID(),
-						Payload: json.RawMessage(event.Data),
+					client.OnRPC(func(event centrifuge.RPCEvent, callback centrifuge.RPCCallback) {
+						payload, err := json.Marshal(rpcResponse{
+							Method:  event.Method,
+							UserID:  client.UserID(),
+							Payload: json.RawMessage(event.Data),
+						})
+						if err != nil {
+							callback(centrifuge.RPCReply{}, err)
+							return
+						}
+
+						callback(centrifuge.RPCReply{Data: payload}, nil)
 					})
-					if err != nil {
-						callback(centrifuge.RPCReply{}, err)
-						return
-					}
 
-					callback(centrifuge.RPCReply{Data: payload}, nil)
+					client.OnDisconnect(func(event centrifuge.DisconnectEvent) {
+						slog.Info("client disconnected",
+							"client_id", client.ID(),
+							"user_id", client.UserID(),
+							"code", event.Code,
+							"reason", event.Reason)
+					})
 				})
 
-				client.OnDisconnect(func(event centrifuge.DisconnectEvent) {
-					slog.Info("client disconnected",
-						"client_id", client.ID(),
-						"user_id", client.UserID(),
-						"code", event.Code,
-						"reason", event.Reason)
-				})
-			})
-
-			return nil
+				return nil
+			},
 		},
+		Auth: bearerAuth,
 	})
 	if err != nil {
 		panic(err)
@@ -87,8 +96,8 @@ func main() {
 
 	slog.Info("starting server", "addr", app.Server.Addr)
 	slog.Info("websocket endpoint", "url", "ws://localhost:8080/ws")
-	slog.Info("connect anonymously", "command", `{"id":1,"connect":{}}`)
-	slog.Info("connect with token", "command", `{"id":1,"connect":{"token":"valid-token"}}`)
+	slog.Info("authorization header", "value", "Bearer valid-token")
+	slog.Info("connect", "command", `{"id":1,"connect":{}}`)
 	slog.Info("RPC echo", "command", `{"id":2,"rpc":{"method":"echo","data":{"message":"hello"}}}`)
 
 	app.Start()

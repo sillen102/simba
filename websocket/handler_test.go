@@ -3,6 +3,7 @@ package websocket_test
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/centrifugal/centrifuge"
@@ -64,5 +65,57 @@ func TestNewSetupError(t *testing.T) {
 	}
 	if handler != nil {
 		t.Fatal("expected nil handler on setup error")
+	}
+}
+
+type testAuthHandler struct {
+	model testAuthModel
+	err   error
+}
+
+type testAuthModel struct {
+	Name string
+}
+
+func (h testAuthHandler) GetHandler() func(r *http.Request) (testAuthModel, error) {
+	return func(r *http.Request) (testAuthModel, error) {
+		return h.model, h.err
+	}
+}
+
+func TestNewAuthenticated(t *testing.T) {
+	t.Parallel()
+
+	handler, err := websocket.NewAuthenticated(websocket.AuthenticatedConfig[testAuthModel]{
+		Config: websocket.Config{
+			Setup: func(node *centrifuge.Node) error { return nil },
+		},
+		Auth: testAuthHandler{model: testAuthModel{Name: "test-user"}},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if got, ok := handler.GetAuthModel().(testAuthModel); !ok || got != (testAuthModel{}) {
+		t.Fatalf("expected auth model metadata, got %#v", handler.GetAuthModel())
+	}
+	if handler.GetAuthHandler() == nil {
+		t.Fatal("expected auth handler metadata")
+	}
+
+	if err := handler.Shutdown(context.Background()); err != nil {
+		t.Fatalf("expected clean shutdown, got %v", err)
+	}
+}
+
+func TestNewAuthenticatedRequiresAuthHandler(t *testing.T) {
+	t.Parallel()
+
+	handler, err := websocket.NewAuthenticated[testAuthModel](websocket.AuthenticatedConfig[testAuthModel]{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if handler != nil {
+		t.Fatal("expected nil handler")
 	}
 }
