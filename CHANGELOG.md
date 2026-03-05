@@ -1,3 +1,9 @@
+## [0.30.0-dev.2](https://github.com/sillen102/simba/compare/v0.30.0-dev.1...v0.30.0-dev.2) (2026-03-05)
+
+### Bug Fixes
+
+* update dependencies, use mise instead of Makefile, remove centrifuge (for now) ([775e935](https://github.com/sillen102/simba/commit/775e935811087573906fe27e8ea7c693214941ad))
+
 ## [0.30.0-dev.1](https://github.com/sillen102/simba/compare/v0.29.5...v0.30.0-dev.1) (2026-03-05)
 
 ### Features
