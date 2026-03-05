@@ -1,2 +1,129 @@
 [tools]
 go = "1.26"
+
+[tasks.test]
+description = "Run tests"
+dir = "."
+run = """
+echo "==> test: core"
+go test -v ./...
+
+echo "==> test: models"
+go -C models test -v ./...
+
+echo "==> test: telemetry"
+go -C telemetry test -v ./...
+
+echo "==> test: websocket"
+go -C websocket test -v ./...
+"""
+
+[tasks.test-race]
+description = "Run tests with race detector"
+dir = "."
+run = """
+echo "==> test-race: core"
+go test -v -race ./...
+
+echo "==> test-race: models"
+go -C models test -v -race ./...
+
+echo "==> test-race: telemetry"
+go -C telemetry test -v -race ./...
+
+echo "==> test-race: websocket"
+go -C websocket test -v -race ./...
+"""
+
+[tasks.update-deps]
+description = "Update dependencies"
+dir = "."
+run = """
+echo "==> update-deps: core (go get -u)"
+go get -u ./...
+
+echo "==> update-deps: core (go mod tidy)"
+go mod tidy
+
+echo "==> update-deps: models (go get -u)"
+go -C models get -u ./...
+
+echo "==> update-deps: models (go mod tidy)"
+go -C models mod tidy
+
+echo "==> update-deps: telemetry (go get -u)"
+go -C telemetry get -u ./...
+
+echo "==> update-deps: telemetry (go mod tidy)"
+go -C telemetry mod tidy
+
+echo "==> update-deps: websocket (go get -u)"
+go -C websocket get -u ./...
+
+echo "==> update-deps: websocket (go mod tidy)"
+go -C websocket mod tidy
+
+echo "==> update-deps: done"
+"""
+
+[tasks.tidy]
+description = "Tidy up go.mod and go.sum"
+dir = "."
+run = """
+echo "==> tidy: core"
+go mod tidy
+
+echo "==> tidy: models"
+go -C models mod tidy
+
+echo "==> tidy: telemetry"
+go -C telemetry mod tidy
+
+echo "==> tidy: websocket"
+go -C websocket mod tidy
+
+echo "==> tidy: done"
+"""
+
+[tasks.lint]
+description = "Run linters"
+dir = "."
+run = """
+echo "==> lint: core"
+golangci-lint run
+
+echo "==> lint: models"
+(
+  cd models
+  golangci-lint run
+)
+
+echo "==> lint: telemetry"
+(
+  cd telemetry
+  golangci-lint run
+)
+
+echo "==> lint: websocket"
+(
+  cd websocket
+  golangci-lint run
+)
+
+echo "==> nilaway: core"
+nilaway -test=false ./...
+
+echo "==> nilaway: websocket"
+(
+  cd websocket
+  nilaway -test=false ./...
+)
+
+echo "==> nilaway: telemetry"
+(
+  cd telemetry
+  nilaway -test=false ./...
+)
+
+echo "==> lint: done"
+"""
