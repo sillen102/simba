@@ -49,10 +49,7 @@ if (isMain) {
 
 module.exports = {
   branches: [
-    {
-      name: "main",
-      prerelease: "rc",
-    },
+    "main",
     {
       name: "dev",
       prerelease: "dev",
