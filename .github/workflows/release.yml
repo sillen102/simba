@@ -1,0 +1,103 @@
+name: Release Modules
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  sync-submodule-tags:
+    if: startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync websocket/telemetry tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          .github/scripts/sync-submodule-tags.sh "${{ github.ref_name }}"
+
+  release-root:
+    if: startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout root tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run GoReleaser (root)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: 2.14.1
+          args: release --clean --config .goreleaser.root.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-websocket:
+    needs: sync-submodule-tags
+    if: startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout websocket tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: websocket/${{ github.ref_name }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: websocket/go.mod
+
+      - name: Run GoReleaser (websocket)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: 2.14.1
+          args: release --clean --skip=validate --config .goreleaser.websocket.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-telemetry:
+    needs: sync-submodule-tags
+    if: startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout telemetry tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: telemetry/${{ github.ref_name }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: telemetry/go.mod
+
+      - name: Run GoReleaser (telemetry)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: 2.14.1
+          args: release --clean --skip=validate --config .goreleaser.telemetry.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
