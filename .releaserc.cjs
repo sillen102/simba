@@ -2,12 +2,7 @@ const refName = process.env.GITHUB_REF_NAME || "";
 const isMain = refName === "main";
 
 const plugins = [
-  [
-    "@semantic-release/commit-analyzer",
-    {
-      preset: "conventionalcommits",
-    },
-  ],
+  "./.github/scripts/semantic-analyze-commits.cjs",
   [
     "@semantic-release/release-notes-generator",
     {
