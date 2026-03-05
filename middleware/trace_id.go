@@ -8,20 +8,13 @@ import (
 	"github.com/sillen102/simba/simbaContext"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func TraceID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var traceID string
+		traceID := simbaContext.GetTraceID(r.Context())
 
-		// Check if OTEL trace ID exists in span context
-		// This takes precedence when telemetry is enabled
-		spanCtx := trace.SpanContextFromContext(r.Context())
-		if spanCtx.IsValid() {
-			traceID = spanCtx.TraceID().String()
-		} else {
-			// Fallback to existing Simba trace ID logic
+		if traceID == "" {
 			requestSettings, ok := r.Context().Value(simbaContext.RequestSettingsKey).(*settings.Request)
 			if ok && requestSettings.TraceIDMode == models.AcceptFromHeader {
 				traceID = r.Header.Get(simbaContext.TraceIDHeader)

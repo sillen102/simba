@@ -9,8 +9,7 @@ import (
 func newResource(serviceName, serviceVersion, environment string) (*resource.Resource, error) {
 	return resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
+		resource.NewSchemaless(
 			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion(serviceVersion),
 			semconv.DeploymentEnvironmentName(environment),

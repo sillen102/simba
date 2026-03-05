@@ -3,13 +3,14 @@ package telemetry
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/sillen102/simba"
 	config "github.com/sillen102/simba/telemetry/config"
+	telemetryMiddleware "github.com/sillen102/simba/telemetry/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"time"
 )
 
 // OtelTelemetryProvider implements simba.TelemetryProvider using OpenTelemetry SDK
@@ -36,7 +37,7 @@ func (o *OtelTelemetryProvider) TracingMiddleware() func(http.Handler) http.Hand
 		if o.provider == nil || !o.telemetryConfig.Enabled || !o.telemetryConfig.Tracing.Enabled {
 			return next
 		}
-		return otelhttp.NewHandler(next, "simba.http.server",
+		return otelhttp.NewHandler(telemetryMiddleware.TraceIDFromOTel(next), "simba.http.server",
 			otelhttp.WithTracerProvider(o.provider.TracerProvider()),
 		)
 	}
