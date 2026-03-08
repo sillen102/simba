@@ -1,3 +1,9 @@
+## [0.30.0-dev.3](https://github.com/sillen102/simba/compare/v0.30.0-dev.2...v0.30.0-dev.3) (2026-03-08)
+
+### Features
+
+* allow shutdown hooks to be any function ([14afff9](https://github.com/sillen102/simba/commit/14afff9f9015245c3494bddc627ac3691d8c5a4a))
+
 ## [0.30.0-dev.2](https://github.com/sillen102/simba/compare/v0.30.0-dev.1...v0.30.0-dev.2) (2026-03-05)
 
 ### Bug Fixes
