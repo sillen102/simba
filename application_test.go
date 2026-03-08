@@ -107,4 +107,53 @@ func TestApplicationRegisterShutdownHook(t *testing.T) {
 		assert.Assert(t, err != nil)
 		assert.Assert(t, errors.Is(err, expectedErr))
 	})
+
+	t.Run("accepts function without context and error", func(t *testing.T) {
+		app := simba.New()
+		called := false
+
+		app.RegisterShutdownHook(func() {
+			called = true
+		})
+
+		err := app.Stop()
+		assert.Nil(t, err)
+		assert.Assert(t, called)
+	})
+
+	t.Run("accepts function with context only", func(t *testing.T) {
+		app := simba.New()
+		called := false
+
+		app.RegisterShutdownHook(func(ctx context.Context) {
+			called = ctx != nil
+		})
+
+		err := app.Stop()
+		assert.Nil(t, err)
+		assert.Assert(t, called)
+	})
+
+	t.Run("accepts function with arbitrary parameters", func(t *testing.T) {
+		app := simba.New()
+		var got int
+
+		app.RegisterShutdownHook(func(v int) {
+			got = v
+		})
+
+		err := app.Stop()
+		assert.Nil(t, err)
+		assert.Equal(t, 0, got)
+	})
+
+	t.Run("panics when hook is not a function", func(t *testing.T) {
+		app := simba.New()
+
+		defer func() {
+			assert.Assert(t, recover() != nil)
+		}()
+
+		app.RegisterShutdownHook("invalid")
+	})
 }

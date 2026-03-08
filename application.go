@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/sillen102/simba/middleware"
 	"github.com/sillen102/simba/settings"
@@ -72,11 +73,50 @@ func (a *Application) SetTelemetryProvider(tp TelemetryProvider) {
 
 // RegisterShutdownHook adds a callback invoked during Stop.
 // Hooks are executed in registration order.
-func (a *Application) RegisterShutdownHook(hook func(context.Context) error) {
+//
+// Supported hook forms include, but are not limited to:
+//   - func()
+//   - func() error
+//   - func(context.Context)
+//   - func(context.Context) error
+//
+// For other function signatures, non-context parameters are passed as zero values.
+// If a returned value implements error and is non-nil, it is propagated.
+func (a *Application) RegisterShutdownHook(hook any) {
 	if hook == nil {
 		return
 	}
-	a.shutdownHooks = append(a.shutdownHooks, hook)
+
+	hookValue := reflect.ValueOf(hook)
+	if hookValue.Kind() != reflect.Func {
+		panic("shutdown hook must be a function")
+	}
+
+	ctxType := reflect.TypeOf((*context.Context)(nil)).Elem()
+	hookType := hookValue.Type()
+
+	adaptedHook := func(ctx context.Context) error {
+		callArgs := make([]reflect.Value, hookType.NumIn())
+		for i := 0; i < hookType.NumIn(); i++ {
+			paramType := hookType.In(i)
+			if paramType.Implements(ctxType) {
+				callArgs[i] = reflect.ValueOf(ctx)
+				continue
+			}
+			callArgs[i] = reflect.Zero(paramType)
+		}
+
+		results := hookValue.Call(callArgs)
+		for _, result := range results {
+			if !result.Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) || result.IsNil() {
+				continue
+			}
+			return result.Interface().(error)
+		}
+		return nil
+	}
+
+	a.shutdownHooks = append(a.shutdownHooks, adaptedHook)
 }
 
 // defaultMiddleware returns the middleware chain used in the default [Application] application
