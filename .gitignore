@@ -105,3 +105,8 @@ fabric.properties
 
 # Node modules
 node_modules/
+
+# Cache directories for Go tools
+# Go build cache
+go-build-cache/
+.gocache/
