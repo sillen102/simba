@@ -1003,6 +1003,26 @@ func TestValidateStruct_Required(t *testing.T) {
 	assert.Nil(t, errors)
 }
 
+func TestValidateStruct_Required_UsesJsonTagInMessage(t *testing.T) {
+	t.Parallel()
+
+	type TestStructRequired struct {
+		FirstName string `json:"first_name" validate:"required"`
+	}
+
+	// Given
+	testStruct := TestStructRequired{}
+
+	// When
+	errors := simba.ValidateStruct(testStruct)
+
+	// Then
+	assert.NotNil(t, errors)
+	assert.Equal(t, 1, len(errors))
+	assert.Equal(t, "first_name", errors[0].Field)
+	assert.Equal(t, "first_name is required", errors[0].Err)
+}
+
 func TestValidateStruct_NoJsonTags(t *testing.T) {
 	t.Parallel()
 

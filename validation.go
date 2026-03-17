@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -33,6 +34,13 @@ func init() {
 	trans, _ = uni.GetTranslator("en")
 
 	validate = validator.New(validator.WithRequiredStructEnabled())
+	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+		if name == "" || name == "-" {
+			return fld.Name
+		}
+		return name
+	})
 	err := en_translations.RegisterDefaultTranslations(validate, trans)
 	if err != nil {
 		panic("failed to register default translations for validator: " + err.Error())
@@ -223,8 +231,10 @@ func init() {
 			return ut.Add("required", "{0} is required", true)
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
-			field := strcase.ToDelimited(fe.Field(), ' ')
-			return fmt.Sprintf("%s is required", field)
+			if fe.Field() == fe.StructField() {
+				return fmt.Sprintf("%s is required", strcase.ToDelimited(fe.Field(), ' '))
+			}
+			return fmt.Sprintf("%s is required", fe.Field())
 		},
 	)
 }
