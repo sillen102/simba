@@ -11,6 +11,7 @@ import (
 
 	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/validation"
 
 	"github.com/google/uuid"
 )
@@ -29,7 +30,7 @@ func ParseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	}
 	v := reflect.ValueOf(&instance).Elem()
 
-	validationErrors := make([]ValidationError, 0)
+	validationErrors := make([]validation.ValidationError, 0)
 
 	// Extract parameters from struct tags and set values
 	for i := 0; i < t.NumField(); i++ {
@@ -70,7 +71,7 @@ func ParseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	}
 
 	if len(validationErrors) == 0 {
-		if valErrs := ValidateStruct(instance); len(valErrs) > 0 {
+		if valErrs := validation.ValidateStruct(instance); len(valErrs) > 0 {
 			validationErrors = append(validationErrors, valErrs...)
 		}
 	}
@@ -174,7 +175,7 @@ func getFieldName(field reflect.StructField) string {
 	return field.Name
 }
 
-func setFieldValue(fieldValue reflect.Value, values []string, field reflect.StructField) *ValidationError {
+func setFieldValue(fieldValue reflect.Value, values []string, field reflect.StructField) *validation.ValidationError {
 	if len(values) == 0 {
 		return nil
 	}
@@ -199,14 +200,14 @@ func setFieldValue(fieldValue reflect.Value, values []string, field reflect.Stru
 		return setSingleValue(fieldValue, values[0], field)
 	}
 
-	return &ValidationError{
+	return &validation.ValidationError{
 		Field: getFieldName(field),
 		Err:   fmt.Errorf("unsupported field type: %v", fieldValue.Kind()).Error(),
 	}
 }
 
 // setSingleValue converts and sets a string value to the appropriate field type
-func setSingleValue(fieldValue reflect.Value, value string, field reflect.StructField) *ValidationError {
+func setSingleValue(fieldValue reflect.Value, value string, field reflect.StructField) *validation.ValidationError {
 	if value == "" {
 		return nil
 	}
@@ -220,7 +221,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 		}
 		var timeVal time.Time
 		if timeVal, err = time.Parse(format, value); err != nil {
-			return &ValidationError{
+			return &validation.ValidationError{
 				Field: getFieldName(field),
 				Err:   fmt.Errorf("invalid time parameter value: %s", value).Error(),
 			}
@@ -230,7 +231,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 	case "uuid.UUID":
 		var uuidVal uuid.UUID
 		if uuidVal, err = uuid.Parse(value); err != nil {
-			return &ValidationError{
+			return &validation.ValidationError{
 				Field: getFieldName(field),
 				Err:   fmt.Errorf("invalid UUID parameter value: %s", value).Error(),
 			}
@@ -245,7 +246,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 		if unmarshaler, ok := ptrVal.Interface().(encoding.TextUnmarshaler); ok {
 			if err = unmarshaler.UnmarshalText([]byte(value)); err != nil {
 				fieldName := getFieldName(field)
-				return &ValidationError{
+				return &validation.ValidationError{
 					Field: fieldName,
 					Err:   fmt.Errorf("invalid value %s for %s", value, fieldName).Error(),
 				}
@@ -260,7 +261,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 	case reflect.Int, reflect.Int64:
 		var intVal int64
 		if intVal, err = strconv.ParseInt(value, 10, 64); err != nil {
-			return &ValidationError{
+			return &validation.ValidationError{
 				Field: getFieldName(field),
 				Err:   fmt.Errorf("invalid int parameter value: %s", value).Error(),
 			}
@@ -270,7 +271,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 	case reflect.Bool:
 		var boolVal bool
 		if boolVal, err = strconv.ParseBool(value); err != nil {
-			return &ValidationError{
+			return &validation.ValidationError{
 				Field: getFieldName(field),
 				Err:   fmt.Errorf("invalid bool parameter value: %s", value).Error(),
 			}
@@ -280,7 +281,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 	case reflect.Float64:
 		var floatVal float64
 		if floatVal, err = strconv.ParseFloat(value, 64); err != nil {
-			return &ValidationError{
+			return &validation.ValidationError{
 				Field: getFieldName(field),
 				Err:   fmt.Errorf("invalid float parameter value: %s", value).Error(),
 			}
@@ -288,7 +289,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 		fieldValue.SetFloat(floatVal)
 		return nil
 	default:
-		return &ValidationError{
+		return &validation.ValidationError{
 			Field: getFieldName(field),
 			Err:   fmt.Errorf("unsupported field type: %v", fieldValue.Kind()).Error(),
 		}
@@ -298,7 +299,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 }
 
 // setDefaultValue sets the default value from struct tag if available
-func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) *ValidationError {
+func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) *validation.ValidationError {
 	if fieldValue.Kind() == reflect.Ptr {
 		if defaultValue := field.Tag.Get("default"); defaultValue != "" {
 			// Create a new instance of the pointer's element type

@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/sillen102/simba"
 	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaTest"
 	"github.com/sillen102/simba/simbaTest/assert"
+	"github.com/sillen102/simba/validation"
 )
 
 type TestAllParamTypes struct {
@@ -461,9 +463,9 @@ func TestTextUnmarshalerParameters(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, errorResponse.Status)
 		assert.Equal(t, "request validation failed", errorResponse.Message)
 		detailsBytes, _ := json.Marshal(errorResponse.Details)
-		var details []simba.ValidationError
+		var details []validation.ValidationError
 		_ = json.Unmarshal(detailsBytes, &details)
-		assert.Equal(t, []simba.ValidationError{{Field: "id", Err: "invalid value invalid-123 for id"}}, details)
+		assert.Equal(t, []validation.ValidationError{{Field: "id", Err: "invalid value invalid-123 for id"}}, details)
 	})
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
 	"github.com/sillen102/simba/simbaErrors"
+	"github.com/sillen102/simba/validation"
 )
 
 // closeRequestBody automatically closes the Request body after processing
@@ -95,7 +96,7 @@ func handleJsonBody[RequestBody any](r *http.Request, req *RequestBody) error {
 		}
 	}
 
-	if validationErrors := ValidateStruct(validationTarget); len(validationErrors) > 0 {
+	if validationErrors := validation.ValidateStruct(validationTarget); len(validationErrors) > 0 {
 		return simbaErrors.NewSimbaError(
 			http.StatusBadRequest,
 			"request validation failed",
@@ -152,9 +153,9 @@ func readJson(body io.ReadCloser, requestSettings *settings.Request, model any) 
 	return nil
 }
 
-// setDefaultsFromTags sets default values for all zero-valued fields in a struct.
-func setDefaultsFromTags(model any) []ValidationError {
-	var errs []ValidationError
+// setDefaultsFromTags sets default vavalidation.lues for all zero-valued fields in a struct.
+func setDefaultsFromTags(model any) []validation.ValidationError {
+	var errs []validation.ValidationError
 	v := reflect.ValueOf(model)
 
 	// Dereference all pointer levels until we reach the struct
