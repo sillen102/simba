@@ -1,3 +1,9 @@
+## [0.30.0-dev.6](https://github.com/sillen102/simba/compare/v0.30.0-dev.5...v0.30.0-dev.6) (2026-03-17)
+
+### Features
+
+* use error messages from go-playground validator in validation errors instead of maintaining own translations ([beee7de](https://github.com/sillen102/simba/commit/beee7de32e25969a09b16bf5ad666ce95cae2487))
+
 ## [0.30.0-dev.5](https://github.com/sillen102/simba/compare/v0.30.0-dev.4...v0.30.0-dev.5) (2026-03-17)
 
 ### Bug Fixes
