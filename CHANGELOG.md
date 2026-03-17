@@ -1,3 +1,9 @@
+## [0.30.0-dev.4](https://github.com/sillen102/simba/compare/v0.30.0-dev.3...v0.30.0-dev.4) (2026-03-17)
+
+### Features
+
+* user json tags in error messages on validation ([564fe48](https://github.com/sillen102/simba/commit/564fe4870f2bea19d72b60c8ca066e5f4aff0986))
+
 ## [0.30.0-dev.3](https://github.com/sillen102/simba/compare/v0.30.0-dev.2...v0.30.0-dev.3) (2026-03-08)
 
 ### Features
