@@ -10,7 +10,6 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	en_translations "github.com/go-playground/validator/v10/translations/en"
-	"github.com/iancoleman/strcase"
 )
 
 type ValidationError struct {
@@ -205,9 +204,9 @@ func init() {
 				return fmt.Sprintf("must not exceed %s", fe.Param())
 			} else if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array || fe.Kind() == reflect.Map {
 				return fmt.Sprintf("must not contain more than %s items", fe.Param())
-			} else {
-				return fmt.Sprintf("must not exceed %s characters", fe.Param())
 			}
+
+			return fmt.Sprintf("must not exceed %s characters", fe.Param())
 		},
 	)
 
@@ -220,9 +219,9 @@ func init() {
 				return fmt.Sprintf("must be at least %s", fe.Param())
 			} else if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array || fe.Kind() == reflect.Map {
 				return fmt.Sprintf("must contain at least %s items", fe.Param())
-			} else {
-				return fmt.Sprintf("must be at least %s characters long", fe.Param())
 			}
+
+			return fmt.Sprintf("must be at least %s characters long", fe.Param())
 		},
 	)
 
@@ -232,7 +231,7 @@ func init() {
 		},
 		func(ut ut.Translator, fe validator.FieldError) string {
 			if fe.Field() == fe.StructField() {
-				return fmt.Sprintf("%s is required", strcase.ToDelimited(fe.Field(), ' '))
+				return fmt.Sprintf("%s is required", fe.Field())
 			}
 			return fmt.Sprintf("%s is required", fe.Field())
 		},

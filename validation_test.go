@@ -1041,9 +1041,9 @@ func TestValidateStruct_NoJsonTags(t *testing.T) {
 	assert.NotNil(t, errors)
 	assert.Equal(t, 2, len(errors))
 	assert.Equal(t, "Name", errors[0].Field)
-	assert.Equal(t, "name is required", errors[0].Err)
+	assert.Equal(t, "Name is required", errors[0].Err)
 	assert.Equal(t, "Email", errors[1].Field)
-	assert.Equal(t, "email is required", errors[1].Err)
+	assert.Equal(t, "Email is required", errors[1].Err)
 
 	// Given
 	testStruct = TestStructNoJsonTags{
