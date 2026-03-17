@@ -1,3 +1,9 @@
+## [0.30.0-dev.5](https://github.com/sillen102/simba/compare/v0.30.0-dev.4...v0.30.0-dev.5) (2026-03-17)
+
+### Bug Fixes
+
+* error message when no json tags are present on struct being validated ([efdf1ff](https://github.com/sillen102/simba/commit/efdf1ffae273572b0ccafe10c6723af1ec7a1528))
+
 ## [0.30.0-dev.4](https://github.com/sillen102/simba/compare/v0.30.0-dev.3...v0.30.0-dev.4) (2026-03-17)
 
 ### Features
