@@ -1,21 +1,32 @@
 [tools]
 go = "1.26"
+golangci-lint = "2"
+gotestsum = "1"
 
 [tasks.test]
 description = "Run tests"
 dir = "."
 run = """
 echo "==> test: core"
-go test -v ./...
+gotestsum --format=short-verbose
 
 echo "==> test: models"
-go -C models test -v ./...
+(
+  cd models
+  gotestsum --format=short-verbose -- -v ./...
+)
 
 echo "==> test: telemetry"
-go -C telemetry test -v ./...
+(
+  cd telemetry
+  gotestsum --format=short-verbose -- -v ./...
+)
 
 echo "==> test: websocket"
-go -C websocket test -v ./...
+(
+  cd websocket
+  gotestsum --format=short-verbose -- -v ./...
+)
 """
 
 [tasks.test-race]
@@ -23,16 +34,25 @@ description = "Run tests with race detector"
 dir = "."
 run = """
 echo "==> test-race: core"
-go test -v -race ./...
+gotestsum --format=short-verbose -- -v -race ./...
 
 echo "==> test-race: models"
-go -C models test -v -race ./...
+(
+  cd models
+  gotestsum --format=short-verbose -- -v -race ./...
+)
 
 echo "==> test-race: telemetry"
-go -C telemetry test -v -race ./...
+(
+  cd telemetry
+  gotestsum --format=short-verbose -- -v -race ./...
+)
 
 echo "==> test-race: websocket"
-go -C websocket test -v -race ./...
+(
+  cd websocket
+  gotestsum --format=short-verbose -- -v -race ./...
+)
 """
 
 [tasks.update-deps]
