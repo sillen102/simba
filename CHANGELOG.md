@@ -1,3 +1,9 @@
+## [0.30.0-dev.7](https://github.com/sillen102/simba/compare/v0.30.0-dev.6...v0.30.0-dev.7) (2026-03-31)
+
+### Features
+
+* allow pointes in query parameters ([7d275a0](https://github.com/sillen102/simba/commit/7d275a0daae58aeb688bde61842c083e86e5c3a4))
+
 ## [0.30.0-dev.6](https://github.com/sillen102/simba/compare/v0.30.0-dev.5...v0.30.0-dev.6) (2026-03-17)
 
 ### Features
