@@ -405,6 +405,69 @@ func TestTimeParameters(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestPointerQueryParameters(t *testing.T) {
+	t.Parallel()
+
+	type PointerQueryParams struct {
+		Page      *int       `query:"page"`
+		Enabled   *bool      `query:"enabled"`
+		Filter    *string    `query:"filter"`
+		QueryID   *uuid.UUID `query:"queryId"`
+		StartDate *time.Time `query:"startDate"`
+	}
+
+	t.Run("sets pointer query params", func(t *testing.T) {
+		testUUID := uuid.New()
+		testDate, err := time.Parse(time.RFC3339, "2023-10-15T14:00:00Z")
+		assert.NoError(t, err)
+
+		handler := func(ctx context.Context, req *models.Request[models.NoBody, PointerQueryParams]) (*models.Response[models.NoBody], error) {
+			assert.NotNil(t, req.Params.Page)
+			assert.NotNil(t, req.Params.Enabled)
+			assert.NotNil(t, req.Params.Filter)
+			assert.NotNil(t, req.Params.QueryID)
+			assert.NotNil(t, req.Params.StartDate)
+
+			assert.Equal(t, 2, *req.Params.Page)
+			assert.Equal(t, true, *req.Params.Enabled)
+			assert.Equal(t, "active", *req.Params.Filter)
+			assert.Equal(t, testUUID, *req.Params.QueryID)
+			assert.Equal(t, testDate, *req.Params.StartDate)
+
+			return &models.Response[models.NoBody]{Status: http.StatusOK}, nil
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/test?page=2&enabled=true&filter=active&queryId="+testUUID.String()+"&startDate="+testDate.Format(time.RFC3339), nil)
+		w := httptest.NewRecorder()
+
+		app := simba.New()
+		app.Router.GET("/test", simba.JsonHandler(handler))
+		app.Router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("keeps pointers nil when query params are missing", func(t *testing.T) {
+		handler := func(ctx context.Context, req *models.Request[models.NoBody, PointerQueryParams]) (*models.Response[models.NoBody], error) {
+			assert.Nil(t, req.Params.Page)
+			assert.Nil(t, req.Params.Enabled)
+			assert.Nil(t, req.Params.Filter)
+			assert.Nil(t, req.Params.QueryID)
+			assert.Nil(t, req.Params.StartDate)
+			return &models.Response[models.NoBody]{Status: http.StatusOK}, nil
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		w := httptest.NewRecorder()
+
+		app := simba.New()
+		app.Router.GET("/test", simba.JsonHandler(handler))
+		app.Router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
 // CustomID is a type that implements TextMarshaler and TextUnmarshaler
 type CustomID string
 

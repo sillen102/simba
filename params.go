@@ -24,7 +24,7 @@ func ParseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	if _, ok := any(instance).(models.NoParams); ok {
 		return instance, nil
 	}
-	t := reflect.TypeOf(&instance).Elem()
+	t := reflect.TypeFor[Params]()
 	if t.NumField() == 0 {
 		return instance, nil
 	}
@@ -212,6 +212,13 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 		return nil
 	}
 
+	if fieldValue.Kind() == reflect.Pointer {
+		if fieldValue.IsNil() {
+			fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
+		}
+		return setSingleValue(fieldValue.Elem(), value, field)
+	}
+
 	var err error
 	switch fieldValue.Type().String() {
 	case "time.Time":
@@ -300,7 +307,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 
 // setDefaultValue sets the default value from struct tag if available
 func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) *validation.ValidationError {
-	if fieldValue.Kind() == reflect.Ptr {
+	if fieldValue.Kind() == reflect.Pointer {
 		if defaultValue := field.Tag.Get("default"); defaultValue != "" {
 			// Create a new instance of the pointer's element type
 			newValue := reflect.New(fieldValue.Type().Elem())
