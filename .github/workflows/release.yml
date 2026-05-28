@@ -33,8 +33,14 @@ jobs:
       - name: Compute next version
         id: version
         run: |
+          # On main use only stable tags; on dev use any tag
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            TAG_PAT="$STABLE_PAT"
+          else
+            TAG_PAT="$ANY_PAT"
+          fi
           LAST=$(git tag --sort=-creatordate --merged HEAD \
-            | grep -E "$ANY_PAT" | head -1 || true)
+            | grep -E "$TAG_PAT" | head -1 || true)
           echo "Last release tag: ${LAST:-none}"
 
           COUNT=$(git log "${LAST:+${LAST}..}HEAD" --format="%s" \
