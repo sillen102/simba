@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/errutil"
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaContext"
 )
@@ -103,8 +102,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	message := err.Error()
 	var details any
 
-	var simbaErr *SimbaError
-	if errutil.As(err, &simbaErr) && simbaErr != nil {
+	if simbaErr, ok := errors.AsType[*SimbaError](err); ok && simbaErr != nil {
 		// If the error is a SimbaError, extract its properties
 		statusCode = simbaErr.StatusCode()
 		message = simbaErr.PublicMessage()

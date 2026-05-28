@@ -5,6 +5,8 @@ run:
 linters:
   enable:
     - exhaustruct
+    - exhaustive
+    - errorlint
     - gocritic
     - godot
     - govet
