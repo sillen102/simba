@@ -46,7 +46,7 @@ type Router struct {
 }
 
 // GenerateOpenAPIDocumentation generates the OpenAPI documentation for the routes mounted in the router
-// if enabled in [settings.Docs]
+// if enabled in [settings.Docs].
 func (r *Router) GenerateOpenAPIDocumentation(ctx context.Context, title, version string) error {
 	if r.docsSettings.GenerateOpenAPIDocs {
 		var err error
@@ -95,106 +95,106 @@ func newRouter(requestSettings settings.Request, docsSettings settings.Docs) *Ro
 	return router
 }
 
-// ServeHTTP implements the [http.Handler] interface for the [Router] type
+// ServeHTTP implements the [http.Handler] interface for the [Router] type.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.Mux.ServeHTTP(w, req)
 }
 
-// Use registers a middleware handler
+// Use registers a middleware handler.
 func (r *Router) Use(middleware func(http.Handler) http.Handler) {
 	r.middleware = append(r.middleware, middleware)
 }
 
-// Extend extends the middleware chain with another chain
+// Extend extends the middleware chain with another chain.
 func (r *Router) Extend(middleware []func(http.Handler) http.Handler) {
 	r.middleware = append(r.middleware, middleware...)
 }
 
-// POST registers a handler for POST requests to the given pattern
+// POST registers a handler for POST requests to the given pattern.
 func (r *Router) POST(path string, handler Handler) {
 	method := http.MethodPost
 	r.Handle(method, path, handler)
 }
 
-// POSTWithMiddleware registers a handler for POST requests to the given pattern wrapped with a middleware function
+// POSTWithMiddleware registers a handler for POST requests to the given pattern wrapped with a middleware function.
 func (r *Router) POSTWithMiddleware(path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	method := http.MethodPost
 	r.WithMiddleware(method, path, handler, middleware...)
 }
 
-// GET registers a handler for GET requests to the given pattern
+// GET registers a handler for GET requests to the given pattern.
 func (r *Router) GET(path string, handler Handler) {
 	method := http.MethodGet
 	r.Handle(method, path, handler)
 }
 
-// GETWithMiddleware registers a handler for GET requests to the given pattern wrapped with a middleware function
+// GETWithMiddleware registers a handler for GET requests to the given pattern wrapped with a middleware function.
 func (r *Router) GETWithMiddleware(path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	method := http.MethodGet
 	r.WithMiddleware(method, path, handler, middleware...)
 }
 
-// PUT registers a handler for PUT requests to the given pattern
+// PUT registers a handler for PUT requests to the given pattern.
 func (r *Router) PUT(path string, handler Handler) {
 	method := http.MethodPut
 	r.Handle(method, path, handler)
 }
 
-// PUTWithMiddleware registers a handler for PUT requests to the given pattern wrapped with a middleware function
+// PUTWithMiddleware registers a handler for PUT requests to the given pattern wrapped with a middleware function.
 func (r *Router) PUTWithMiddleware(path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	method := http.MethodPut
 	r.WithMiddleware(method, path, handler, middleware...)
 }
 
-// DELETE registers a handler for DELETE requests to the given pattern
+// DELETE registers a handler for DELETE requests to the given pattern.
 func (r *Router) DELETE(path string, handler Handler) {
 	method := http.MethodDelete
 	r.Handle(method, path, handler)
 }
 
-// DELETEWithMiddleware registers a handler for DELETE requests to the given pattern wrapped with a middleware function
+// DELETEWithMiddleware registers a handler for DELETE requests to the given pattern wrapped with a middleware function.
 func (r *Router) DELETEWithMiddleware(path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	method := http.MethodDelete
 	r.WithMiddleware(method, path, handler, middleware...)
 }
 
-// PATCH registers a handler for PATCH requests to the given pattern
+// PATCH registers a handler for PATCH requests to the given pattern.
 func (r *Router) PATCH(path string, handler Handler) {
 	method := http.MethodPatch
 	r.Handle(method, path, handler)
 }
 
-// PATCHWithMiddleware registers a handler for PATCH requests to the given pattern wrapped with a middleware function
+// PATCHWithMiddleware registers a handler for PATCH requests to the given pattern wrapped with a middleware function.
 func (r *Router) PATCHWithMiddleware(path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	method := http.MethodPatch
 	r.WithMiddleware(method, path, handler, middleware...)
 }
 
-// OPTIONS registers a handler for OPTIONS requests to the given pattern
+// OPTIONS registers a handler for OPTIONS requests to the given pattern.
 func (r *Router) OPTIONS(path string, handler Handler) {
 	method := http.MethodOptions
 	r.Handle(method, path, handler)
 }
 
-// OPTIONSWithMiddleware registers a handler for OPTIONS requests to the given pattern wrapped with a middleware function
+// OPTIONSWithMiddleware registers a handler for OPTIONS requests to the given pattern wrapped with a middleware function.
 func (r *Router) OPTIONSWithMiddleware(path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	method := http.MethodOptions
 	r.WithMiddleware(method, path, handler, middleware...)
 }
 
-// HEAD registers a handler for HEAD requests to the given pattern
+// HEAD registers a handler for HEAD requests to the given pattern.
 func (r *Router) HEAD(path string, handler Handler) {
 	method := http.MethodHead
 	r.Handle(method, path, handler)
 }
 
-// HEADWithMiddleware registers a handler for HEAD requests to the given pattern wrapped with a middleware function
+// HEADWithMiddleware registers a handler for HEAD requests to the given pattern wrapped with a middleware function.
 func (r *Router) HEADWithMiddleware(path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	method := http.MethodHead
 	r.WithMiddleware(method, path, handler, middleware...)
 }
 
-// WithMiddleware registers a handler for the given method and pattern wrapped with a middleware function
+// WithMiddleware registers a handler for the given method and pattern wrapped with a middleware function.
 func (r *Router) WithMiddleware(method, path string, handler Handler, middleware ...func(http.Handler) http.Handler) {
 	h := handlerToHTTPHandler(handler)
 	if len(middleware) > 0 {
@@ -214,7 +214,7 @@ func handlerToHTTPHandler(h Handler) http.Handler {
 	})
 }
 
-// Handle registers a handler for the given method and pattern
+// Handle registers a handler for the given method and pattern.
 func (r *Router) Handle(method, path string, handler Handler) {
 	r.addRoute(method, path, handler)
 	r.addRouteToDocs(method, path, handler)

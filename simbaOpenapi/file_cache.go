@@ -5,14 +5,14 @@ import (
 	"sync"
 )
 
-// fileCache stores parsed files and their functions
+// fileCache stores parsed files and their functions.
 type fileCache struct {
 	files map[string]*ast.File       // Cache of parsed files
 	funcs map[string]map[string]bool // Map of filename to function names
-	mutex sync.RWMutex               // Mutex for thread safety
+	mutex sync.RWMutex `exhaustruct:"optional"` // Mutex for thread safety
 }
 
-// newFileCache creates a new file cache
+// newFileCache creates a new file cache.
 func newFileCache() *fileCache {
 	return &fileCache{
 		files: make(map[string]*ast.File),
@@ -20,7 +20,7 @@ func newFileCache() *fileCache {
 	}
 }
 
-// add adds a file and its functions to the cache
+// add adds a file and its functions to the cache.
 func (c *fileCache) add(filename string, file *ast.File) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -37,7 +37,7 @@ func (c *fileCache) add(filename string, file *ast.File) {
 	})
 }
 
-// findFunction looks for a function in the cache
+// findFunction looks for a function in the cache.
 func (c *fileCache) findFunction(functionName string) *ast.File {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -50,7 +50,7 @@ func (c *fileCache) findFunction(functionName string) *ast.File {
 	return nil
 }
 
-// hasFunction checks if a function exists in any cached file
+// hasFunction checks if a function exists in any cached file.
 func (c *fileCache) hasFunction(functionName string) bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()

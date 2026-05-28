@@ -8,13 +8,13 @@ import (
 	"github.com/sillen102/simba/settings"
 )
 
-// TestApplication represents a test application with additional testing utilities
+// TestApplication represents a test application with additional testing utilities.
 type TestApplication struct {
 	*simba.Application
 	Server *httptest.Server
 }
 
-// New creates a new test application with the given settings
+// New creates a new test application with the given settings.
 func New(opts ...settings.Option) *TestApplication {
 	app := simba.New(opts...)
 
@@ -24,7 +24,7 @@ func New(opts ...settings.Option) *TestApplication {
 	}
 }
 
-// Default creates a new test application with default settings
+// Default creates a new test application with default settings.
 func Default(opts ...settings.Option) *TestApplication {
 	app := simba.Default(opts...)
 
@@ -34,19 +34,19 @@ func Default(opts ...settings.Option) *TestApplication {
 	}
 }
 
-// Start starts the test server
+// Start starts the test server.
 func (a *TestApplication) Start() {
 	a.Application.Server.Addr = a.Server.URL[7:]
 }
 
-// Stop stops the test server
+// Stop stops the test server.
 func (a *TestApplication) Stop() {
 	if a.Server != nil {
 		a.Server.Close()
 	}
 }
 
-// URL returns the base URL of the test server
+// URL returns the base URL of the test server.
 func (a *TestApplication) URL() string {
 	if a.Server == nil {
 		return ""
@@ -54,7 +54,7 @@ func (a *TestApplication) URL() string {
 	return a.Server.URL
 }
 
-// Client returns an HTTP client configured to work with the test server
+// Client returns an HTTP client configured to work with the test server.
 func (a *TestApplication) Client() *http.Client {
 	if a.Server == nil {
 		return nil
@@ -62,7 +62,7 @@ func (a *TestApplication) Client() *http.Client {
 	return a.Server.Client()
 }
 
-// RunTest runs a test function with a started test server and handles cleanup
+// RunTest runs a test function with a started test server and handles cleanup.
 func (a *TestApplication) RunTest(fn func()) {
 	a.Start()
 	defer a.Stop()

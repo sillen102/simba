@@ -22,7 +22,7 @@ linters:
       default-signifies-exhaustive: true
     exhaustruct:
       include:
-        - 'github.com/sillen102/simba/telemetry/.*'
+        - 'github.com/sillen102/simba/websocket/.*'
     govet:
       enable:
         - printf

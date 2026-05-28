@@ -1,149 +1,62 @@
+experimental_monorepo_root = true
+
 [tools]
 go = "1.26"
 golangci-lint = "2"
 gotestsum = "1"
+"go:go.uber.org/nilaway/cmd/nilaway" = "latest"
+
+[env]
+MISE_EXPERIMENTAL = "1"
+
+[monorepo]
+config_roots = [
+    "telemetry",
+    "websocket",
+]
 
 [tasks.test]
-description = "Run tests"
-dir = "."
-run = """
-echo "==> test: core"
-gotestsum --format=short-verbose
-
-echo "==> test: models"
-(
-  cd models
-  gotestsum --format=short-verbose -- -v ./...
-)
-
-echo "==> test: telemetry"
-(
-  cd telemetry
-  gotestsum --format=short-verbose -- -v ./...
-)
-
-echo "==> test: websocket"
-(
-  cd websocket
-  gotestsum --format=short-verbose -- -v ./...
-)
-"""
+depends = [
+    "//telemetry:test",
+    "//websocket:test",
+]
+run = "gotestsum --format=short-verbose"
 
 [tasks.test-race]
 description = "Run tests with race detector"
-dir = "."
-run = """
-echo "==> test-race: core"
-gotestsum --format=short-verbose -- -v -race ./...
-
-echo "==> test-race: models"
-(
-  cd models
-  gotestsum --format=short-verbose -- -v -race ./...
-)
-
-echo "==> test-race: telemetry"
-(
-  cd telemetry
-  gotestsum --format=short-verbose -- -v -race ./...
-)
-
-echo "==> test-race: websocket"
-(
-  cd websocket
-  gotestsum --format=short-verbose -- -v -race ./...
-)
-"""
-
-[tasks.update-deps]
-description = "Update dependencies"
-dir = "."
-run = """
-echo "==> update-deps: core (go get -u)"
-go get -u ./...
-
-echo "==> update-deps: core (go mod tidy)"
-go mod tidy
-
-echo "==> update-deps: models (go get -u)"
-go -C models get -u ./...
-
-echo "==> update-deps: models (go mod tidy)"
-go -C models mod tidy
-
-echo "==> update-deps: telemetry (go get -u)"
-go -C telemetry get -u ./...
-
-echo "==> update-deps: telemetry (go mod tidy)"
-go -C telemetry mod tidy
-
-echo "==> update-deps: websocket (go get -u)"
-go -C websocket get -u ./...
-
-echo "==> update-deps: websocket (go mod tidy)"
-go -C websocket mod tidy
-
-echo "==> update-deps: done"
-"""
-
-[tasks.tidy]
-description = "Tidy up go.mod and go.sum"
-dir = "."
-run = """
-echo "==> tidy: core"
-go mod tidy
-
-echo "==> tidy: models"
-go -C models mod tidy
-
-echo "==> tidy: telemetry"
-go -C telemetry mod tidy
-
-echo "==> tidy: websocket"
-go -C websocket mod tidy
-
-echo "==> tidy: done"
-"""
+depends = [
+    "//telemetry:test-race",
+    "//websocket:test-race",
+]
+run = "gotestsum --format=short-verbose -- -v -race ./..."
 
 [tasks.lint]
 description = "Run linters"
-dir = "."
-run = """
-echo "==> lint: core"
-golangci-lint run
+depends = [
+    "//telemetry:lint",
+    "//websocket:lint",
+]
+run = [
+    "golangci-lint run --timeout 5m",
+    "nilaway -test=false ./..."
+]
 
-echo "==> lint: models"
-(
-  cd models
-  golangci-lint run
-)
+[tasks.verify]
+description = "Run all verification tasks such as test and lint"
+run = { tasks = ["test", "lint"] }
 
-echo "==> lint: telemetry"
-(
-  cd telemetry
-  golangci-lint run
-)
+[tasks.tidy]
+description = "Tidy up go.mod and go.sum"
+depends = [
+    "//telemetry:tidy",
+    "//websocket:tidy",
+]
+run = "go mod tidy"
 
-echo "==> lint: websocket"
-(
-  cd websocket
-  golangci-lint run
-)
-
-echo "==> nilaway: core"
-nilaway -test=false ./...
-
-echo "==> nilaway: websocket"
-(
-  cd websocket
-  nilaway -test=false ./...
-)
-
-echo "==> nilaway: telemetry"
-(
-  cd telemetry
-  nilaway -test=false ./...
-)
-
-echo "==> lint: done"
-"""
+[tasks.update-deps]
+description = "Update dependencies"
+depends = [
+    "//telemetry:update-deps",
+    "//websocket:update-deps",
+]
+run = "go get -u ./..."

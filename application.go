@@ -10,14 +10,14 @@ import (
 	"github.com/sillen102/simba/settings"
 )
 
-// Application is the main application struct that holds the Mux and other application Settings
+// Application is the main application struct that holds the Mux and other application Settings.
 type Application struct {
 
 	// ApplicationName is the name of the application
-	ApplicationName string `yaml:"application-name" env:"APPLICATION_NAME" default:"Simba Application"`
+	ApplicationName string `exhaustruct:"optional" yaml:"application-name" env:"APPLICATION_NAME" default:"Simba Application"`
 
 	// ApplicationVersion is the version of the application
-	ApplicationVersion string `yaml:"application-version" env:"APPLICATION_VERSION" default:"0.1.0"`
+	ApplicationVersion string `exhaustruct:"optional" yaml:"application-version" env:"APPLICATION_VERSION" default:"0.1.0"`
 
 	// Server is the HTTP server for the application
 	Server *http.Server
@@ -29,13 +29,13 @@ type Application struct {
 	Settings *settings.Simba
 
 	// telemetryProvider manages tracing and metrics via a pluggable interface
-	telemetryProvider TelemetryProvider
+	telemetryProvider TelemetryProvider `exhaustruct:"optional"`
 
 	// shutdownHooks are invoked during Stop to let optional modules clean up
-	shutdownHooks []func(context.Context) error
+	shutdownHooks []func(context.Context) error `exhaustruct:"optional"`
 }
 
-// Default returns a new [Application] application with default Simba
+// Default returns a new [Application] application with default Simba.
 func Default(opts ...settings.Option) *Application {
 	app := New(opts...)
 	app.Router.Extend(app.defaultMiddleware())
@@ -43,7 +43,7 @@ func Default(opts ...settings.Option) *Application {
 	return app
 }
 
-// New returns a new [Application] application
+// New returns a new [Application] application.
 func New(opts ...settings.Option) *Application {
 	cfg, err := settings.LoadWithOptions(opts...)
 	if err != nil {
@@ -119,7 +119,7 @@ func (a *Application) RegisterShutdownHook(hook any) {
 	a.shutdownHooks = append(a.shutdownHooks, adaptedHook)
 }
 
-// defaultMiddleware returns the middleware chain used in the default [Application] application
+// defaultMiddleware returns the middleware chain used in the default [Application] application.
 func (a *Application) defaultMiddleware() []func(http.Handler) http.Handler {
 	middlewares := []func(http.Handler) http.Handler{
 		a.telemetryProvider.TracingMiddleware(),

@@ -43,7 +43,7 @@ func WithMiddleware(middleware ...Middleware) HandlerOption {
 // CallbackHandlerFunc handles WebSocket connections with callbacks.
 type CallbackHandlerFunc[Params any] struct {
 	callbacks  Callbacks[Params]
-	middleware []Middleware
+	middleware []Middleware `exhaustruct:"optional"`
 }
 
 func (h *CallbackHandlerFunc[Params]) setMiddleware(middleware []Middleware) {
@@ -102,7 +102,13 @@ func (h *CallbackHandlerFunc[Params]) ServeHTTP(w http.ResponseWriter, r *http.R
 
 	// Upgrade the HTTP connection to WebSocket
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true, // Match gobwas behavior (no origin check)
+		Subprotocols:         nil,
+		InsecureSkipVerify:   true, // Match gobwas behavior (no origin check)
+		OriginPatterns:       nil,
+		CompressionMode:      0,
+		CompressionThreshold: 0,
+		OnPingReceived:       nil,
+		OnPongReceived:       nil,
 	})
 	if err != nil {
 		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(
@@ -244,7 +250,7 @@ func (h *CallbackHandlerFunc[Params]) GetAuthHandler() any {
 type AuthCallbackHandlerFunc[Params, AuthModel any] struct {
 	callbacks   AuthCallbacks[Params, AuthModel]
 	authHandler auth.Handler[AuthModel]
-	middleware  []Middleware
+	middleware  []Middleware `exhaustruct:"optional"`
 }
 
 func (h *AuthCallbackHandlerFunc[Params, AuthModel]) setMiddleware(middleware []Middleware) {
@@ -326,7 +332,13 @@ func (h *AuthCallbackHandlerFunc[Params, AuthModel]) ServeHTTP(w http.ResponseWr
 
 	// Upgrade the HTTP connection to WebSocket
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true, // Match gobwas behavior (no origin check)
+		Subprotocols:         nil,
+		InsecureSkipVerify:   true, // Match gobwas behavior (no origin check)
+		OriginPatterns:       nil,
+		CompressionMode:      0,
+		CompressionThreshold: 0,
+		OnPingReceived:       nil,
+		OnPongReceived:       nil,
 	})
 	if err != nil {
 		simbaErrors.WriteError(w, r, simbaErrors.NewSimbaError(

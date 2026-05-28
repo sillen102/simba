@@ -31,7 +31,7 @@ type ResponseBody struct {
 	Description string    `json:"description" description:"description of the user" example:"A test user"`
 }
 
-// AuthRequestBody is a test struct for authenticated request body
+// AuthRequestBody is a test struct for authenticated request body.
 type AuthRequestBody struct {
 	Token string `json:"token" validate:"required"`
 }

@@ -16,7 +16,7 @@ var (
 	}
 )
 
-// LogRequests logs the incoming requests
+// LogRequests logs the incoming requests.
 func LogRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -56,19 +56,19 @@ func LogRequests(next http.Handler) http.Handler {
 	})
 }
 
-// ExcludePaths adds paths to the exclusion list for request logging
+// ExcludePaths adds paths to the exclusion list for request logging.
 func ExcludePaths(paths ...string) {
 	for _, path := range paths {
 		excludePaths[path] = struct{}{}
 	}
 }
 
-// ExcludePath adds a single path to the exclusion list for request logging
+// ExcludePath adds a single path to the exclusion list for request logging.
 func ExcludePath(path string) {
 	excludePaths[path] = struct{}{}
 }
 
-// SetPathLogLevel sets the log level for a specific path other than the default info level
+// SetPathLogLevel sets the log level for a specific path other than the default info level.
 func SetPathLogLevel(path string, level slog.Level) {
 	if level == slog.LevelInfo {
 		delete(pathLogLevels, path)
@@ -77,14 +77,14 @@ func SetPathLogLevel(path string, level slog.Level) {
 	pathLogLevels[path] = level
 }
 
-// roundDuration returns the duration in milliseconds rounded to 3 decimal places
+// roundDuration returns the duration in milliseconds rounded to 3 decimal places.
 func roundDuration(d time.Duration) float64 {
 	duration := d.Seconds() * 1000
 	return math.Round(duration*1000) / 1000
 }
 
 // responseWriter is a minimal wrapper for http.ResponseWriter that allows the
-// written HTTP status code to be captured for logging
+// written HTTP status code to be captured for logging.
 type responseWriter struct {
 	http.ResponseWriter
 	status      int
@@ -93,7 +93,12 @@ type responseWriter struct {
 }
 
 func wrapResponseWriter(w http.ResponseWriter) *responseWriter {
-	return &responseWriter{ResponseWriter: w, status: http.StatusOK}
+	return &responseWriter{
+		ResponseWriter: w,
+		status:         http.StatusOK,
+		written:        0,
+		wroteHeader:    false,
+	}
 }
 
 func (rw *responseWriter) Status() int {

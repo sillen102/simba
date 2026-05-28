@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// Request represents a HTTP Request
+// Request represents a HTTP Request.
 type Request[RequestBody any, RequestParams any] struct {
 	Params RequestParams
 	Body   RequestBody
@@ -16,18 +16,18 @@ type MultipartRequest[RequestParams any] struct {
 	Reader *multipart.Reader
 }
 
-// Response represents a HTTP response
+// Response represents a HTTP response.
 type Response[ResponseBody any] struct {
-	Headers http.Header
-	Cookies []*http.Cookie
-	Body    ResponseBody
-	Status  int
+	Headers http.Header    `exhaustruct:"optional"`
+	Cookies []*http.Cookie `exhaustruct:"optional"`
+	Body    ResponseBody   `exhaustruct:"optional"`
+	Status  int            `exhaustruct:"optional"`
 }
 
-// NoBody is an empty struct used to represent no body
+// NoBody is an empty struct used to represent no body.
 type NoBody struct {
 }
 
-// NoParams is an empty struct used to represent no params
+// NoParams is an empty struct used to represent no params.
 type NoParams struct {
 }

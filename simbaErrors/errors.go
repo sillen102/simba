@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba/errutil"
 	"github.com/sillen102/simba/logging"
 	"github.com/sillen102/simba/simbaContext"
 )
@@ -31,7 +30,7 @@ type SimbaError struct {
 	statusCode    int
 	publicMessage string
 	err           error
-	details       any
+	details       any `exhaustruct:"optional"`
 }
 
 func NewSimbaError(statusCode int, publicMessage string, err error) *SimbaError {
@@ -74,7 +73,7 @@ func (e *SimbaError) Details() any {
 	return e.details
 }
 
-// ErrorResponse defines the structure of an error message
+// ErrorResponse defines the structure of an error message.
 type ErrorResponse struct {
 	// Timestamp of the error
 	Timestamp time.Time `json:"timestamp" example:"2021-01-01T12:00:00Z"`
@@ -96,15 +95,14 @@ type ErrorResponse struct {
 	Details any `json:"details,omitempty" required:"false"`
 }
 
-// WriteError is a helper function for handling errors in HTTP handlers
+// WriteError is a helper function for handling errors in HTTP handlers.
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	statusCode := http.StatusInternalServerError
 	errorCode := ""
 	message := err.Error()
 	var details any
 
-	var simbaErr *SimbaError
-	if errutil.As(err, &simbaErr) && simbaErr != nil {
+	if simbaErr, ok := errors.AsType[*SimbaError](err); ok && simbaErr != nil {
 		// If the error is a SimbaError, extract its properties
 		statusCode = simbaErr.StatusCode()
 		message = simbaErr.PublicMessage()
@@ -139,20 +137,20 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 }
 
-// HandleUnexpectedError is a helper function for handling unexpected errors
+// HandleUnexpectedError is a helper function for handling unexpected errors.
 func HandleUnexpectedError(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
 }
 
-// writeJSONError writes a JSON error response to the response writer
+// writeJSONError writes a JSON error response to the response writer.
 func writeJSONError(w http.ResponseWriter, errorResponse *ErrorResponse) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(errorResponse.Status)
 	return json.NewEncoder(w).Encode(errorResponse)
 }
 
-// newErrorResponse creates a new ErrorResponse instance with the given status and message
+// newErrorResponse creates a new ErrorResponse instance with the given status and message.
 func newErrorResponse(r *http.Request, status int, message string, errorCode string, details any) *ErrorResponse {
 	// Safely get TraceID from context
 	var traceID string
@@ -175,7 +173,7 @@ func newErrorResponse(r *http.Request, status int, message string, errorCode str
 	}
 }
 
-// Predefined errors for common scenarios
+// Predefined errors for common scenarios.
 var (
 	ErrInvalidContentType = NewSimbaError(http.StatusBadRequest, "invalid content type", errors.New("invalid content type"))
 	ErrInvalidRequest     = NewSimbaError(http.StatusUnprocessableEntity, "invalid request", errors.New("failed to decode request body"))

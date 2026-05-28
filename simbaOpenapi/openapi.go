@@ -17,15 +17,16 @@ import (
 	"strings"
 
 	"github.com/iancoleman/strcase"
+	"github.com/swaggest/openapi-go"
+	"github.com/swaggest/openapi-go/openapi31"
+
 	simbaHttp "github.com/sillen102/simba/http"
 	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
 	"github.com/sillen102/simba/simbaOpenapi/openapiModels"
-	"github.com/swaggest/openapi-go"
-	"github.com/swaggest/openapi-go/openapi31"
 )
 
-// Tags for parsing comments
+// Tags for parsing comments.
 const (
 	idTag          = "@ID"
 	tagTag         = "@Tag"
@@ -41,16 +42,16 @@ type OpenAPIGenerator struct {
 }
 
 type handlerInfo struct {
-	id          string
-	tags        []string
-	summary     string
-	description string
-	statusCode  int
-	deprecated  bool
+	id          string   `exhaustruct:"optional"`
+	tags        []string `exhaustruct:"optional"`
+	summary     string   `exhaustruct:"optional"`
+	description string   `exhaustruct:"optional"`
+	statusCode  int      `exhaustruct:"optional"`
+	deprecated  bool     `exhaustruct:"optional"`
 	errors      []struct {
 		Code    int
 		Message string
-	}
+	} `exhaustruct:"optional"`
 }
 
 func NewOpenAPIGenerator() *OpenAPIGenerator {
@@ -59,8 +60,8 @@ func NewOpenAPIGenerator() *OpenAPIGenerator {
 	}
 }
 
-// GenerateDocumentation generates OpenAPI documentation for all routes
-func (g *OpenAPIGenerator) GenerateDocumentation(_ context.Context, title string, version string, routeInfos []openapiModels.RouteInfo) ([]byte, error) {
+// GenerateDocumentation generates OpenAPI documentation for all routes.
+func (g *OpenAPIGenerator) GenerateDocumentation(ctx context.Context, title string, version string, routeInfos []openapiModels.RouteInfo) ([]byte, error) {
 	reflector, err := GetReflector()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OpenAPI reflector: %w", err)
@@ -70,7 +71,7 @@ func (g *OpenAPIGenerator) GenerateDocumentation(_ context.Context, title string
 	reflector.SpecEns().Info.Version = version
 
 	for _, routeInfo := range routeInfos {
-		err = g.generateRouteDocumentation(reflector, &routeInfo)
+		err = g.generateRouteDocumentation(ctx, reflector, &routeInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate documentation for route: %w", err)
 		}
@@ -84,14 +85,14 @@ func (g *OpenAPIGenerator) GenerateDocumentation(_ context.Context, title string
 	return schema, nil
 }
 
-// generateRouteDocumentation generates OpenAPI documentation for a route
-func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Reflector, routeInfo *openapiModels.RouteInfo) error {
+// generateRouteDocumentation generates OpenAPI documentation for a route.
+func (g *OpenAPIGenerator) generateRouteDocumentation(ctx context.Context, reflector *openapi31.Reflector, routeInfo *openapiModels.RouteInfo) error {
 	operationContext, err := reflector.NewOperationContext(routeInfo.Method, routeInfo.Path)
 	if err != nil {
 		return err
 	}
 
-	info := g.getHandlerInfo(routeInfo.Handler)
+	info := g.getHandlerInfo(ctx, routeInfo.Handler)
 
 	operationContext.SetIsDeprecated(info.deprecated)
 	operationContext.SetID(info.id)
@@ -113,7 +114,7 @@ func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Refle
 
 	// Get response status code
 	if info.statusCode == 0 {
-		if routeInfo.RespBody == (models.NoBody{}) {
+		if routeInfo.RespBody == (*models.NoBody)(nil) {
 			info.statusCode = http.StatusNoContent // Default for no response body
 		} else {
 			info.statusCode = http.StatusOK // Default for response body
@@ -127,22 +128,22 @@ func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Refle
 	})
 
 	// Add default error responses
-	operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
+	operationContext.AddRespStructure((*simbaErrors.ErrorResponse)(nil), func(cu *openapi.ContentUnit) {
 		cu.HTTPStatus = http.StatusBadRequest
 		cu.Description = "Request body contains invalid data"
 	})
-	operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
+	operationContext.AddRespStructure((*simbaErrors.ErrorResponse)(nil), func(cu *openapi.ContentUnit) {
 		cu.HTTPStatus = http.StatusUnprocessableEntity
 		cu.Description = "Request body could not be processed"
 	})
-	operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
+	operationContext.AddRespStructure((*simbaErrors.ErrorResponse)(nil), func(cu *openapi.ContentUnit) {
 		cu.HTTPStatus = http.StatusInternalServerError
 		cu.Description = "Unexpected error"
 	})
 
 	// Add custom error responses
 	for _, e := range info.errors {
-		operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
+		operationContext.AddRespStructure((*simbaErrors.ErrorResponse)(nil), func(cu *openapi.ContentUnit) {
 			cu.HTTPStatus = e.Code
 			cu.Description = e.Message
 		})
@@ -185,9 +186,10 @@ func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Refle
 					authHandler.GetName(),
 					openapi31.SecuritySchemeOrReference{
 						SecurityScheme: (&openapi31.SecurityScheme{
-							APIKey: (&openapi31.SecuritySchemeAPIKey{}).
-								WithName(authHandler.GetName()).
-								WithIn(openapi31.SecuritySchemeAPIKeyIn(authHandler.GetIn())),
+							APIKey: &openapi31.SecuritySchemeAPIKey{
+								Name: authHandler.GetFieldName(),
+								In:   openapi31.SecuritySchemeAPIKeyIn(authHandler.GetIn()),
+							},
 						}).WithDescription(authHandler.GetDescription()),
 					},
 				)
@@ -195,11 +197,11 @@ func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Refle
 
 			operationContext.AddSecurity(authHandler.GetName())
 
-			operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
+			operationContext.AddRespStructure((*simbaErrors.ErrorResponse)(nil), func(cu *openapi.ContentUnit) {
 				cu.HTTPStatus = http.StatusUnauthorized
 				cu.Description = "Authorization failed"
 			})
-			operationContext.AddRespStructure(simbaErrors.ErrorResponse{}, func(cu *openapi.ContentUnit) {
+			operationContext.AddRespStructure((*simbaErrors.ErrorResponse)(nil), func(cu *openapi.ContentUnit) {
 				cu.HTTPStatus = http.StatusForbidden
 				cu.Description = "Access denied"
 			})
@@ -214,8 +216,8 @@ func (g *OpenAPIGenerator) generateRouteDocumentation(reflector *openapi31.Refle
 	return nil
 }
 
-// getHandlerInfo extracts the handler information from the handler function
-func (g *OpenAPIGenerator) getHandlerInfo(handler any) handlerInfo {
+// getHandlerInfo extracts the handler information from the handler function.
+func (g *OpenAPIGenerator) getHandlerInfo(ctx context.Context, handler any) handlerInfo {
 	functionPointer := g.getFunctionPointer(handler)
 
 	// For struct-based handlers (like WebSocket), return minimal info
@@ -230,7 +232,7 @@ func (g *OpenAPIGenerator) getHandlerInfo(handler any) handlerInfo {
 	runTimeFunc := g.getFuncRuntime(functionPointer)
 	functionFullName := g.getFunctionFullName(runTimeFunc)
 	functionPackagePath := g.extractPackagePath(functionFullName)
-	functionFile := g.getFunctionASTFile(functionPackagePath, functionFullName)
+	functionFile := g.getFunctionASTFile(ctx, functionPackagePath, functionFullName)
 	methodName := g.extractMethodNameWithoutReceiver(functionFullName)
 	functionComment := g.extractCommentForFunction(functionFile, methodName)
 
@@ -259,7 +261,7 @@ func (g *OpenAPIGenerator) getHandlerInfo(handler any) handlerInfo {
 	return info
 }
 
-// getFunctionPointer gets the function pointer for a handler
+// getFunctionPointer gets the function pointer for a handler.
 func (g *OpenAPIGenerator) getFunctionPointer(handler any) uintptr {
 	val := reflect.ValueOf(handler)
 
@@ -272,7 +274,7 @@ func (g *OpenAPIGenerator) getFunctionPointer(handler any) uintptr {
 	return val.Pointer()
 }
 
-// getFuncRuntime gets the runtime function for a handler
+// getFuncRuntime gets the runtime function for a handler.
 func (g *OpenAPIGenerator) getFuncRuntime(handlerPointer uintptr) *runtime.Func {
 	if handlerPointer == 0 {
 		return nil
@@ -280,7 +282,7 @@ func (g *OpenAPIGenerator) getFuncRuntime(handlerPointer uintptr) *runtime.Func 
 	return runtime.FuncForPC(handlerPointer)
 }
 
-// getFunctionFullName gets the full name of a function using its pointer
+// getFunctionFullName gets the full name of a function using its pointer.
 func (g *OpenAPIGenerator) getFunctionFullName(fn *runtime.Func) string {
 	if fn == nil {
 		return ""
@@ -288,8 +290,8 @@ func (g *OpenAPIGenerator) getFunctionFullName(fn *runtime.Func) string {
 	return fn.Name()
 }
 
-// getFunctionASTFile finds the Go source file containing a handler function
-func (g *OpenAPIGenerator) getFunctionASTFile(packagePath string, functionName string) *ast.File {
+// getFunctionASTFile finds the Go source file containing a handler function.
+func (g *OpenAPIGenerator) getFunctionASTFile(ctx context.Context, packagePath string, functionName string) *ast.File {
 	if packagePath == "" {
 		return nil
 	}
@@ -302,7 +304,7 @@ func (g *OpenAPIGenerator) getFunctionASTFile(packagePath string, functionName s
 		return file
 	}
 
-	pkgDir := g.findPackageDir(packagePath)
+	pkgDir := g.findPackageDir(ctx, packagePath)
 	if pkgDir == "" {
 		return nil
 	}
@@ -336,7 +338,7 @@ func (g *OpenAPIGenerator) getFunctionASTFile(packagePath string, functionName s
 	return nil
 }
 
-// parseFile parses a file and returns its AST
+// parseFile parses a file and returns its AST.
 func (g *OpenAPIGenerator) parseFile(fileName string) (*ast.File, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, fileName, nil, parser.ParseComments)
@@ -347,7 +349,7 @@ func (g *OpenAPIGenerator) parseFile(fileName string) (*ast.File, error) {
 	return node, nil
 }
 
-// extractPackagePath gets the package path from a full function name
+// extractPackagePath gets the package path from a full function name.
 func (g *OpenAPIGenerator) extractPackagePath(fullName string) string {
 	lastDot := strings.LastIndex(fullName, ".")
 	if lastDot == -1 {
@@ -369,8 +371,8 @@ func (g *OpenAPIGenerator) extractPackagePath(fullName string) string {
 	return strings.Join(parts[:len(parts)-1], ".")
 }
 
-// findPackageDir converts a Go import path to a filesystem path
-func (g *OpenAPIGenerator) findPackageDir(importPath string) string {
+// findPackageDir converts a Go import path to a filesystem path.
+func (g *OpenAPIGenerator) findPackageDir(ctx context.Context, importPath string) string {
 	// Try to use GOPATH first
 	gopath := os.Getenv("GOPATH")
 	if gopath != "" {
@@ -381,7 +383,7 @@ func (g *OpenAPIGenerator) findPackageDir(importPath string) string {
 	}
 
 	// Try to use Go modules
-	cmd := exec.Command("go", "list", "-f", "{{.Dir}}", importPath)
+	cmd := exec.CommandContext(ctx, "go", "list", "-f", "{{.Dir}}", importPath)
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		return strings.TrimSpace(string(output))
@@ -390,7 +392,7 @@ func (g *OpenAPIGenerator) findPackageDir(importPath string) string {
 	return ""
 }
 
-// extractMethodNameWithoutReceiver gets just the method name from a full function name
+// extractMethodNameWithoutReceiver gets just the method name from a full function name.
 func (g *OpenAPIGenerator) extractMethodNameWithoutReceiver(fullName string) string {
 	// Handle methods with receivers (with potential "-fm" suffix)
 	// e.g., "github.com/package.(*Type).Method-fm" -> "Method"
@@ -403,7 +405,7 @@ func (g *OpenAPIGenerator) extractMethodNameWithoutReceiver(fullName string) str
 	return fullName
 }
 
-// getSimpleMethodName extracts just the method name without any package or receiver info
+// getSimpleMethodName extracts just the method name without any package or receiver info.
 func (g *OpenAPIGenerator) getSimpleMethodName(fullName string) string {
 	// Get the part after the last dot, which should be the method name
 	if idx := strings.LastIndex(fullName, "."); idx >= 0 && idx < len(fullName)-1 {
@@ -414,7 +416,7 @@ func (g *OpenAPIGenerator) getSimpleMethodName(fullName string) string {
 	return fullName
 }
 
-// extractCommentForFunction extracts comment for a specific function
+// extractCommentForFunction extracts comment for a specific function.
 func (g *OpenAPIGenerator) extractCommentForFunction(node *ast.File, methodName string) string {
 	if node == nil {
 		return ""
@@ -440,7 +442,7 @@ func (g *OpenAPIGenerator) extractCommentForFunction(node *ast.File, methodName 
 	return strings.TrimSpace(comment)
 }
 
-// parseHandlerCommentTags parses the comment for a handler function and extracts information from comment tags
+// parseHandlerCommentTags parses the comment for a handler function and extracts information from comment tags.
 func (g *OpenAPIGenerator) parseHandlerCommentTags(comment string) handlerInfo {
 	lines := strings.Split(strings.TrimSpace(comment), "\n")
 
@@ -505,7 +507,7 @@ func (g *OpenAPIGenerator) parseHandlerCommentTags(comment string) handlerInfo {
 	return info
 }
 
-// findStatusInAST looks for status codes in the AST
+// findStatusInAST looks for status codes in the AST.
 func (g *OpenAPIGenerator) findStatusInAST(node *ast.File, methodName string) int {
 	if node == nil {
 		return 0
@@ -565,7 +567,7 @@ func (g *OpenAPIGenerator) findStatusInAST(node *ast.File, methodName string) in
 	return status
 }
 
-// getPackageName extracts the package name for a handler function given its full name
+// getPackageName extracts the package name for a handler function given its full name.
 func (g *OpenAPIGenerator) getPackageName(fullName string) string {
 	// Split the full path into parts
 	parts := strings.Split(fullName, "/")
@@ -582,7 +584,7 @@ func (g *OpenAPIGenerator) getPackageName(fullName string) string {
 	return lastPart
 }
 
-// getCommentStrippedFromTags removes tags from a comment so that only the description remains
+// getCommentStrippedFromTags removes tags from a comment so that only the description remains.
 func (g *OpenAPIGenerator) getCommentStrippedFromTags(comment string, methodName string) string {
 	lines := strings.Split(strings.TrimSpace(comment), "\n")
 	result := ""
@@ -602,7 +604,7 @@ func (g *OpenAPIGenerator) getCommentStrippedFromTags(comment string, methodName
 	return comment
 }
 
-// camelToSpaced converts a camel case string to a spaced string
+// camelToSpaced converts a camel case string to a spaced string.
 func (g *OpenAPIGenerator) camelToSpaced(s string) string {
 	words := strcase.ToDelimited(s, ' ')
 	words = strings.ToLower(words)

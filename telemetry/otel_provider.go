@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sillen102/simba"
-	config "github.com/sillen102/simba/telemetry/config"
-	telemetryMiddleware "github.com/sillen102/simba/telemetry/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/telemetry/config"
+	telemetryMiddleware "github.com/sillen102/simba/telemetry/middleware"
 )
 
 // OtelTelemetryProvider implements simba.TelemetryProvider using OpenTelemetry SDK
@@ -31,7 +32,7 @@ func NewOtelTelemetryProvider(ctx context.Context, cfg *config.TelemetryConfig) 
 	return &OtelTelemetryProvider{provider: prov, telemetryConfig: cfg}, nil
 }
 
-// TracingMiddleware injects OTel tracing handler
+// TracingMiddleware injects OTel tracing handler.
 func (o *OtelTelemetryProvider) TracingMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		if o.provider == nil || !o.telemetryConfig.Enabled || !o.telemetryConfig.Tracing.Enabled {
@@ -43,7 +44,7 @@ func (o *OtelTelemetryProvider) TracingMiddleware() func(http.Handler) http.Hand
 	}
 }
 
-// MetricsMiddleware injects OTel metrics handler
+// MetricsMiddleware injects OTel metrics handler.
 func (o *OtelTelemetryProvider) MetricsMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		if o.provider == nil || !o.telemetryConfig.Enabled || !o.telemetryConfig.Metrics.Enabled {
@@ -69,6 +70,7 @@ func (o *OtelTelemetryProvider) MetricsMiddleware() func(http.Handler) http.Hand
 			wrappedWriter := &metricsResponseWriter{
 				ResponseWriter: w,
 				statusCode:     http.StatusOK,
+				bytesWritten:   0,
 			}
 			next.ServeHTTP(wrappedWriter, r)
 			duration := float64(time.Since(start).Milliseconds())
@@ -86,7 +88,7 @@ func (o *OtelTelemetryProvider) MetricsMiddleware() func(http.Handler) http.Hand
 	}
 }
 
-// metricsResponseWriter wraps http.ResponseWriter to capture status code and bytes written
+// metricsResponseWriter wraps http.ResponseWriter to capture status code and bytes written.
 type metricsResponseWriter struct {
 	http.ResponseWriter
 	statusCode   int
@@ -104,14 +106,14 @@ func (w *metricsResponseWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// Ensure metricsResponseWriter implements http.Flusher if the underlying ResponseWriter does
+// Ensure metricsResponseWriter implements http.Flusher if the underlying ResponseWriter does.
 func (w *metricsResponseWriter) Flush() {
 	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
 		flusher.Flush()
 	}
 }
 
-// Shutdown delegates to the underlying Otel Provider shutdown
+// Shutdown delegates to the underlying Otel Provider shutdown.
 func (o *OtelTelemetryProvider) Shutdown(ctx context.Context) error {
 	if o.provider != nil {
 		return o.provider.Shutdown(ctx)

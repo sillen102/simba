@@ -1,14 +1,14 @@
 package constants
 
 // Header constants for authentication
-// and authorization
+// and authorization.
 const (
 	AuthHeader   = "Authorization"
 	BasicPrefix  = "Basic "
 	BearerPrefix = "Bearer "
 )
 
-// Public error messages for common errors
+// Public error messages for common errors.
 const (
 	UnauthorizedErrMsg = "unauthorized"
 )

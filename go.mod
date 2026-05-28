@@ -5,12 +5,12 @@ go 1.26
 replace github.com/sillen102/simba/models => ./models
 
 require (
-	github.com/go-playground/validator/v10 v10.30.1
+	github.com/go-playground/validator/v10 v10.30.2
 	github.com/google/uuid v1.6.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/sillen102/config-loader v0.3.0
-	github.com/sillen102/simba/models v0.30.0-dev.1
-	github.com/swaggest/openapi-go v0.2.60
+	github.com/sillen102/simba/models v0.30.0-dev.7
+	github.com/swaggest/openapi-go v0.2.61
 )
 
 require github.com/stretchr/testify v1.11.1 // indirect
@@ -27,9 +27,9 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/swaggest/jsonschema-go v0.3.79
 	github.com/swaggest/refl v1.4.0 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

@@ -13,10 +13,10 @@ import (
 	"github.com/sillen102/simba/simbaErrors"
 )
 
-// MultipartHandlerFunc is a function type for handling routes with Request body and params
+// MultipartHandlerFunc is a function type for handling routes with Request body and params.
 type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *models.MultipartRequest[Params]) (*models.Response[ResponseBody], error)
 
-// AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
+// AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model.
 type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] struct {
 	handler     func(ctx context.Context, req *models.MultipartRequest[Params], authModel AuthModel) (*models.Response[ResponseBody], error)
 	authHandler auth.Handler[AuthModel]
@@ -64,7 +64,7 @@ func MultipartHandler[Params any, ResponseBody any](h MultipartHandlerFunc[Param
 	return h
 }
 
-// ServeHTTP implements the http.Handler interface for JsonHandlerFunc
+// ServeHTTP implements the http.Handler interface for JsonHandlerFunc.
 func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -249,7 +249,7 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetA
 	return h.authHandler
 }
 
-// handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request
+// handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request.
 func handleMultipartRequest[Params any](r *http.Request) (*models.MultipartRequest[Params], error) {
 
 	contentType := r.Header.Get("Content-Type")
@@ -262,10 +262,10 @@ func handleMultipartRequest[Params any](r *http.Request) (*models.MultipartReque
 		return nil, err
 	}
 
-	if _, params, err := mime.ParseMediaType(contentType); err != nil || params["boundary"] == "" {
+	if _, mediaParams, mediaErr := mime.ParseMediaType(contentType); mediaErr != nil || mediaParams["boundary"] == "" {
 		e := simbaErrors.ErrInvalidContentType
-		if err != nil {
-			e = e.WithDetails(err.Error())
+		if mediaErr != nil {
+			e = e.WithDetails(mediaErr.Error())
 		}
 		return nil, e
 	}

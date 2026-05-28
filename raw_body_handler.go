@@ -11,10 +11,10 @@ import (
 	"github.com/sillen102/simba/simbaErrors"
 )
 
-// RawBodyHandlerFunc is a function type for handling routes with Request body and params
+// RawBodyHandlerFunc is a function type for handling routes with Request body and params.
 type RawBodyHandlerFunc[Params, ResponseBody any] func(ctx context.Context, req *models.Request[io.ReadCloser, Params]) (*models.Response[ResponseBody], error)
 
-// AuthenticatedRawBodyHandlerFunc is a function type for handling authenticated routes with Request body and params
+// AuthenticatedRawBodyHandlerFunc is a function type for handling authenticated routes with Request body and params.
 type AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody any] struct {
 	handler     func(ctx context.Context, req *models.Request[io.ReadCloser, Params], authModel AuthModel) (*models.Response[ResponseBody], error)
 	authHandler auth.Handler[AuthModel]
@@ -29,7 +29,7 @@ func RawBodyHandler[Params, ResponseBody any](h RawBodyHandlerFunc[Params, Respo
 	return h
 }
 
-// ServeHTTP implements the http.Handler interface for RawBodyHandlerFunc
+// ServeHTTP implements the http.Handler interface for RawBodyHandlerFunc.
 func (h RawBodyHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -98,7 +98,7 @@ func AuthRawBodyHandler[Params, AuthModel, ResponseBody any](
 	}
 }
 
-// ServeHTTP implements the http.Handler interface for AuthenticatedRawBodyHandlerFunc
+// ServeHTTP implements the http.Handler interface for AuthenticatedRawBodyHandlerFunc.
 func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -169,7 +169,7 @@ func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetAut
 	return h.authHandler
 }
 
-// handleRequest handles extracting body and params from the Request
+// handleRequest handles extracting body and params from the Request.
 func handleRawRequest[Params any](r *http.Request) (*models.Request[io.ReadCloser, Params], error) {
 	params, err := ParseAndValidateParams[Params](r)
 	if err != nil {

@@ -4,4 +4,30 @@ run:
   tests: false
 linters:
   enable:
+    - bodyclose
+    - exhaustive
+    - exhaustruct
+    - errcheck
+    - errorlint
+    - gocritic
+    - godot
+    - govet
+    - noctx
+    - predeclared
+    - reassign
     - staticcheck
+    - unused
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    exhaustruct:
+      include:
+        - 'github\.com/sillen102/simba/.*'
+      exclude:
+        - '.*/openapi31\..*'
+        - '.*/http\.Server'
+        - '.*/configloader\..*'
+    govet:
+      enable:
+        - printf
+        - shadow
