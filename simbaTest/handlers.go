@@ -40,7 +40,7 @@ func (h *Receiver) NoTagsHandler(_ context.Context, req *models.Request[RequestB
 // @Description this is a multiline
 //
 // description for the handler
-// @Error 409 Resource already exists
+// @Error 409 Resource already exists.
 func (h *Receiver) TagsHandler(_ context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
 	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
@@ -56,7 +56,7 @@ func (h *Receiver) TagsHandler(_ context.Context, req *models.Request[RequestBod
 }
 
 // DeprecatedHandler A dummy function to test the OpenAPI generation with deprecated tag.
-// @Deprecated
+// @Deprecated.
 func (h *Receiver) DeprecatedHandler(ctx context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
 	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
@@ -94,7 +94,7 @@ func NoTagsHandler(ctx context.Context, req *models.Request[RequestBody, Params]
 // @StatusCode 201
 //
 // description for the handler
-// @Error 409 Resource already exists
+// @Error 409 Resource already exists.
 func TagsHandler(_ context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
 	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
@@ -109,7 +109,7 @@ func TagsHandler(_ context.Context, req *models.Request[RequestBody, Params]) (*
 }
 
 // DeprecatedHandler A dummy function to test the OpenAPI generation with deprecated tag.
-// @Deprecated
+// @Deprecated.
 func DeprecatedHandler(ctx context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error) {
 	return &models.Response[ResponseBody]{
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
@@ -135,6 +135,7 @@ func BasicAuthFunc(_ context.Context, username, password string) (*User, error) 
 	return &User{
 		ID:   1,
 		Name: "John Doe",
+		Role: "admin",
 	}, nil
 }
 
@@ -152,7 +153,7 @@ var BasicAuthAuthenticationHandler = auth.BasicAuth[*User](
 //
 // description for the handler
 //
-// @Error 409 Resource already exists
+// @Error 409 Resource already exists.
 func BasicAuthHandler(_ context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
 	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,
@@ -160,7 +161,7 @@ func BasicAuthHandler(_ context.Context, req *models.Request[models.NoBody, mode
 }
 
 // ApiKeyAuthFunc A dummy function to test the OpenAPI generation with api key auth.
-// @APIKeyAuth "User" "sessionid" "cookie" "Session cookie"
+// @APIKeyAuth "User" "sessionid" "cookie" "Session cookie".
 func ApiKeyAuthFunc(_ context.Context, apiKey string) (*User, error) {
 	if apiKey != "valid-key" {
 		return nil, simbaErrors.NewSimbaError(
@@ -173,6 +174,7 @@ func ApiKeyAuthFunc(_ context.Context, apiKey string) (*User, error) {
 	return &User{
 		ID:   1,
 		Name: "John Doe",
+		Role: "admin",
 	}, nil
 }
 
@@ -192,7 +194,7 @@ var ApiKeyAuthAuthenticationHandler = auth.APIKeyAuth[*User](
 //
 // description for the handler
 //
-// @Error 409 Resource already exists
+// @Error 409 Resource already exists.
 func ApiKeyAuthHandler(_ context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
 	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,
@@ -200,7 +202,7 @@ func ApiKeyAuthHandler(_ context.Context, req *models.Request[models.NoBody, mod
 }
 
 // BearerAuthFunc A dummy function to test the OpenAPI generation with bearer token auth.
-// @BearerAuth "admin" "jwt" "Bearer token"
+// @BearerAuth "admin" "jwt" "Bearer token".
 func BearerAuthFunc(_ context.Context, token string) (*User, error) {
 	if token != "token" {
 		return nil, simbaErrors.NewSimbaError(
@@ -213,6 +215,7 @@ func BearerAuthFunc(_ context.Context, token string) (*User, error) {
 	return &User{
 		ID:   1,
 		Name: "John Doe",
+		Role: "admin",
 	}, nil
 }
 
@@ -231,7 +234,7 @@ var BearerAuthAuthenticationHandler = auth.BearerAuth[*User](
 //
 // description for the handler
 //
-// @Error  409 	Resource already exists
+// @Error  409 	Resource already exists.
 func BearerTokenAuthHandler(ctx context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
 	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,
@@ -250,6 +253,7 @@ func SessionCookieAuthFunc(_ context.Context, sessionID string) (*User, error) {
 	return &User{
 		ID:   1,
 		Name: "John Doe",
+		Role: "admin",
 	}, nil
 }
 
@@ -268,7 +272,7 @@ var SessionCookieAuthAuthenticationHandler = auth.SessionCookieAuth[*User](
 //
 // description for the handler
 //
-// @Error 409 Resource already exists
+// @Error 409 Resource already exists.
 func SessionCookieAuthHandler(_ context.Context, req *models.Request[models.NoBody, models.NoParams], auth *User) (*models.Response[models.NoBody], error) {
 	return &models.Response[models.NoBody]{
 		Status: http.StatusAccepted,

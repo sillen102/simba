@@ -33,7 +33,7 @@ type BasicAuthConfig struct {
 // It should return the user model if the username and password are valid, otherwise it should return an error.
 type BasicAuthHandlerFunc[AuthModel any] func(ctx context.Context, username, password string) (AuthModel, error)
 
-// BasicAuth creates a basic auth handler with configuration
+// BasicAuth creates a basic auth handler with configuration.
 func BasicAuth[AuthModel any](
 	handler BasicAuthHandlerFunc[AuthModel],
 	config BasicAuthConfig,
@@ -134,7 +134,7 @@ type APIKeyAuthConfig struct {
 // It should return the user model if the API key is valid, otherwise it should return an error.
 type APIKeyAuthHandlerFunc[AuthModel any] func(ctx context.Context, apiKey string) (AuthModel, error)
 
-// APIKeyAuth creates an API key auth handler with configuration
+// APIKeyAuth creates an API key auth handler with configuration.
 func APIKeyAuth[AuthModel any](
 	handler APIKeyAuthHandlerFunc[AuthModel],
 	config APIKeyAuthConfig,
@@ -208,7 +208,7 @@ type BearerAuthConfig struct {
 // if the token is valid, otherwise it should return an error.
 type BearerAuthHandlerFunc[AuthModel any] func(ctx context.Context, token string) (AuthModel, error)
 
-// BearerAuth creates a bearer auth handler with configuration
+// BearerAuth creates a bearer auth handler with configuration.
 func BearerAuth[AuthModel any](
 	handler BearerAuthHandlerFunc[AuthModel],
 	config BearerAuthConfig,
@@ -296,7 +296,7 @@ type SessionCookieAuthConfig[AuthModel any] struct {
 // It should return the user model if the API key is valid, otherwise it should return an error.
 type SessionCookieAuthHandlerFunc[AuthModel any] func(ctx context.Context, cookie string) (AuthModel, error)
 
-// SessionCookieAuth creates a session cookie auth handler with configuration
+// SessionCookieAuth creates a session cookie auth handler with configuration.
 func SessionCookieAuth[AuthModel any](
 	handler SessionCookieAuthHandlerFunc[AuthModel],
 	config SessionCookieAuthConfig[AuthModel],

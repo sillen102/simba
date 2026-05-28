@@ -10,10 +10,10 @@ import (
 	"github.com/sillen102/simba/simbaErrors"
 )
 
-// JsonHandlerFunc is a function type for handling routes with Request body and params
+// JsonHandlerFunc is a function type for handling routes with Request body and params.
 type JsonHandlerFunc[RequestBody, Params, ResponseBody any] func(ctx context.Context, req *models.Request[RequestBody, Params]) (*models.Response[ResponseBody], error)
 
-// AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params
+// AuthenticatedJsonHandlerFunc is a function type for handling authenticated routes with Request body and params.
 type AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody any] struct {
 	handler     func(ctx context.Context, req *models.Request[RequestBody, Params], authModel AuthModel) (*models.Response[ResponseBody], error)
 	authHandler auth.Handler[AuthModel]
@@ -65,7 +65,7 @@ func JsonHandler[RequestBody, Params, ResponseBody any](h JsonHandlerFunc[Reques
 	return h
 }
 
-// ServeHTTP implements the http.Handler interface for JsonHandlerFunc
+// ServeHTTP implements the http.Handler interface for JsonHandlerFunc.
 func (h JsonHandlerFunc[RequestBody, Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -184,7 +184,7 @@ func AuthJsonHandler[RequestBody, Params, AuthModel, ResponseBody any](
 	}
 }
 
-// ServeHTTP implements the http.Handler interface for AuthenticatedJsonHandlerFunc
+// ServeHTTP implements the http.Handler interface for AuthenticatedJsonHandlerFunc.
 func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -255,7 +255,7 @@ func (h AuthenticatedJsonHandlerFunc[RequestBody, Params, AuthModel, ResponseBod
 	return h.authHandler
 }
 
-// handleJsonRequest handles extracting body and params from the Request
+// handleJsonRequest handles extracting body and params from the Request.
 func handleJsonRequest[RequestBody any, Params any](r *http.Request) (*models.Request[RequestBody, Params], error) {
 	params, err := ParseAndValidateParams[Params](r)
 	if err != nil {

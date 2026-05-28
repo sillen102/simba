@@ -15,7 +15,7 @@ import (
 //  3. Response compression
 //  4. Response specific test cases (such as 204 when body is nil and status is 0)
 
-// writeResponse writes the response to the client
+// writeResponse writes the response to the client.
 func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, resp *models.Response[ResponseBody], err error) {
 	logger := logging.From(r.Context())
 
@@ -47,12 +47,13 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 	}
 
 	var status int
-	if resp.Status != 0 {
+	switch {
+	case resp.Status != 0:
 		status = resp.Status
-	} else if any(resp.Body) == (models.NoBody{}) {
-		status = http.StatusNoContent // 204 No Content for NoBody responses
-	} else {
-		status = http.StatusOK // Default to 200 OK if not specified
+	case any(resp.Body) == (models.NoBody{}):
+		status = http.StatusNoContent
+	default:
+		status = http.StatusOK
 	}
 
 	// Return early for No Content responses without a body
@@ -69,7 +70,7 @@ func writeResponse[ResponseBody any](w http.ResponseWriter, r *http.Request, res
 	}
 }
 
-// writeJSON is a helper function for writing JSON responses
+// writeJSON is a helper function for writing JSON responses.
 func writeJSON(w http.ResponseWriter, status int, v any) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

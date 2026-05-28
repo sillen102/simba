@@ -5,7 +5,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 )
 
-// newResource creates an OTEL resource with service metadata
+// newResource creates an OTEL resource with service metadata.
 func newResource(serviceName, serviceVersion, environment string) (*resource.Resource, error) {
 	return resource.Merge(
 		resource.Default(),

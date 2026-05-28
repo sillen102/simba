@@ -9,7 +9,7 @@ import (
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
-// GetReflector creates a new OpenAPI reflector with custom options
+// GetReflector creates a new OpenAPI reflector with custom options.
 func GetReflector() (*openapi31.Reflector, error) {
 	r := openapi31.NewReflector()
 	r.DefaultOptions = append(r.DefaultOptions, jsonschema.InterceptProp(func(params jsonschema.InterceptPropParams) error {
@@ -67,16 +67,14 @@ func setMinProperty(params jsonschema.InterceptPropParams, v string) error {
 			params.PropertySchema.MinItems = val
 			return nil
 		}
-	} else if params.PropertySchema.Type != nil && len(params.PropertySchema.Type.SliceOfSimpleTypeValues) > 0 {
-		switch params.PropertySchema.Type.SliceOfSimpleTypeValues[0] {
-		case jsonschema.Array:
-			val, err := getInt64PropertyValue(v, propertyName)
-			if err != nil {
-				return err
-			}
-			params.PropertySchema.MinItems = val
-			return nil
+	} else if params.PropertySchema.Type != nil && len(params.PropertySchema.Type.SliceOfSimpleTypeValues) > 0 &&
+		params.PropertySchema.Type.SliceOfSimpleTypeValues[0] == jsonschema.Array {
+		val, err := getInt64PropertyValue(v, propertyName)
+		if err != nil {
+			return err
 		}
+		params.PropertySchema.MinItems = val
+		return nil
 	}
 
 	val, err := getFloatPropertyValue(v, propertyName)
@@ -109,16 +107,14 @@ func setMaxProperty(params jsonschema.InterceptPropParams, v string) error {
 			params.PropertySchema.MaxItems = &val
 			return nil
 		}
-	} else if params.PropertySchema.Type != nil && len(params.PropertySchema.Type.SliceOfSimpleTypeValues) > 0 {
-		switch params.PropertySchema.Type.SliceOfSimpleTypeValues[0] {
-		case jsonschema.Array:
-			val, err := getInt64PropertyValue(v, propertyName)
-			if err != nil {
-				return err
-			}
-			params.PropertySchema.MaxItems = &val
-			return nil
+	} else if params.PropertySchema.Type != nil && len(params.PropertySchema.Type.SliceOfSimpleTypeValues) > 0 &&
+		params.PropertySchema.Type.SliceOfSimpleTypeValues[0] == jsonschema.Array {
+		val, err := getInt64PropertyValue(v, propertyName)
+		if err != nil {
+			return err
 		}
+		params.PropertySchema.MaxItems = &val
+		return nil
 	}
 
 	val, err := getFloatPropertyValue(v, propertyName)

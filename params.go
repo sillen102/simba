@@ -87,7 +87,7 @@ func ParseAndValidateParams[Params any](r *http.Request) (Params, error) {
 	return instance, nil
 }
 
-// parseEmbeddedParams processes embedded struct fields recursively
+// parseEmbeddedParams processes embedded struct fields recursively.
 func parseEmbeddedParams(r *http.Request, embeddedInstance any) error {
 	t := reflect.TypeOf(embeddedInstance).Elem()
 	v := reflect.ValueOf(embeddedInstance).Elem()
@@ -130,7 +130,7 @@ func parseEmbeddedParams(r *http.Request, embeddedInstance any) error {
 	return nil
 }
 
-// getParamValues returns the parameter value based on the struct tag
+// getParamValues returns the parameter value based on the struct tag.
 func getParamValues(r *http.Request, field reflect.StructField) []string {
 	switch {
 	case field.Tag.Get("header") != "":
@@ -159,7 +159,7 @@ func getParamValues(r *http.Request, field reflect.StructField) []string {
 	return nil
 }
 
-// getFieldName returns the parameter name from struct tags
+// getFieldName returns the parameter name from struct tags.
 func getFieldName(field reflect.StructField) string {
 	if header := field.Tag.Get("header"); header != "" {
 		return header
@@ -206,7 +206,7 @@ func setFieldValue(fieldValue reflect.Value, values []string, field reflect.Stru
 	}
 }
 
-// setSingleValue converts and sets a string value to the appropriate field type
+// setSingleValue converts and sets a string value to the appropriate field type.
 func setSingleValue(fieldValue reflect.Value, value string, field reflect.StructField) *validation.ValidationError {
 	if value == "" {
 		return nil
@@ -305,7 +305,7 @@ func setSingleValue(fieldValue reflect.Value, value string, field reflect.Struct
 	return nil
 }
 
-// setDefaultValue sets the default value from struct tag if available
+// setDefaultValue sets the default value from struct tag if available.
 func setDefaultValue(fieldValue reflect.Value, field reflect.StructField) *validation.ValidationError {
 	if fieldValue.Kind() == reflect.Pointer {
 		if defaultValue := field.Tag.Get("default"); defaultValue != "" {

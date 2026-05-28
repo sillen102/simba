@@ -16,7 +16,7 @@ linters:
 linters-settings:
   exhaustruct:
     include:
-      - 'github.com/sillen102/simba/telemetry/.*'
+      - 'github.com/sillen102/simba/websocket/.*'
   govet:
     enable:
       - printf

@@ -1,6 +1,6 @@
 package openapiModels
 
-// RouteInfo stores type information about a route
+// RouteInfo stores type information about a route.
 type RouteInfo struct {
 	Method      string
 	Path        string

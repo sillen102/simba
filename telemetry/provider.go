@@ -14,14 +14,14 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Provider manages OpenTelemetry tracer and meter providers
+// Provider manages OpenTelemetry tracer and meter providers.
 type Provider struct {
-	tracerProvider *sdktrace.TracerProvider
-	meterProvider  *sdkmetric.MeterProvider
+	tracerProvider *sdktrace.TracerProvider `exhaustruct:"optional"`
+	meterProvider  *sdkmetric.MeterProvider `exhaustruct:"optional"`
 	settings       *config.TelemetryConfig
 }
 
-// NewProvider creates and initializes a new telemetry provider
+// NewProvider creates and initializes a new telemetry provider.
 func NewProvider(ctx context.Context, cfg *config.TelemetryConfig) (*Provider, error) {
 	serviceName := cfg.ServiceName
 	serviceVersion := cfg.ServiceVersion
@@ -34,7 +34,9 @@ func NewProvider(ctx context.Context, cfg *config.TelemetryConfig) (*Provider, e
 	}
 
 	provider := &Provider{
-		settings: cfg,
+		tracerProvider: nil,
+		meterProvider:  nil,
+		settings:       cfg,
 	}
 
 	// Initialize tracer provider if tracing is enabled
@@ -84,7 +86,7 @@ func NewProvider(ctx context.Context, cfg *config.TelemetryConfig) (*Provider, e
 	return provider, nil
 }
 
-// Shutdown gracefully shuts down the telemetry provider
+// Shutdown gracefully shuts down the telemetry provider.
 func (p *Provider) Shutdown(ctx context.Context) error {
 	var err error
 
@@ -107,7 +109,7 @@ func (p *Provider) Shutdown(ctx context.Context) error {
 	return err
 }
 
-// TracerProvider returns the underlying tracer provider
+// TracerProvider returns the underlying tracer provider.
 func (p *Provider) TracerProvider() trace.TracerProvider {
 	if p.tracerProvider == nil {
 		return otel.GetTracerProvider()
@@ -115,7 +117,7 @@ func (p *Provider) TracerProvider() trace.TracerProvider {
 	return p.tracerProvider
 }
 
-// MeterProvider returns the underlying meter provider
+// MeterProvider returns the underlying meter provider.
 func (p *Provider) MeterProvider() metric.MeterProvider {
 	if p.meterProvider == nil {
 		return otel.GetMeterProvider()
@@ -123,7 +125,7 @@ func (p *Provider) MeterProvider() metric.MeterProvider {
 	return p.meterProvider
 }
 
-// Tracer returns a tracer with the given name
+// Tracer returns a tracer with the given name.
 func (p *Provider) Tracer(name string) trace.Tracer {
 	if p.tracerProvider == nil {
 		return otel.Tracer(name)
@@ -131,7 +133,7 @@ func (p *Provider) Tracer(name string) trace.Tracer {
 	return p.tracerProvider.Tracer(name)
 }
 
-// Meter returns a meter with the given name
+// Meter returns a meter with the given name.
 func (p *Provider) Meter(name string) metric.Meter {
 	if p.meterProvider == nil {
 		return otel.Meter(name)

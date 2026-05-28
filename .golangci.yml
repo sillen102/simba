@@ -4,4 +4,24 @@ run:
   tests: false
 linters:
   enable:
+    - exhaustruct
+    - gocritic
+    - godot
+    - govet
+    - noctx
+    - predeclared
+    - reassign
     - staticcheck
+    - unused
+  settings:
+    exhaustruct:
+      include:
+        - 'github\.com/sillen102/simba/.*'
+      exclude:
+        - '.*/openapi31\..*'
+        - '.*/http\.Server'
+        - '.*/configloader\..*'
+    govet:
+      enable:
+        - printf
+        - shadow

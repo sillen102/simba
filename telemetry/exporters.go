@@ -16,7 +16,7 @@ import (
 	"github.com/sillen102/simba/telemetry/config"
 )
 
-// newTraceExporter creates a trace exporter based on configuration
+// newTraceExporter creates a trace exporter based on configuration.
 func newTraceExporter(ctx context.Context, cfg *config.TracingConfig) (sdktrace.SpanExporter, error) {
 	switch cfg.Exporter {
 	case "otlp":
@@ -40,7 +40,7 @@ func newTraceExporter(ctx context.Context, cfg *config.TracingConfig) (sdktrace.
 	}
 }
 
-// newMetricExporter creates a metric exporter based on configuration
+// newMetricExporter creates a metric exporter based on configuration.
 func newMetricExporter(ctx context.Context, cfg *config.MetricsConfig) (sdkmetric.Exporter, error) {
 	switch cfg.Exporter {
 	case "otlp":

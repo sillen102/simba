@@ -73,7 +73,7 @@ func ContainsOnlyInAnyOrder[T any](t interface {
 	return true
 }
 
-// Contains checks if an item is present in a collection, or if a collection contains another collection
+// Contains checks if an item is present in a collection, or if a collection contains another collection.
 func Contains(t interface {
 	Errorf(format string, args ...any)
 	Helper()
@@ -447,7 +447,7 @@ func NotEmpty(t interface {
 	return false
 }
 
-// formatSliceFailureMessage creates a descriptive failure message for unequal slices
+// formatSliceFailureMessage creates a descriptive failure message for unequal slices.
 func formatSliceFailureMessage(reason string, expected, actual any, msgAndArgs ...any) string {
 	var msg string
 	if len(msgAndArgs) > 0 {
@@ -467,7 +467,7 @@ func formatSliceFailureMessage(reason string, expected, actual any, msgAndArgs .
 		actual)
 }
 
-// formatEmptyMessage creates a descriptive message for empty values
+// formatEmptyMessage creates a descriptive message for empty values.
 func formatEmptyMessage(valueDesc string, msgAndArgs ...any) string {
 	var msg string
 	if len(msgAndArgs) > 0 {
