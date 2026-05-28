@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "go-concurrency": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "skillPath": "skills/go-concurrency/SKILL.md",
+      "computedHash": "7896d0efa211420f1df369ff4a1247ccfc7bfd60136dbaf53715ab4221d9cb1e"
+    },
+    "go-expert": {
+      "source": "personamanagmentlayer/pcl",
+      "sourceType": "github",
+      "skillPath": "stdlib/languages/go-expert/SKILL.md",
+      "computedHash": "c9f72c35d88b1610f9d7b3a5ee804d8ed3f07ced98f272f9fdf917d37825e80c"
+    },
+    "golang-dependency-management": {
+      "source": "samber/cc-skills-golang",
+      "sourceType": "github",
+      "skillPath": "skills/golang-dependency-management/SKILL.md",
+      "computedHash": "acd14b03e195c81cc7096692dbda76e862cd9a2fa5dc67658e3ec2ff869c0c78"
+    }
+  }
+}
