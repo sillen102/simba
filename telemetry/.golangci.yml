@@ -4,8 +4,10 @@ run:
   tests: false
 linters:
   enable:
-    - exhaustruct
+    - bodyclose
     - exhaustive
+    - exhaustruct
+    - errcheck
     - errorlint
     - gocritic
     - godot
@@ -16,6 +18,8 @@ linters:
     - staticcheck
     - unused
 linters-settings:
+  exhaustive:
+    default-signifies-exhaustive: true
   exhaustruct:
     include:
       - 'github.com/sillen102/simba/telemetry/.*'
