@@ -5,6 +5,7 @@ go = "1.26"
 golangci-lint = "2"
 gotestsum = "1"
 "go:go.uber.org/nilaway/cmd/nilaway" = "latest"
+git-cliff = "latest"
 
 [env]
 MISE_EXPERIMENTAL = "1"
