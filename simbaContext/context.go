@@ -10,7 +10,7 @@ import (
 type ContextCopier struct {
 	src     context.Context
 	dst     context.Context
-	timeout *time.Duration
+	timeout *time.Duration `exhaustruct:"optional"`
 }
 
 // NewContextCopier creates a new context copier starting with a background context.

@@ -1,0 +1,102 @@
+services:
+  # Simba application with telemetry
+  app:
+    build:
+      context: ../../
+      dockerfile: examples/telemetry/Dockerfile
+    ports:
+      - "9999:9999"
+    environment:
+      - SIMBA_TELEMETRY_ENABLED=true
+      - SIMBA_TELEMETRY_TRACING_ENDPOINT=otel-collector:4317
+      - SIMBA_TELEMETRY_METRICS_ENDPOINT=otel-collector:4317
+      - SIMBA_TELEMETRY_TRACING_INSECURE=true
+      - SIMBA_TELEMETRY_METRICS_INSECURE=true
+      - SIMBA_TELEMETRY_ENVIRONMENT=demo
+    depends_on:
+      - otel-collector
+    networks:
+      - simba
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "8889:8889" # Prometheus metrics exporter
+    depends_on:
+      - jaeger
+    networks:
+      - simba
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "14250:14250" # gRPC receiver
+    networks:
+      - simba
+
+  # Prometheus for metrics storage
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    volumes:
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - simba
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - simba
+
+networks:
+  simba:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+configs:
+  prometheus_config:
+    content: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+
+      scrape_configs:
+        - job_name: 'otel-collector'
+          static_configs:
+            - targets: ['otel-collector:8889']

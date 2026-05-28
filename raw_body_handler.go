@@ -5,18 +5,19 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/sillen102/simba/auth"
 	"github.com/sillen102/simba/mimetypes"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 )
 
-// RawBodyHandlerFunc is a function type for handling routes with Request body and params
-type RawBodyHandlerFunc[Params, ResponseBody any] func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, Params]) (*simbaModels.Response[ResponseBody], error)
+// RawBodyHandlerFunc is a function type for handling routes with Request body and params.
+type RawBodyHandlerFunc[Params, ResponseBody any] func(ctx context.Context, req *models.Request[io.ReadCloser, Params]) (*models.Response[ResponseBody], error)
 
-// AuthenticatedRawBodyHandlerFunc is a function type for handling authenticated routes with Request body and params
+// AuthenticatedRawBodyHandlerFunc is a function type for handling authenticated routes with Request body and params.
 type AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody any] struct {
-	handler     func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error)
-	authHandler AuthHandler[AuthModel]
+	handler     func(ctx context.Context, req *models.Request[io.ReadCloser, Params], authModel AuthModel) (*models.Response[ResponseBody], error)
+	authHandler auth.Handler[AuthModel]
 }
 
 // RawBodyHandler handles a Request with the Request body and params.
@@ -28,7 +29,7 @@ func RawBodyHandler[Params, ResponseBody any](h RawBodyHandlerFunc[Params, Respo
 	return h
 }
 
-// ServeHTTP implements the http.Handler interface for RawBodyHandlerFunc
+// ServeHTTP implements the http.Handler interface for RawBodyHandlerFunc.
 func (h RawBodyHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -47,38 +48,38 @@ func (h RawBodyHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWrite
 	writeResponse(w, r, resp, nil)
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getRequestBody() any {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetRequestBody() any {
 	var rb []byte
 	return rb
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getResponseBody() any {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getParams() any {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getAccepts() string {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetAccepts() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getProduces() string {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getHandler() any {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetHandler() any {
 	return h
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getAuthModel() any {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetAuthModel() any {
 	return nil
 }
 
-func (h RawBodyHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
+func (h RawBodyHandlerFunc[Params, ResponseBody]) GetAuthHandler() any {
 	return nil
 }
 
@@ -88,8 +89,8 @@ func (h RawBodyHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
 //
 //	Mux.POST("/test/{id}", simba.AuthRawBodyHandler(handler))
 func AuthRawBodyHandler[Params, AuthModel, ResponseBody any](
-	handler func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error),
-	authHandler AuthHandler[AuthModel],
+	handler func(ctx context.Context, req *models.Request[io.ReadCloser, Params], authModel AuthModel) (*models.Response[ResponseBody], error),
+	authHandler auth.Handler[AuthModel],
 ) Handler {
 	return AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]{
 		handler:     handler,
@@ -97,11 +98,11 @@ func AuthRawBodyHandler[Params, AuthModel, ResponseBody any](
 	}
 }
 
-// ServeHTTP implements the http.Handler interface for AuthenticatedRawBodyHandlerFunc
+// ServeHTTP implements the http.Handler interface for AuthenticatedRawBodyHandlerFunc.
 func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
+	authModel, err := auth.HandleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		statusCode := http.StatusUnauthorized // Default status code for unauthorized access
 		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
@@ -132,50 +133,50 @@ func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) ServeH
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getRequestBody() any {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetRequestBody() any {
 	var rb []byte
 	return rb
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getParams() any {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getResponseBody() any {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getAccepts() string {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetAccepts() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getProduces() string {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getHandler() any {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetHandler() any {
 	return h.handler
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getAuthModel() any {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) getAuthHandler() any {
+func (h AuthenticatedRawBodyHandlerFunc[Params, AuthModel, ResponseBody]) GetAuthHandler() any {
 	return h.authHandler
 }
 
-// handleRequest handles extracting body and params from the Request
-func handleRawRequest[Params any](r *http.Request) (*simbaModels.Request[io.ReadCloser, Params], error) {
-	params, err := parseAndValidateParams[Params](r)
+// handleRequest handles extracting body and params from the Request.
+func handleRawRequest[Params any](r *http.Request) (*models.Request[io.ReadCloser, Params], error) {
+	params, err := ParseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
 	}
 
-	return &simbaModels.Request[io.ReadCloser, Params]{
+	return &models.Request[io.ReadCloser, Params]{
 		Body:   r.Body,
 		Params: params,
 	}, nil

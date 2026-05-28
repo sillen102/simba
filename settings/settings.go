@@ -4,15 +4,16 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/sillen102/config-loader"
-	"github.com/sillen102/simba/simbaModels"
+	configloader "github.com/sillen102/config-loader"
+
+	"github.com/sillen102/simba/models"
 )
 
-// Simba is a struct that holds the application settings
+// Simba is a struct that holds the application settings.
 type Simba struct {
 
 	// Application settings
-	Application `yaml:"application"`
+	Application `yaml:"application" exhaustruct:"optional"`
 
 	// Server settings
 	Server `yaml:"server"`
@@ -22,6 +23,9 @@ type Simba struct {
 
 	// Docs settings
 	Docs `yaml:"docs"`
+
+	// Telemetry settings
+	Telemetry `yaml:"telemetry" exhaustruct:"optional"`
 
 	// Logger settings
 	Logger *slog.Logger `yaml:"-" env:"-"`
@@ -34,7 +38,7 @@ type Application struct {
 	Version string `yaml:"version" env:"APPLICATION_VERSION" default:"0.1.0"`
 }
 
-// Server holds the Simba for the application server
+// Server holds the Simba for the application server.
 type Server struct {
 
 	// Host is the host the server will listen on
@@ -44,7 +48,7 @@ type Server struct {
 	Port int `yaml:"port" env:"SIMBA_SERVER_PORT" default:"9999"`
 }
 
-// Request holds the Simba for the Request processing
+// Request holds the Simba for the Request processing.
 type Request struct {
 
 	// AllowUnknownFields will set the behavior for unknown fields in the Request body,
@@ -57,7 +61,15 @@ type Request struct {
 	LogRequestBody bool `yaml:"log-request-body" env:"SIMBA_REQUEST_LOG_REQUEST_BODY" default:"false"`
 
 	// TraceIDMode determines how the Trace ID will be handled
-	TraceIDMode simbaModels.TraceIDMode `yaml:"trace-id-mode" env:"SIMBA_TRACE_ID_MODE" default:"AcceptFromHeader"`
+	TraceIDMode models.TraceIDMode `yaml:"trace-id-mode" env:"SIMBA_TRACE_ID_MODE" default:"AcceptFromHeader"`
+}
+
+func DefaultRequestSettings() Request {
+	return Request{
+		AllowUnknownFields: true,
+		LogRequestBody:     false,
+		TraceIDMode:        models.AcceptFromHeader,
+	}
 }
 
 type Docs struct {
@@ -78,87 +90,144 @@ type Docs struct {
 	ServiceName string
 }
 
+// Telemetry holds the settings for OpenTelemetry integration.
+type Telemetry struct {
+	// Enabled determines if telemetry is enabled (opt-in, default: false)
+	Enabled bool `yaml:"enabled" env:"SIMBA_TELEMETRY_ENABLED" default:"false"`
+
+	// Tracing configuration
+	Tracing TracingConfig `yaml:"tracing"`
+
+	// Metrics configuration
+	Metrics MetricsConfig `yaml:"metrics"`
+
+	// ServiceName is the name of the service for telemetry (defaults to Application.Name)
+	ServiceName string `yaml:"service-name" env:"SIMBA_TELEMETRY_SERVICE_NAME"`
+
+	// ServiceVersion is the version of the service for telemetry (defaults to Application.Version)
+	ServiceVersion string `yaml:"service-version" env:"SIMBA_TELEMETRY_SERVICE_VERSION"`
+
+	// Environment is the deployment environment (development, staging, production, etc.)
+	Environment string `yaml:"environment" env:"SIMBA_TELEMETRY_ENVIRONMENT" default:"development"`
+}
+
+// TracingConfig holds the configuration for distributed tracing.
+type TracingConfig struct {
+	// Enabled determines if tracing is enabled (default: true when telemetry is enabled)
+	Enabled bool `yaml:"enabled" env:"SIMBA_TELEMETRY_TRACING_ENABLED" default:"true"`
+
+	// Exporter is the type of exporter to use (otlp, stdout)
+	Exporter string `yaml:"exporter" env:"SIMBA_TELEMETRY_TRACING_EXPORTER" default:"otlp"`
+
+	// Endpoint is the endpoint for the trace exporter
+	Endpoint string `yaml:"endpoint" env:"SIMBA_TELEMETRY_TRACING_ENDPOINT" default:"localhost:4317"`
+
+	// Insecure determines if the connection should be insecure (default: true for local development)
+	Insecure bool `yaml:"insecure" env:"SIMBA_TELEMETRY_TRACING_INSECURE" default:"true"`
+
+	// SamplingRate is the sampling rate for traces (0.0 to 1.0, default: 1.0 = 100%)
+	SamplingRate float64 `yaml:"sampling-rate" env:"SIMBA_TELEMETRY_TRACING_SAMPLING_RATE" default:"1.0"`
+}
+
+// MetricsConfig holds the configuration for metrics collection.
+type MetricsConfig struct {
+	// Enabled determines if metrics collection is enabled (default: true when telemetry is enabled)
+	Enabled bool `yaml:"enabled" env:"SIMBA_TELEMETRY_METRICS_ENABLED" default:"true"`
+
+	// Exporter is the type of exporter to use (otlp, stdout)
+	Exporter string `yaml:"exporter" env:"SIMBA_TELEMETRY_METRICS_EXPORTER" default:"otlp"`
+
+	// Endpoint is the endpoint for the metrics exporter
+	Endpoint string `yaml:"endpoint" env:"SIMBA_TELEMETRY_METRICS_ENDPOINT" default:"localhost:4317"`
+
+	// Insecure determines if the connection should be insecure (default: true for local development)
+	Insecure bool `yaml:"insecure" env:"SIMBA_TELEMETRY_METRICS_INSECURE" default:"true"`
+
+	// ExportInterval is the interval in seconds for exporting metrics (default: 60 seconds)
+	ExportInterval int `yaml:"export-interval" env:"SIMBA_TELEMETRY_METRICS_EXPORT_INTERVAL" default:"60"`
+}
+
 // Option is a function that configures a Simba application settings struct.
 type Option func(*Simba)
 
-// WithApplicationName sets the application name
+// WithApplicationName sets the application name.
 func WithApplicationName(name string) Option {
 	return func(s *Simba) {
 		s.Name = name
 	}
 }
 
-// WithApplicationVersion sets the application version
+// WithApplicationVersion sets the application version.
 func WithApplicationVersion(version string) Option {
 	return func(s *Simba) {
 		s.Version = version
 	}
 }
 
-// WithServerPort sets the server port
+// WithServerPort sets the server port.
 func WithServerPort(port int) Option {
 	return func(s *Simba) {
 		s.Port = port
 	}
 }
 
-// WithServerHost sets the server host
+// WithServerHost sets the server host.
 func WithServerHost(host string) Option {
 	return func(s *Simba) {
 		s.Host = host
 	}
 }
 
-// WithAllowUnknownFields sets whether to allow unknown fields
+// WithAllowUnknownFields sets whether to allow unknown fields.
 func WithAllowUnknownFields(allow bool) Option {
 	return func(s *Simba) {
 		s.AllowUnknownFields = allow
 	}
 }
 
-// WithLogRequestBody sets whether to log request bodies
+// WithLogRequestBody sets whether to log request bodies.
 func WithLogRequestBody(log bool) Option {
 	return func(s *Simba) {
 		s.LogRequestBody = log
 	}
 }
 
-// WithTraceIDMode sets the trace ID mode
-func WithTraceIDMode(mode simbaModels.TraceIDMode) Option {
+// WithTraceIDMode sets the trace ID mode.
+func WithTraceIDMode(mode models.TraceIDMode) Option {
 	return func(s *Simba) {
 		s.TraceIDMode = mode
 	}
 }
 
-// WithGenerateOpenAPIDocs sets whether to generate OpenAPI docs
+// WithGenerateOpenAPIDocs sets whether to generate OpenAPI docs.
 func WithGenerateOpenAPIDocs(generate bool) Option {
 	return func(s *Simba) {
 		s.GenerateOpenAPIDocs = generate
 	}
 }
 
-// WithMountDocsUIEndpoint sets whether to mount the docs endpoint
+// WithMountDocsUIEndpoint sets whether to mount the docs endpoint.
 func WithMountDocsUIEndpoint(mount bool) Option {
 	return func(s *Simba) {
 		s.MountDocsUIEndpoint = mount
 	}
 }
 
-// WithOpenAPIFilePath sets the OpenAPI JSON file path
+// WithOpenAPIFilePath sets the OpenAPI JSON file path.
 func WithOpenAPIFilePath(path string) Option {
 	return func(s *Simba) {
 		s.OpenAPIFilePath = path
 	}
 }
 
-// WithDocsUIPath sets the docs UI path
+// WithDocsUIPath sets the docs UI path.
 func WithDocsUIPath(path string) Option {
 	return func(s *Simba) {
 		s.DocsUIPath = path
 	}
 }
 
-// WithLogger sets the logger
+// WithLogger sets the logger.
 func WithLogger(logger *slog.Logger) Option {
 	return func(s *Simba) {
 		if logger != nil {
@@ -167,59 +236,59 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithEnvGetter is a test-only option to mock environment variable retrieval
+// WithEnvGetter is a test-only option to mock environment variable retrieval.
 func WithEnvGetter(getter func(string) string) Option {
 	return func(s *Simba) {
 		s.envGetter = getter
 	}
 }
 
-// Load loads the application settings
+// Load loads the application settings.
 func Load(opts ...Option) (*Simba, error) {
-	// Initialize settings with defaults
-	settings := &Simba{
-		envGetter: os.Getenv, // Set default environment getter
-	}
+	work := new(Simba)
+	work.envGetter = os.Getenv
 
-	// Apply user options first
 	for _, opt := range opts {
-		opt(settings)
+		opt(work)
 	}
 
-	// Save logger reference before config loading potentially resets it
-	savedLogger := settings.Logger
+	savedLogger := work.Logger
 
-	// Load config from files and environment
 	err := configloader.NewLoader(&configloader.LoaderOpts{
-		EnvGetter: settings.envGetter,
-	}).Load(settings)
-
+		EnvGetter: work.envGetter,
+	}).Load(work)
 	if err != nil {
 		return nil, err
 	}
 
-	// Restore the logger if it was set via options
 	if savedLogger != nil {
-		settings.Logger = savedLogger
+		work.Logger = savedLogger
 	}
 
-	// Reapply options to override any config values
 	for _, opt := range opts {
-		opt(settings)
+		opt(work)
 	}
 
-	// Ensure we have a logger (only set default if no logger is configured)
-	if settings.Logger == nil {
-		settings.Logger = slog.Default()
+	logger := work.Logger
+	if logger == nil {
+		logger = slog.Default()
 	}
 
-	// Set the service name
-	settings.ServiceName = settings.Name
+	docs := work.Docs
+	docs.ServiceName = work.Name
 
-	return settings, nil
+	return &Simba{
+		Application: work.Application,
+		Server:      work.Server,
+		Request:     work.Request,
+		Docs:        docs,
+		Telemetry:   work.Telemetry,
+		Logger:      logger,
+		envGetter:   work.envGetter,
+	}, nil
 }
 
-// LoadWithOptions loads settings using the options pattern
+// LoadWithOptions loads settings using the options pattern.
 func LoadWithOptions(opts ...Option) (*Simba, error) {
 	return Load(opts...)
 }

@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sillen102/simba/middleware"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
 	"github.com/sillen102/simba/simbaContext"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
 
@@ -47,7 +47,7 @@ func TestTraceID(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set(simbaContext.TraceIDHeader, "test-trace-id")
 		req = req.WithContext(context.WithValue(req.Context(), simbaContext.RequestSettingsKey, &settings.Request{
-			TraceIDMode: simbaModels.AcceptFromHeader,
+			TraceIDMode: models.AcceptFromHeader,
 		}))
 		w := httptest.NewRecorder()
 
@@ -55,5 +55,22 @@ func TestTraceID(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "test-trace-id", w.Header().Get(simbaContext.TraceIDHeader))
+	})
+
+	t.Run("preserves trace ID already in context", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			traceID := r.Context().Value(simbaContext.TraceIDKey).(string)
+			assert.Equal(t, "otel-trace-id", traceID)
+			w.WriteHeader(http.StatusOK)
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req = req.WithContext(simbaContext.WithTraceID(req.Context(), "otel-trace-id"))
+		w := httptest.NewRecorder()
+
+		middleware.TraceID(handler).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "otel-trace-id", w.Header().Get(simbaContext.TraceIDHeader))
 	})
 }

@@ -103,4 +103,10 @@ fabric.properties
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-.claude
+# Node modules
+node_modules/
+
+# Cache directories for Go tools
+# Go build cache
+go-build-cache/
+.gocache/

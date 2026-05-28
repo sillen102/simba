@@ -7,18 +7,19 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/sillen102/simba/auth"
 	"github.com/sillen102/simba/mimetypes"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 )
 
-// MultipartHandlerFunc is a function type for handling routes with Request body and params
-type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *simbaModels.MultipartRequest[Params]) (*simbaModels.Response[ResponseBody], error)
+// MultipartHandlerFunc is a function type for handling routes with Request body and params.
+type MultipartHandlerFunc[Params any, ResponseBody any] func(ctx context.Context, req *models.MultipartRequest[Params]) (*models.Response[ResponseBody], error)
 
-// AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model
+// AuthenticatedMultipartHandlerFunc is a function type for handling a MultipartRequest with params and an authenticated model.
 type AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody any] struct {
-	handler     func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error)
-	authHandler AuthHandler[AuthModel]
+	handler     func(ctx context.Context, req *models.MultipartRequest[Params], authModel AuthModel) (*models.Response[ResponseBody], error)
+	authHandler auth.Handler[AuthModel]
 }
 
 // MultipartHandler handles a MultipartRequest with params.
@@ -63,7 +64,7 @@ func MultipartHandler[Params any, ResponseBody any](h MultipartHandlerFunc[Param
 	return h
 }
 
-// ServeHTTP implements the http.Handler interface for JsonHandlerFunc
+// ServeHTTP implements the http.Handler interface for JsonHandlerFunc.
 func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -82,38 +83,38 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) ServeHTTP(w http.ResponseWri
 	writeResponse(w, r, resp, nil)
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getRequestBody() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetRequestBody() any {
 	var file multipart.File
 	return &file
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getParams() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getResponseBody() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getAccepts() string {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetAccepts() string {
 	return mimetypes.MultipartForm
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getProduces() string {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getHandler() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetHandler() any {
 	return h
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthModel() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetAuthModel() any {
 	return nil
 }
 
-func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
+func (h MultipartHandlerFunc[Params, ResponseBody]) GetAuthHandler() any {
 	return nil
 }
 
@@ -169,8 +170,8 @@ func (h MultipartHandlerFunc[Params, ResponseBody]) getAuthHandler() any {
 //
 //	Mux.POST("/test/{id}", simba.AuthMultipartHandler(handler))
 func AuthMultipartHandler[Params, AuthModel, ResponseBody any](
-	handler func(ctx context.Context, req *simbaModels.MultipartRequest[Params], authModel AuthModel) (*simbaModels.Response[ResponseBody], error),
-	authHandler AuthHandler[AuthModel],
+	handler func(ctx context.Context, req *models.MultipartRequest[Params], authModel AuthModel) (*models.Response[ResponseBody], error),
+	authHandler auth.Handler[AuthModel],
 ) Handler {
 	return AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]{
 		handler:     handler,
@@ -181,7 +182,7 @@ func AuthMultipartHandler[Params, AuthModel, ResponseBody any](
 func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	authModel, err := handleAuthRequest[AuthModel](h.authHandler, r)
+	authModel, err := auth.HandleAuthRequest[AuthModel](h.authHandler, r)
 	if err != nil {
 		statusCode := http.StatusUnauthorized // Default status code for unauthorized access
 		if statusCoder, ok := err.(simbaErrors.StatusCodeProvider); ok {
@@ -212,59 +213,59 @@ func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) Serv
 	writeResponse(w, r, resp, nil)
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getRequestBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetRequestBody() any {
 	var file multipart.File
 	return &file
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getResponseBody() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetResponseBody() any {
 	var resb ResponseBody
 	return resb
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getParams() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetParams() any {
 	var p Params
 	return p
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAccepts() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetAccepts() string {
 	return mimetypes.MultipartForm
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getProduces() string {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetProduces() string {
 	return mimetypes.ApplicationJSON
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getHandler() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetHandler() any {
 	return h.handler
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthModel() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetAuthModel() any {
 	var am AuthModel
 	return am
 }
 
-func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) getAuthHandler() any {
+func (h AuthenticatedMultipartHandlerFunc[Params, AuthModel, ResponseBody]) GetAuthHandler() any {
 	return h.authHandler
 }
 
-// handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request
-func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.MultipartRequest[Params], error) {
+// handleMultipartRequest handles extracting the [multipart.Reader] and params from the MultiPart Request.
+func handleMultipartRequest[Params any](r *http.Request) (*models.MultipartRequest[Params], error) {
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" || !strings.HasPrefix(contentType, "multipart/form-data") {
 		return nil, simbaErrors.ErrInvalidContentType
 	}
 
-	reqParams, err := parseAndValidateParams[Params](r)
+	reqParams, err := ParseAndValidateParams[Params](r)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, params, err := mime.ParseMediaType(contentType); err != nil || params["boundary"] == "" {
+	if _, mediaParams, mediaErr := mime.ParseMediaType(contentType); mediaErr != nil || mediaParams["boundary"] == "" {
 		e := simbaErrors.ErrInvalidContentType
-		if err != nil {
-			e = e.WithDetails(err.Error())
+		if mediaErr != nil {
+			e = e.WithDetails(mediaErr.Error())
 		}
 		return nil, e
 	}
@@ -274,7 +275,7 @@ func handleMultipartRequest[Params any](r *http.Request) (*simbaModels.Multipart
 		return nil, simbaErrors.ErrInvalidRequest.WithDetails(err.Error())
 	}
 
-	return &simbaModels.MultipartRequest[Params]{
+	return &models.MultipartRequest[Params]{
 		Reader: multipartReader,
 		Params: reqParams,
 	}, nil

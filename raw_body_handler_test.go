@@ -10,9 +10,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/auth"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/simbaErrors"
-	"github.com/sillen102/simba/simbaModels"
 	"github.com/sillen102/simba/simbaTest"
 	"github.com/sillen102/simba/simbaTest/assert"
 )
@@ -23,14 +25,14 @@ func TestRawBodyHandler(t *testing.T) {
 	id := uuid.NewString()
 
 	t.Run("body and params", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, simbaTest.Params]) (*simbaModels.Response[map[string]string], error) {
+		handler := func(ctx context.Context, req *models.Request[io.ReadCloser, simbaTest.Params]) (*models.Response[map[string]string], error) {
 			bodyBytes, _ := io.ReadAll(req.Body)
 			assert.Equal(t, "John", string(bodyBytes))
 			assert.Equal(t, id, req.Params.ID.String())
 			assert.Equal(t, true, req.Params.Active)
 			assert.Equal(t, 0, req.Params.Page)
 			assert.Equal(t, int64(10), req.Params.Size)
-			return &simbaModels.Response[map[string]string]{
+			return &models.Response[map[string]string]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Body:    map[string]string{"message": "success"},
@@ -55,8 +57,8 @@ func TestRawBodyHandler(t *testing.T) {
 	})
 
 	t.Run("no body", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, simbaTest.Params]) (*simbaModels.Response[simbaModels.NoBody], error) {
-			return &simbaModels.Response[simbaModels.NoBody]{
+		handler := func(ctx context.Context, req *models.Request[io.ReadCloser, simbaTest.Params]) (*models.Response[models.NoBody], error) {
+			return &models.Response[models.NoBody]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Status:  http.StatusNoContent,
@@ -77,8 +79,8 @@ func TestRawBodyHandler(t *testing.T) {
 	})
 
 	t.Run("no params", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-			return &simbaModels.Response[simbaModels.NoBody]{
+		handler := func(ctx context.Context, req *models.Request[io.ReadCloser, models.NoParams]) (*models.Response[models.NoBody], error) {
+			return &models.Response[models.NoBody]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Status:  http.StatusNoContent,
@@ -111,18 +113,18 @@ func TestAuthenticatedRawBodyHandler(t *testing.T) {
 			Role: "admin",
 		}, nil
 	}
-	authHandler := simba.BearerAuthType[*simbaTest.User]{Handler: authFunc}
+	authHandler := auth.BearerAuthType[*simbaTest.User]{Handler: authFunc}
 
 	id := uuid.NewString()
 
 	t.Run("authenticated handler", func(t *testing.T) {
-		handler := func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, simbaTest.Params], user *simbaTest.User) (*simbaModels.Response[simbaModels.NoBody], error) {
+		handler := func(ctx context.Context, req *models.Request[io.ReadCloser, simbaTest.Params], user *simbaTest.User) (*models.Response[models.NoBody], error) {
 			assert.Equal(t, 1, user.ID)
 			assert.Equal(t, "John Doe", user.Name)
 			assert.Equal(t, "admin", user.Role)
 			bodyBytes, _ := io.ReadAll(req.Body)
 			assert.Equal(t, "John", string(bodyBytes))
-			return &simbaModels.Response[simbaModels.NoBody]{
+			return &models.Response[models.NoBody]{
 				Headers: map[string][]string{"My-Header": {"header-value"}},
 				Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 				Status:  http.StatusNoContent,
@@ -149,10 +151,10 @@ func TestAuthenticatedRawBodyHandler(t *testing.T) {
 		errorAuthFunc := func(ctx context.Context, token string) (*simbaTest.User, error) {
 			return nil, simbaErrors.NewSimbaError(http.StatusUnauthorized, "unauthorized", nil)
 		}
-		errorAuthHandler := simba.BearerAuthType[*simbaTest.User]{Handler: errorAuthFunc}
+		errorAuthHandler := auth.BearerAuthType[*simbaTest.User]{Handler: errorAuthFunc}
 
-		handler := func(ctx context.Context, req *simbaModels.Request[io.ReadCloser, simbaTest.Params], user *simbaTest.User) (*simbaModels.Response[simbaModels.NoBody], error) {
-			return &simbaModels.Response[simbaModels.NoBody]{}, nil
+		handler := func(ctx context.Context, req *models.Request[io.ReadCloser, simbaTest.Params], user *simbaTest.User) (*models.Response[models.NoBody], error) {
+			return &models.Response[models.NoBody]{}, nil
 		}
 
 		body := strings.NewReader("John")

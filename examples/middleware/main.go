@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/sillen102/simba"
+	"github.com/sillen102/simba/models"
 	"github.com/sillen102/simba/settings"
-	"github.com/sillen102/simba/simbaModels"
 )
 
 type ResponseBody struct {
@@ -20,8 +20,8 @@ type Params struct {
 }
 
 // handler is a simple handler that returns a message with the value of the X-Middleware header
-func handler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, Params]) (*simbaModels.Response[ResponseBody], error) {
-	return &simbaModels.Response[ResponseBody]{
+func handler(ctx context.Context, req *models.Request[models.NoBody, Params]) (*models.Response[ResponseBody], error) {
+	return &models.Response[ResponseBody]{
 		Body: ResponseBody{
 			Message: "Hello " + req.Params.MiddlewareHeader,
 		},

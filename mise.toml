@@ -1,0 +1,62 @@
+experimental_monorepo_root = true
+
+[tools]
+go = "1.26"
+golangci-lint = "2"
+gotestsum = "1"
+"go:go.uber.org/nilaway/cmd/nilaway" = "latest"
+
+[env]
+MISE_EXPERIMENTAL = "1"
+
+[monorepo]
+config_roots = [
+    "telemetry",
+    "websocket",
+]
+
+[tasks.test]
+depends = [
+    "//telemetry:test",
+    "//websocket:test",
+]
+run = "gotestsum --format=short-verbose"
+
+[tasks.test-race]
+description = "Run tests with race detector"
+depends = [
+    "//telemetry:test-race",
+    "//websocket:test-race",
+]
+run = "gotestsum --format=short-verbose -- -v -race ./..."
+
+[tasks.lint]
+description = "Run linters"
+depends = [
+    "//telemetry:lint",
+    "//websocket:lint",
+]
+run = [
+    "golangci-lint run --timeout 5m",
+    "nilaway -test=false ./..."
+]
+
+[tasks.verify]
+description = "Run all verification tasks such as test and lint"
+run = { tasks = ["test", "lint"] }
+
+[tasks.tidy]
+description = "Tidy up go.mod and go.sum"
+depends = [
+    "//telemetry:tidy",
+    "//websocket:tidy",
+]
+run = "go mod tidy"
+
+[tasks.update-deps]
+description = "Update dependencies"
+depends = [
+    "//telemetry:update-deps",
+    "//websocket:update-deps",
+]
+run = "go get -u ./..."

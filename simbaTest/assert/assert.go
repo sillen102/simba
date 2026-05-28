@@ -188,7 +188,7 @@ func Nil(t interface {
 
 	// Handle typed nil interfaces and slices
 	if (kind == reflect.Interface || kind == reflect.Slice || kind == reflect.Map ||
-		kind == reflect.Chan || kind == reflect.Func || kind == reflect.Ptr) && v.IsNil() {
+		kind == reflect.Chan || kind == reflect.Func || kind == reflect.Pointer) && v.IsNil() {
 		return true
 	}
 
@@ -212,7 +212,7 @@ func NotNil(t interface {
 }, value any, msgAndArgs ...any) bool {
 	t.Helper()
 
-	if value != nil && (reflect.ValueOf(value).Kind() != reflect.Ptr || !reflect.ValueOf(value).IsNil()) {
+	if value != nil && (reflect.ValueOf(value).Kind() != reflect.Pointer || !reflect.ValueOf(value).IsNil()) {
 		return true
 	}
 
@@ -227,7 +227,7 @@ func NotNil(t interface {
 	return false
 }
 
-// formatFailureMessage creates a descriptive failure message for unequal values
+// formatFailureMessage creates a descriptive failure message for unequal values.
 func formatFailureMessage(expected, actual any, msgAndArgs ...any) string {
 	var msg string
 	if len(msgAndArgs) > 0 {
@@ -246,7 +246,7 @@ func formatFailureMessage(expected, actual any, msgAndArgs ...any) string {
 		actual)
 }
 
-// formatMessage creates a formatted message from a format string and arguments
+// formatMessage creates a formatted message from a format string and arguments.
 func formatMessage(format string, args ...any) string {
 	if len(args) == 0 {
 		return format

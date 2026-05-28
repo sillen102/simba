@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/sillen102/simba"
-	"github.com/sillen102/simba/simbaModels"
+	"github.com/sillen102/simba/models"
 )
 
 type RequestBody struct {
@@ -20,7 +20,7 @@ type ResponseBody struct {
 	Message string `json:"message"`
 }
 
-func handler(ctx context.Context, req *simbaModels.Request[RequestBody, simbaModels.NoParams]) (*simbaModels.Response[ResponseBody], error) {
+func handler(ctx context.Context, req *models.Request[RequestBody, models.NoParams]) (*models.Response[ResponseBody], error) {
 
 	// Access the request body fields
 	// req.Body.Age
@@ -32,7 +32,7 @@ func handler(ctx context.Context, req *simbaModels.Request[RequestBody, simbaMod
 	// Access the request headers
 	// req.Headers
 
-	return &simbaModels.Response[ResponseBody]{
+	return &models.Response[ResponseBody]{
 		Headers: map[string][]string{"My-Header": {"header-value"}},
 		Cookies: []*http.Cookie{{Name: "My-Cookie", Value: "cookie-value"}},
 		Body: ResponseBody{
@@ -42,8 +42,8 @@ func handler(ctx context.Context, req *simbaModels.Request[RequestBody, simbaMod
 	}, nil
 }
 
-func noBodyHandler(ctx context.Context, req *simbaModels.Request[simbaModels.NoBody, simbaModels.NoParams]) (*simbaModels.Response[simbaModels.NoBody], error) {
-	return &simbaModels.Response[simbaModels.NoBody]{}, nil // Returns 204 since there is no body in the response
+func noBodyHandler(ctx context.Context, req *models.Request[models.NoBody, models.NoParams]) (*models.Response[models.NoBody], error) {
+	return &models.Response[models.NoBody]{}, nil // Returns 204 since there is no body in the response
 }
 
 func main() {
