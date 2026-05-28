@@ -24,21 +24,6 @@ trim = true
 [git]
 conventional_commits = true
 filter_unconventional = true
-split_commits = false
-commit_parsers = [
-  { message = "^feat", group = "Features" },
-  { message = "^fix", group = "Bug Fixes" },
-  { message = "^perf", group = "Performance" },
-  { message = "^refactor", group = "Refactor" },
-  { message = "^doc", group = "Documentation" },
-  { message = "^style", group = "Styling" },
-  { message = "^test", group = "Testing" },
-  { message = "^chore\\(release\\)", skip = true },
-  { message = "^chore", group = "Miscellaneous Tasks" },
-  { message = "^revert", group = "Reverts" },
-  { body = ".*security", group = "Security" },
-]
 filter_commits = true
 tag_pattern = "v[0-9].*"
-topo_order = false
 sort_commits = "oldest"

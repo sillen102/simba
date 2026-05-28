@@ -13,9 +13,12 @@ jobs:
   release:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      STABLE_PAT: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+      ANY_PAT: '^v[0-9]+\.[0-9]+\.[0-9]+(-dev\.[0-9]+)?$'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -27,12 +30,59 @@ jobs:
             | tar -xz -C /tmp
           sudo install "/tmp/git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl/git-cliff" /usr/local/bin/git-cliff
 
-      - name: Configure git user
+      - name: Compute next version
+        id: version
+        run: |
+          # Find most recent release tag (stable or dev) that is an ancestor of HEAD
+          LAST=$(git tag --sort=-creatordate --merged HEAD \
+            | grep -E "$ANY_PAT" | head -1 || true)
+          echo "Last release tag: ${LAST:-none}"
+
+          # Check for releasable commits (feat/fix/perf) since last release
+          COUNT=$(git log "${LAST:+${LAST}..}HEAD" --format="%s" \
+            | grep -cE "^(feat|fix|perf)(\([^)]+\))?!?:" || true)
+          if [ "${COUNT:-0}" -eq 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Compute the next stable semver from conventional commits
+          BASE=$(git-cliff --bumped-version --tag-pattern "$STABLE_PAT")
+
+          echo "Base version: ${BASE}"
+
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "next=${BASE}" >> "$GITHUB_OUTPUT"
+          else
+            # Find the highest existing dev number for this base and increment
+            MAX_N=$(git tag --list "${BASE}-dev.*" 2>/dev/null \
+              | grep -oE '[0-9]+$' | sort -n | tail -1 || true)
+            N=$(( ${MAX_N:-0} + 1 ))
+            echo "next=${BASE}-dev.${N}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate changelog
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          git-cliff --tag "${{ steps.version.outputs.next }}" \
+            --tag-pattern "$ANY_PAT" --unreleased --prepend CHANGELOG.md
+
+      - name: Commit, tag, and push
+        if: steps.version.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          VERSION="${{ steps.version.outputs.next }}"
+          git add CHANGELOG.md
+          git commit -m "chore(release): ${VERSION#v} [skip ci]"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          bash .github/scripts/tag-go-submodules.sh "${VERSION#v}"
+          git push origin "$GITHUB_REF_NAME" --follow-tags
 
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash .github/scripts/release.sh
+      - name: Create GitHub release
+        if: steps.version.outputs.skip != 'true' && github.ref == 'refs/heads/main'
+        run: |
+          NOTES=$(git-cliff --latest --strip all --tag-pattern "$STABLE_PAT")
+          gh release create "${{ steps.version.outputs.next }}" \
+            --title "${{ steps.version.outputs.next }}" \
+            --notes "$NOTES"
