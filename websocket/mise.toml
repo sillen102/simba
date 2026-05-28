@@ -8,7 +8,14 @@ run = "gotestsum --format=short-verbose -- -v -race ./..."
 
 [tasks.lint]
 description = "Run linters"
-run = "golangci-lint run --timeout 5m"
+run = [
+    "golangci-lint run --timeout 5m",
+    "nilaway -test=false ./..."
+]
+
+[tasks.verify]
+description = "Run all verification tasks such as test and lint"
+run = { tasks = ["test", "lint"] }
 
 [tasks.tidy]
 description = "Run go mod tidy"

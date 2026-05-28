@@ -9,6 +9,9 @@ import (
 	"github.com/swaggest/openapi-go/openapi31"
 )
 
+const MIN = "min"
+const MAX = "max"
+
 // GetReflector creates a new OpenAPI reflector with custom options.
 func GetReflector() (*openapi31.Reflector, error) {
 	r := openapi31.NewReflector()
@@ -22,14 +25,14 @@ func GetReflector() (*openapi31.Reflector, error) {
 				setIsRequired(params)
 			}
 
-			if strings.Contains(v, "min") {
+			if strings.Contains(v, MIN) {
 				err := setMinProperty(params, v)
 				if err != nil {
 					return err
 				}
 			}
 
-			if strings.Contains(v, "max") {
+			if strings.Contains(v, MAX) {
 				err := setMaxProperty(params, v)
 				if err != nil {
 					return err
@@ -47,27 +50,25 @@ func setIsRequired(params jsonschema.InterceptPropParams) {
 }
 
 func setMinProperty(params jsonschema.InterceptPropParams, v string) error {
-	propertyName := "min"
-
 	switch {
 	case hasSimpleType(params):
 		switch *params.PropertySchema.Type.SimpleTypes {
 		case jsonschema.String:
-			val, err := parseTagInt(v, propertyName)
+			val, err := parseTagInt(v, MIN)
 			if err != nil {
 				return err
 			}
 			params.PropertySchema.MinLength = val
 			return nil
 		case jsonschema.Array:
-			val, err := parseTagInt(v, propertyName)
+			val, err := parseTagInt(v, MIN)
 			if err != nil {
 				return err
 			}
 			params.PropertySchema.MinItems = val
 			return nil
 		case jsonschema.Number, jsonschema.Integer:
-			val, err := parseTagFloat(v, propertyName)
+			val, err := parseTagFloat(v, MIN)
 			if err != nil {
 				return err
 			}
@@ -77,14 +78,14 @@ func setMinProperty(params jsonschema.InterceptPropParams, v string) error {
 			return nil
 		}
 	case isSliceArrayType(params):
-		val, err := parseTagInt(v, propertyName)
+		val, err := parseTagInt(v, MIN)
 		if err != nil {
 			return err
 		}
 		params.PropertySchema.MinItems = val
 		return nil
 	default:
-		val, err := parseTagFloat(v, propertyName)
+		val, err := parseTagFloat(v, MIN)
 		if err != nil {
 			return err
 		}
@@ -96,27 +97,25 @@ func setMinProperty(params jsonschema.InterceptPropParams, v string) error {
 }
 
 func setMaxProperty(params jsonschema.InterceptPropParams, v string) error {
-	propertyName := "max"
-
 	switch {
 	case params.PropertySchema.Type != nil && params.PropertySchema.Type.SimpleTypes != nil:
 		switch *params.PropertySchema.Type.SimpleTypes {
 		case jsonschema.String:
-			val, err := parseTagInt(v, propertyName)
+			val, err := parseTagInt(v, MAX)
 			if err != nil {
 				return err
 			}
 			params.PropertySchema.MaxLength = &val
 			return nil
 		case jsonschema.Array:
-			val, err := parseTagInt(v, propertyName)
+			val, err := parseTagInt(v, MAX)
 			if err != nil {
 				return err
 			}
 			params.PropertySchema.MaxItems = &val
 			return nil
 		case jsonschema.Number, jsonschema.Integer:
-			val, err := parseTagFloat(v, propertyName)
+			val, err := parseTagFloat(v, MAX)
 			if err != nil {
 				return err
 			}
@@ -126,14 +125,14 @@ func setMaxProperty(params jsonschema.InterceptPropParams, v string) error {
 			return nil
 		}
 	case isSliceArrayType(params):
-		val, err := parseTagInt(v, propertyName)
+		val, err := parseTagInt(v, MAX)
 		if err != nil {
 			return err
 		}
 		params.PropertySchema.MaxItems = &val
 		return nil
 	default:
-		val, err := parseTagFloat(v, propertyName)
+		val, err := parseTagFloat(v, MAX)
 		if err != nil {
 			return err
 		}
