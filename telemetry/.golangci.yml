@@ -17,13 +17,13 @@ linters:
     - reassign
     - staticcheck
     - unused
-linters-settings:
-  exhaustive:
-    default-signifies-exhaustive: true
-  exhaustruct:
-    include:
-      - 'github.com/sillen102/simba/telemetry/.*'
-  govet:
-    enable:
-      - printf
-      - shadow
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    exhaustruct:
+      include:
+        - 'github.com/sillen102/simba/telemetry/.*'
+    govet:
+      enable:
+        - printf
+        - shadow
