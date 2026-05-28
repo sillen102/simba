@@ -33,7 +33,6 @@ jobs:
       - name: Compute next version
         id: version
         run: |
-          set -x
           # On main use only stable tags; on dev use any tag
           if [ "$GITHUB_REF_NAME" = "main" ]; then
             TAG_PAT="$STABLE_PAT"
