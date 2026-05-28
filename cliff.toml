@@ -1,0 +1,29 @@
+[changelog]
+header = ""
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}]\
+(https://github.com/sillen102/simba/compare/{{ previous.version | default(value="HEAD") }}...{{ version }}) \
+({{ timestamp | date(format="%Y-%m-%d") }})
+{% else %}\
+## [unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+
+{% for commit in commits %}\
+* {% if commit.scope %}**{{ commit.scope }}:** {% endif %}\
+{{ commit.message | upper_first }}\
+{% if commit.breaking %} (**breaking**){% endif %}\
+ ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/sillen102/simba/commit/{{ commit.id }}))
+{% endfor %}
+{% endfor %}\n
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+filter_commits = true
+tag_pattern = "v[0-9].*"
+sort_commits = "oldest"

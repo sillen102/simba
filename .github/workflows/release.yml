@@ -11,28 +11,65 @@ permissions:
 
 jobs:
   release:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      STABLE_PAT: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+      ANY_PAT: '^v[0-9]+\.[0-9]+\.[0-9]+(-dev\.[0-9]+)?$'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Configure git user
+      - name: Install git-cliff
+        env:
+          GIT_CLIFF_VERSION: "2.8.0"
         run: |
+          mkdir -p /tmp/gc
+          curl -sSfL "https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}/git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz -C /tmp/gc --strip-components=1
+          sudo install /tmp/gc/git-cliff /usr/local/bin/git-cliff
+
+      - name: Compute next version
+        id: version
+        run: |
+          LAST=$(git tag --sort=-creatordate --merged HEAD \
+            | grep -E "$ANY_PAT" | head -1 || true)
+          echo "Last release tag: ${LAST:-none}"
+
+          COUNT=$(git log "${LAST:+${LAST}..}HEAD" --format="%s" \
+            | grep -cE "^(feat|fix|perf)(\([^)]+\))?!?:" || true)
+          if [ "${COUNT:-0}" -eq 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BASE=$(git-cliff --bumped-version --tag-pattern "$STABLE_PAT")
+          echo "Base version: ${BASE}"
+
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "next=${BASE}" >> "$GITHUB_OUTPUT"
+          else
+            MAX_N=$(git tag --list "${BASE}-dev.*" 2>/dev/null \
+              | grep -oE '[0-9]+$' | sort -n | tail -1 || true)
+            N=$(( ${MAX_N:-0} + 1 ))
+            echo "next=${BASE}-dev.${N}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag and push
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+          bash .github/scripts/tag-go-submodules.sh "${VERSION#v}"
 
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release
+      - name: Create GitHub release
+        if: steps.version.outputs.skip != 'true' && github.ref == 'refs/heads/main'
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          NOTES=$(git-cliff --tag "$VERSION" --unreleased --strip all \
+            --tag-pattern "$STABLE_PAT")
+          gh release create "$VERSION" --title "$VERSION" --notes "$NOTES"
